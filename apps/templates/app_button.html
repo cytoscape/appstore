@@ -1,0 +1,76 @@
+{% load static %}
+{% load url from future %}
+
+<div class="app_button"
+  order_index="{{ order_index }}"
+  fullname="{{ app.fullname }}"
+  votes="{{ app.votes }}"
+  downloads="{{ app.downloads }}"
+  onClick="window.location='{% url 'app_page' app.name %}';">
+
+  {% if app.has_releases %}
+    <i class="cy3-sticker" style="background-image: url('{% get_static_prefix %}apps/img/cy3_sticker.png');"></i>
+  {% endif %}
+  
+  <a href="{% url 'app_page' app.name %}">
+    <div class="partial">
+      <table border="0" width="100%">
+        <tr valign="top">
+          <td width="64" rowspan="2">
+            <div class="app_icon">
+              <img src="{{ app.icon_url }}"/>
+            </div>
+          </td>
+          <td align="left">
+            <h5>{{ app.fullname }}</h5>
+          </td>
+        </tr>
+        <tr valign="top">
+          <td valign="top">
+            <div class="description">
+              {% if app.description %}
+                {{ app.description }}
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+    
+    <div class="full">
+      <table border="0" width="100%">
+        <tr valign="top">
+          <td width="64" rowspan="2">
+            <div class="app_icon">
+              <img src="{{ app.icon_url }}"/>
+            </div>
+          </td>
+          <td align="left">
+            <h5>{{ app.fullname }}</h5>
+          </td>
+        </tr>
+        <tr valign="top">
+          <td>
+            <div class="description">
+              {% if app.description %}
+                {{ app.description }}
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td></td>
+          <td valign="baseline">
+            <div class="stars">
+              <i class="stars-empty icon-cy-stars-empty"></i>
+              <i class="stars-full icon-cy-stars-filled" style="width: {{ app.stars_percentage }}%"></i>
+            </div>
+            <span class="votes">
+              ({{ app.votes }}){% if app.has_releases %}&nbsp;&nbsp;{{ app.downloads }} downloads {% endif %}
+            </span>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </a>
+</div>

@@ -1,0 +1,120 @@
+#app-title {
+	margin: 0;
+}
+
+.panel-title {
+	margin: 0;
+	text-transform: uppercase;
+}
+
+#save-actions {
+	margin-bottom: 1.2em;
+}
+
+#save-actions a {
+	width: 35%;
+}
+
+#cy-app-icon {
+	padding: 0.2em;
+	border: 1px dashed #aaa;
+	cursor: pointer;
+}
+
+#cy-app-icon-container:hover #cy-app-icon-edit-icon {
+	display: compact;
+}
+
+
+#cy-app-details-tab .row {
+	margin-bottom: 1em;
+}
+
+.cy-app-tag {
+	color: white;
+	background-color: #3A87AD;
+	padding: 0.3em 0.6em;
+	margin-right: 0.6em;
+	margin-bottom: 0.6em;
+	border-radius: 0.3em;
+	display: inline-block;
+}
+
+.cy-app-tag-remove {
+	opacity: 0.6;
+	cursor: pointer;
+}
+
+.cy-app-tag-remove:hover {
+	opacity: 1.0;
+}
+
+#cy-tag-add-popover ul {
+	height: 20em;
+	overflow: scroll;
+	overflow-x: hidden;
+	margin-bottom: 2em;
+}
+
+
+#cy-app-screenshots {
+	height: 170px;
+	overflow-x: auto;
+	overflow-y: hidden;
+	-ms-overflow-x: auto;
+	-ms-overflow-y: hidden;
+	white-space: nowrap;
+}
+
+#cy-app-screenshots img {
+	border: 2px solid white;
+	display: inline-block;
+}
+
+.selected-screenshot {
+	border: 2px solid #F89406 !important;
+}
+
+#cy-app-details-preview {
+	border: 2px dashed #aaa;
+	padding: 1em;
+	position: relative;
+}
+
+.cy-right-panel input {
+	width: 94%;
+}
+
+.cy-right-panel .help-block {
+	font-size: 0.87em;
+}
+
+.cy-right-panel fieldset {
+	margin: 1.5em 0 0 0;
+}
+
+small .timeago[title] {
+	cursor: auto;
+	border: none;
+}
+
+h4 small {
+	margin-left: 1em;
+}
+
+h4 button {
+	float: right;
+}
+
+.cy-release-notes {
+    margin-left: 0.4em;
+	width: 95%;
+}
+
+.cy-release-notes-preview {
+	border: 2px dashed #aaa;
+	padding: 1em;
+	position: relative;
+	margin-top: 0.5em;
+	margin-bottom: 1em;
+}

@@ -1,0 +1,10 @@
+{% extends "nav_panel.html" %}
+{% load app_buttons %}
+
+{% block title %}
+- {{ tag.fullname }} category
+{% endblock %}
+
+{% block main %}
+    {% list_of_apps apps %}
+{% endblock %}

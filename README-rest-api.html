@@ -1,0 +1,61 @@
+<html>
+ <head>
+  <style type="text/css">
+   body {
+    width: 720px;
+    margin: 0 auto;
+    margin-top: 3em;
+    margin-bottom: 6em;
+   }
+   
+   ul li {
+    margin-bottom: 1em;
+   }
+  </style>
+ </head>
+ <body>
+  <h1>Cytoscape App Store REST API</h1>
+
+  <h2>Preliminary Notes</h2>
+  <ul>
+   <li>
+    All RESTful responses are in JSON.
+   </li>
+  </ul>
+
+  <h2>All Apps</h2>
+  <h4>URL</h4>
+  <pre>http://apps.cytoscape.org/backend/all_apps</pre>
+
+  <h4>Response</h4>
+  Returns lists of all apps and tags.
+  <pre>
+   [
+    ...,
+    { // an app object
+     'fullname':    &lsaquo;app name that's shown to the user&rsaquo;,
+     'icon_url':    &lsaquo;URL of the app's icon&rsaquo;,
+     'page_url':    &lsaquo;URL of the app's page&rsaquo;,
+     'description': &lsaquo;a couple of sentences on what the app does&rsaquo;,
+     'downloads':   &lsaquo;download count of app&rsaquo;,
+     'stars_percentage': &lsaquo;the average stars from 0 to 100 users had voted on the app&rsaquo;,
+     'votes':       &lsaquo;number of people who voted on the app&rsaquo;,
+     'tags': [ ... ] &lsaquo;all of the tags this app belongs to&rsaquo;,
+     'releases': [
+       ...
+       { // a release object
+         'release_download_url': &lsaquo;URL for downloading the app jar&rsaquo;,
+         'created_iso':          &lsaquo;the date and time the release was created in ISO format&rsaquo;,
+         'version':              &lsaquo;the version of the release&rsaquo;,
+         'works_with':           &lsaquo;comma-separated list of Cytoscape versions this app works with&rsaquo;,
+         'hexchecksum':          &lsaquo;checksum as a hex string of the release download file&rsaquo;,
+         'notes':                &lsaquo;release notes written by the developer explaining changes and new features&rsaquo;,
+       },
+       ...
+     ]
+    },
+    ...
+   ]
+  </pre>
+ </body>
+</html>

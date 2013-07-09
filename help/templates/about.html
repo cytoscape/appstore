@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% load url from future %}
+
+{% block title %} - About{% endblock %}
+
+{% block more_head %}
+<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?libraries=places&key={{ google_api_key }}&sensor=false"></script>
+  <style type="text/css">
+    #institutions_map img { max-width: none; }
+  </style>
+{% endblock %}
+
+{% block content %}
+	<div class="row">
+		<div class="span12">
+			<div class="page-header">
+				<h1>About</h1>
+			</div>
+		</div>
+	</div>
+
+
+	<h2>Our Worldwide Community of App Developers</h2>
+
+	<div class="row">
+		<div class="span12">
+			Cytoscape provides a solid platform for network
+			visualization and analysis, but it’s really all about
+			the apps. Researchers and developers from institutions
+			around the world have built on top of Cytoscape to add
+			new functionality and tailored solutions for a broad
+			range of network-related projects. This site is dedicated
+			to serving our rapidly growing app developer community.
+			We want each app to have its own online presence as a
+			hub of activity. And we want each developer to be able
+			to distribute, promote and support their apps for their
+			target audience. If you have ideas about how to make
+			this site more effective, 
+			<a href="{% url 'contact' %}">let us know</a>!
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="span12">
+			<p></p>
+			<div id="institutions_map" style="width: 100%; height: 740px;"></div>
+		</div>
+	</div>
+
+
+	<script type="text/javascript">
+		$(function() {
+				var opts = {
+					'center': new google.maps.LatLng(40.822879,15.133168),
+					'zoom': 2,
+          'minZoom': 2,
+					'mapTypeId': google.maps.MapTypeId.ROADMAP,
+					'disableDefaultUI': true,
+					'zoomControl': true,
+				};
+				var map = new google.maps.Map($('#institutions_map')[0], opts);
+				var markers = [
+					['University of Verona', 'Verona', 45.437231,11.004226],
+					['University of Colorado Health Sciences Center', 'Colorado', 39.746362,-105.002644],
+					['University of Zurich', 'Zurich', 47.378148,8.550125],
+					['Brown University', 'Brown', 41.828782,-71.402885],
+					['AllegroViva Corporation', 'AllegroViva', 37.421762,-122.103873],
+					['Universita degli Studi Magna Graecia di Catanzaro', 'Catanzaro', 38.924665,16.581461],
+					['Computational Systems Biochemistry Berlin', 'Berlin', 52.555562,13.362252],
+					['University of Maastricht', 'Maastricht', 50.848612,5.686634],
+					['International Computer Science Institute, Berkeley', 'Berkeley', 37.873387,-122.259105],
+					['Bielefeld University', 'Bielefeld', 52.041424,8.496052],
+					['Max Planck Institute for Informatics', 'Planck', 49.258909,7.046021],
+					['Institute For Systems Biology', 'Systems Biology', 47.624457,-122.337734],
+					['University of Warsaw', 'Warsaw', 52.253524,21.020341],
+					['Institut National de la Recherche Agronomique', 'Agronomique', 48.8614,2.306401],
+					['University of California, San Diego', '"San Diego"', 32.89872,-117.242598],
+					['University of California, San Francisco', '"San Francisco"', 37.765299,-122.456953],
+					['University of Toronto', 'Toronto', 43.660618,-79.396555],
+					['Nara Institute of Science and Technology', 'Nara', 34.733655,135.732315],
+					['Iowa State University', 'Iowa', 42.103039,-93.608509],
+					['Indiana University School of Informatics', 'Indiana', 39.222002,-86.533564],
+					['Memorial Sloan-Kettering Cancer Center', 'Sloan-Kettering', 40.772411,-73.951596],
+					['University of Moratuwa', 'Moratuwa', 6.796881,79.900841],
+					['University of Heidelberg', 'Heidelberg', 49.41807,8.667745],
+					['INRIA Rennes', 'INRIA', 48.122433,-1.628657],
+					['University of Rostock', 'Rostock', 54.088325,12.134961],
+					['University of New Mexico', 'Mexico', 35.08974,-106.619724],
+					['Netherlands Bioinformatics Centre', 'Netherlands', 51.824966,5.864733],
+					['Center for Molecular Medicine and Genetics, Wayne State University School of Medicine', 'Wayne', 42.354868,-83.055802],
+					['University of Dortmund', 'Dortmund', 51.505526,7.457337],
+					['Universitat de les Illes Balears', 'Balears', 39.635446,2.650713],
+					['VIB Department of Plant Systems Biology, UGent', 'UGent', 51.011816,3.71098],
+					['Freiburg Institute for Advanced Studies', 'Freiburg', 48.001512,7.850184],
+					['Università degli Studi di Bologna', 'Bologna', 44.497035,11.352429],
+					['National Center for Biotechnology Information', 'Biotechnology Information', 38.99581,-77.096513],
+					['University of Catania', 'Catania', 37.503897,15.087383],
+					['New York University', 'York', 40.729422,-73.993461],
+					['University of Illinois, Chicago', 'Chicago', 41.874437,-87.651778],
+					['National Central University, Taiwan', 'Taiwan', 24.969898,121.190638],
+					['University of California, Santa Barbara', '"Santa Barbara"', 34.415322,-119.844315],
+					['Buck Institute', 'Buck', 38.133766,-122.573538],
+					['University of Michigan-Ann Arbor', 'Michigan', 42.301595,-83.703332],
+					['Technische Universitat-Dresden', 'Dresden', 51.029062,13.723438],
+					['Pasteur Institute', 'Pasteur', 48.840673,2.310993],
+					['Syracuse University', 'Syracuse', 43.03623,-76.130703],
+					['Delft University of Technology', 'Delft', 52.335265,4.867806],
+					['University of California, Los Angeles', 'Angeles', 34.073781,-118.443816],
+					['University of Konstanz', 'Konstanz', 47.689358,9.186911],
+					['Institute of Microbiology, Chinese Academy of Sciences', 'Chinese', 40.004444,116.383346],
+					['Tsinghua University', 'Tsinghua', 39.999028,116.324713],
+					['University of Southern California', 'Southern California', 34.023092,-118.285201],
+					['Pacific Northwest National Laboratory', 'Pacific Northwest', 46.345244,-119.279333],
+					['German Research Center for Biotechnology', 'German', 52.214854,10.532608],
+					['Agilent Technologies Inc.', 'Agilent', 37.324622,-121.99886],
+					['School of Computing and Mathematics, University of Ulster', 'Ulster', 54.688449,-5.882831],
+					['Laboratory of Cardiovascular Research, Centre de Recherche Public de la Santé', 'Santé', 49.620853,6.094489],
+					['The Ontario Institute for Cancer Research', 'Ontario', 43.659688,-79.388676],
+					['Johns Hopkins University', 'Hopkins', 39.327589,-76.62076],
+					['University of Missouri', 'Missouri', 38.944918,-92.328779],
+					['National Institute of Allergy and Infectious Diseases, National Institutes of Health', 'Allergy', 39.028779,-77.133174],
+					['Technische Universitat-Dortmund', 'Dortmund', 51.484657,7.412864],
+					['Ludwig Maximilian University of Munich', 'Maximilian', 48.150815,11.58045],
+					['Korea Advanced Institute of Science and Technology', 'Korea', 36.370387,127.36138],
+					['University of Zurich', 'Zurich', 47.374757,8.549038],
+					['Biotechnology and Biological Sciences Research Council', 'Council', 51.56692,-1.784549],
+					['Centre for Genetic Engineering and Biotechnology', 'Genetic Engineering', 23.074728,-82.451566],
+					['Barcelona Biomedical Research Park', 'Barcelona', 41.385231,2.193371],
+					['University of Texas at San Antonio', 'Antonio', 29.584971,-98.626488],
+					['Central South University', 'Central South', 28.171382,112.925903],
+					['Hamner Institutes for Health Sciences', 'Hamner', 35.901027,-78.858576],
+					['University of Edinburgh', 'Edinburgh', 55.947446,-3.18721],
+					['Queen\'s University', 'Queen\'s', 44.22938,-76.494734],
+					['Oregon Health and Science University', 'Oregon', 45.498963,-122.685753],
+					['University of Antwerp', 'Antwerp', 51.222353,4.41037],
+					['University of Oslo', 'Oslo', 59.937721,10.720921],
+					['Royal Holloway, University of London', 'Holloway', 51.424815,-0.560482],
+					['Institut national de la santé et de la recherche médicale', 'médicale', 48.826754,2.365421],
+					['Grupo de Investigación Bioinformática y Genómica Funcional', 'Funcional', 40.96887,-5.675946],
+					['University of Turku', 'Turku', 60.451769,22.289414],
+					['Cell Signaling Technology, Inc.', 'Cell Signaling', 42.569863,-70.909554],
+					['Hope College', 'Hope', 42.788248,-86.104057],
+					['Eindhoven University of Technology', 'Eindhoven', 51.448471,5.486113],
+					['University of Arizona', 'Arizona', 32.232218,-110.95159],
+					['Consiglio Nazionale delle Ricerche', 'Consiglio', 41.905892,12.504708],
+					['University College of London', 'London', 51.524409,-0.134462],
+					['Gladstone Institutes', 'Gladstone', 37.769324,-122.393703],
+                    ['Laboratory of Systems Biology and Bioinformatics, Institute of Biochemistry and Biophysics, University of Tehran', 'Tehran', 35.735287,51.385835],
+                    ['Curie Institute', 'Curie', 48.84383,2.344856],
+                    ['Evogene', 'Evogene', 31.899919,34.790522],
+				];
+
+				var infowindow = null;
+
+				$.each(markers, function(i, marker) {
+					var markeri = new google.maps.Marker({
+						'position': new google.maps.LatLng(marker[2], marker[3]),
+						'map': map,
+						'title': marker[0],
+					});
+					google.maps.event.addListener(markeri, 'click', function() {
+						if (infowindow){
+							infowindow.close();
+						}
+						infowindow = new google.maps.InfoWindow();
+						infowindow.setContent('<a href="http://apps.cytoscape.org/search?q='+marker[1]+'">'+marker[0]+'</a>');
+  						infowindow.open(map,markeri);
+					});
+				});
+		});
+	</script>
+
+	<br />
+        <h2>Cytoscape Consortium</h2>
+
+        <div class="row">
+                <div class="span12">
+                        Cytoscape was first released in 2002 and is now maintained
+                        by the Cytoscape Consortium, consisting of a board of
+                        directors and over a dozen developers from an international
+                        set of member institutions. Cytoscape is committed to remaining
+                        open source and freely available for the research community.
+                        Visit <a href="http://cytoscape.org">cytoscape.org</a>
+                        for more information.
+                </div>
+        </div>
+
+        <br>
+        <h2>National Resource for Network Biology</h2>
+
+        <div class="row">
+                <div class="span12">
+                        NRNB was launched in 2010 as a national resource supporting network
+                        biology researchers and tool developers. Cytoscape is the flagship
+                        resource supported by NRNB and this Cytoscape App Store, in particular,
+                        was an NRNB-driven project. This site is thus supported by the NRNB
+                        grant from <a href="http://www.nigms.nih.gov/About/Overview/bbcb.htm">NIH/NIGMS/BBCB</a>,
+                        P41 GM103504. Visit <a href="http://nrnb.org">nrnb.org</a> for more information.
+                </div>
+        </div>
+
+{% endblock %}

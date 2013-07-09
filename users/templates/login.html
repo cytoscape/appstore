@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load url from future %}
+
+{% block content %}
+    <div class="row">
+        <div class="span5">
+            <div class="page-header">
+                <h1>Sign In</h1>
+            </div>
+        </div>
+    </div>
+    {% if error %}
+        <div class="row">
+            <div class="span5 alert alert-error">
+                {{ error }}
+            </div>
+        </div>
+    {% endif %}
+    <div class="row">
+        <div class="span5">
+            <span class="label label-warning"><i class="icon-info-sign icon-white"></i> Notice</span>
+            The Cytoscape App Store will not give or sell your personal information
+            to others.
+        </div>
+    </div>
+    <div class="row" style="margin-top: 3em;">
+        <div class="span5">
+            <a href="{% url 'socialauth_begin' 'google-oauth2' %}?next={{ next_url }}" class="btn btn-success">
+                Sign in with Google <i class="icon-chevron-right icon-white"></i>
+            </a>
+        </div>
+    </div>
+{% endblock %}
