@@ -3,4 +3,4 @@ index:
 	python manage.py reindex_xapian
 
 nopyc:
-	find . -name "*.pyc" -exec rm -v {} \;
+	find . -name "*.pyc" -exec rm -vf {} \;

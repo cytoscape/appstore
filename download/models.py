@@ -12,7 +12,7 @@ class ReleaseDownloadsByDate(Model):
     count   = PositiveIntegerField(default = 0)
 
     def __str__(self):
-        return '%s - %s: %d' % (self.release, self.date, self.count)
+        return '%s - %s: %d' % (self.release, self.when, self.count)
 
 class GeoLoc(Model):
     country = CharField(max_length = 2) # when region & city are empty, country contains the total
