@@ -246,9 +246,10 @@
         <label><i class="icon-book"></i> Tutorial:</label>
         <input type="text" value="{% if app.tutorial %}{{ app.tutorial }}{% endif %}">
       </fieldset>
-      <fieldset class="control-group" id="cy-app-citation">
+      <fieldset class="control-group" id="cy-app-citation" validate_regexp="^\d+$">
         <label><i class="icon-heart"></i> Citation:</label>
-        <input type="text" placeholder="Citation URL (http://...)" value="{% if app.citation %}{{ app.citation }}{% endif %}">
+        <input type="text" placeholder="PubMed ID" value="{% if app.citation %}{{ app.citation }}{% endif %}">
+        <span class="help-block">Example: <em>23595664</em></span>
       </fieldset>
       <fieldset class="control-group" id="cy-app-coderepo">
         <label><i class="icon-list-alt"></i> Code Repository:</label>

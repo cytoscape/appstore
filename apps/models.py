@@ -75,7 +75,7 @@ class App(models.Model):
     license_text = models.URLField(blank=True, null=True)
     website      = models.URLField(blank=True, null=True)
     tutorial     = models.URLField(blank=True, null=True)
-    citation     = models.URLField(blank=True, null=True)
+    citation     = models.CharField(max_length=31, blank=True, null=True)
     coderepo     = models.URLField(blank=True, null=True)
     contact      = models.EmailField(blank=True, null=True)
 
