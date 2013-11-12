@@ -116,7 +116,7 @@ def _parse_osgi_bundle(manifest):
             app_dependencies = list(parse_app_dependencies(app_dependencies_str))
         except ValueError, e:
             (msg, ) = e.args
-            raise ValueError('has a problem with the <tt>Cytoscape-App-Dependencies entry: ' + msg)
+            raise ValueError('has a problem with the <tt>Cytoscape-App-Dependencies</tt> entry: ' + msg)
     else:
         app_dependencies = list()
 
