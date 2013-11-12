@@ -16,6 +16,11 @@
 		.cy-app-icon:hover {
 			background-color: #EDEDCA;
 		}
+
+		.container {
+			left: 20px;
+			width: 95%;
+		}
 	</style>
 {% endblock %}
 
@@ -24,7 +29,6 @@
 {% endblock %}
 
 {% block content %}
-<div style="position: absolute; left: 20px; width: 95%;">
 	<h1>
 		Wall of Apps
 		<small>{{ total_apps_count }} total</small>
@@ -43,7 +47,6 @@
 			</tr> 
 		{% endfor %}
 	</table>
-</div>
 <script type="text/javascript">
 	$(function() {
 		$('.cy-app-icon[rel=tooltip]').tooltip();
