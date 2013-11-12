@@ -102,7 +102,7 @@ The following app has been submitted:
     Version: {version}
     Submitter: {submitter_name} {submitter_email}
 """.format(id = pending.id, fullname = pending.fullname, version = pending.version, submitter_name = pending.submitter.username, submitter_email = pending.submitter.email)
-    send_mail('Cytoscape App Store - App Submitted', msg, settings.EMAIL_ADDR, [settings.CONTACT_EMAIL], fail_silently=False)
+    send_mail('Cytoscape App Store - App Submitted', msg, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
 
 def _verify_javadocs_jar(file):
     error_msg = None
@@ -171,7 +171,7 @@ the top-right.
 
 - Cytoscape App Store Team
 """.format(app_url = app_url, author_email = to_email, server_url = server_url)
-    send_mail(subject, msg, from_email, [to_email])
+    send_mail(subject, msg, from_email, (to_email,))
 
 def _get_server_url(request):
     name = request.META['SERVER_NAME']

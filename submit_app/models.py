@@ -88,4 +88,4 @@ def _deploy_artifact(api):
         '-DrepositoryId=apps')
     cmd = subprocess.Popen(deploy_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False)
     cmdout, _ = cmd.communicate()
-    send_mail('Cytoscape App Store - App Repo Deploy (Release API ID: %d)' % api.id, cmdout, EMAIL_ADDR, [settings.CONTACT_EMAIL], fail_silently=False)
+    send_mail('Cytoscape App Store - App Repo Deploy (Release API ID: %d)' % api.id, cmdout, EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)

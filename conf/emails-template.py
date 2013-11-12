@@ -6,8 +6,14 @@ ADMINS = (
 # when a broken link occurs, each MANAGER receives a notification
 MANAGERS = ADMINS
 
-# when users fill out the "Contact Us" form, this person receives an email
-CONTACT_EMAIL = 'samad.lotia@gladstone.ucsf.edu'
+# django.core.mail.send_mail function doesn't accept the ADMINS variable;
+# it requires a list of only emails instead. CONTACT_EMAILS strips off
+# the names and returns a list of emails.
+CONTACT_EMAILS = [a[1] for a in ADMINS]
+
+# used for the from: field in emails
+CONTACT_EMAIL = CONTACT_EMAILS[0]
+
 
 # settings for sending emails (i.e., 500 errors, "Contact Us" form)
 EMAIL_USE_TLS       = True

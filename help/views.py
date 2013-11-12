@@ -21,7 +21,7 @@ def contact(request):
         elif not no_robot == u'6':
             c['error_no_robot'] = True
         else:
-            send_mail('Cytoscape App Store - User Submitted Contact', 'From: %s\n\n%s' % (user_email, message), user_email, [settings.CONTACT_EMAIL], fail_silently=False)
+            send_mail('Cytoscape App Store - User Submitted Contact', 'From: %s\n\n%s' % (user_email, message), user_email, settings.CONTACT_EMAILS, fail_silently=False)
             return html_response('contact_thanks.html', c, request)
         c['user_email'] = user_email
         c['message'] = message
