@@ -400,6 +400,7 @@ _AppEditActions = {
 	'save_cy_2x_versions':            _mk_basic_field_saver('cy_2x_versions'),
 	'save_description':   _mk_basic_field_saver('description'), 
 	'save_license_text':  _mk_basic_field_saver('license_text'), 
+	'save_license_confirm':  _mk_basic_field_saver('license_confirm', func = lambda s: s.lower() == 'true'), 
 	'save_website':       _mk_basic_field_saver('website'), 
 	'save_tutorial':      _mk_basic_field_saver('tutorial'), 
 	'save_citation':      _mk_basic_field_saver('citation'), 

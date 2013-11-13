@@ -375,6 +375,24 @@
 </div>
 {# End modal dialog #}
 
+{# License modal dialog #}
+{% if app.license_confirm and app.license_text %}
+<div class="modal hide fade in" id="license_modal">
+	<div class="modal-header">
+		<a class="close" data-dismiss="modal">&times;</a>
+		<h3>License Agreement</h3>
+	</div>
+	<div class="modal-body">
+		<iframe src="{{ app.license_text }}" width="500" height="400"></iframe>
+	</div>
+	<div class="modal-footer">
+		<a href="#" class="btn" data-dismiss="modal">Don't Accept</a>
+		<a href="#" class="btn btn-primary">Accept</a>
+	</div>
+</div>
+{% endif %}
+{# End license modal dialog #}
+
 <script type="text/javascript" src="{% get_static_prefix %}apps/js/app_page.js"></script>
 	
 <script type="text/javascript">

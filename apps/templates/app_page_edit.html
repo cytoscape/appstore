@@ -237,6 +237,7 @@
       <fieldset class="control-group" id="cy-app-license-text">
         <label>License:</label>
         <input type="text" placeholder="License URL (http://...)" value="{% if app.license_text %}{{ app.license_text }}{% endif %}">
+        <input type="checkbox" {% if app.license_confirm %}checked{% endif %}> Require confirmation
       </fieldset>
       <fieldset class="control-group" id="cy-app-website">
         <label><i class="icon-home"></i> Website:</label>

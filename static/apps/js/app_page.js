@@ -42,10 +42,23 @@ var AppPage = (function($) {
 
         install_btn.off('click');
         install_btn.removeClass('disabled');
-		if (func)
-			install_btn.click(func);
-		else
+		if (func) {
+            var license_modal = $('#license_modal');
+            if (license_modal.size() !== 0) {
+                license_modal.find('.btn-primary').click(function() {
+                    license_modal.modal('hide');
+                    func();
+                });
+                install_btn.click(function() {
+                    license_modal.modal('show');
+                });
+            } else {
+                /* license modal doesn't exist in DOM */
+                install_btn.click(func);
+            }
+		} else {
 			install_btn.addClass('disabled');
+        }
 	}
 
 	function set_install_btn_to_download(release_url) {

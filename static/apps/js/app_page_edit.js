@@ -110,7 +110,8 @@ var AppPageEdit = (function($)
         field_change($('#cy-2x-plugin-release-date input'), field_modified('cy-2x-plugin-release-date'));
         field_change($('#cy-2x-versions input'), field_modified('cy-2x-versions'));
         field_change($('#cy-app-description'), field_modified('description'));
-        field_change($('#cy-app-license-text'), field_modified('license_text'));
+        field_change($('#cy-app-license-text input[type=text]'), field_modified('license_text'));
+        $('#cy-app-license-text input[type=checkbox]').click(field_modified('license_confirm'));
         field_change($('#cy-app-website'), field_modified('website'));
         field_change($('#cy-app-tutorial'), field_modified('tutorial'));
         field_change($('#cy-app-citation'), field_modified('citation'));
@@ -628,7 +629,16 @@ var AppPageEdit = (function($)
         'cy-2x-plugin-release-date': mk_field_save_action('Saving 2.x plugin release date', 'save_cy_2x_plugin_release_date', 'cy_2x_plugin_release_date', $('#cy-2x-plugin-release-date input')),
         'cy-2x-versions': mk_field_save_action('Saving supported Cytoscape 2.x versions', 'save_cy_2x_versions', 'cy_2x_versions', $('#cy-2x-versions input')),
         'description': mk_field_save_action('Saving description', 'save_description', 'description', $('#cy-app-description')),
-        'license_text': mk_field_save_action('Saving license URL', 'save_license_text', 'license_text', $('#cy-app-license-text input')),
+        'license_text': mk_field_save_action('Saving license URL', 'save_license_text', 'license_text', $('#cy-app-license-text input[type=text]')),
+        'license_confirm': function() {
+            return {
+                'msg': 'Saving license confirm',
+                'data': {
+                    'action': 'save_license_confirm',
+                    'license_confirm': $('#cy-app-license-text input[type=checkbox]').prop('checked')
+                }
+            };
+        },
         'website': mk_field_save_action('Saving website URL', 'save_website', 'website', $('#cy-app-website input')),
         'tutorial': mk_field_save_action('Saving tutorial URL', 'save_tutorial', 'tutorial', $('#cy-app-tutorial input')),
         'citation': mk_field_save_action('Saving citation URL', 'save_citation', 'citation', $('#cy-app-citation input')),

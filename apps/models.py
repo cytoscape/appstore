@@ -72,7 +72,9 @@ class App(models.Model):
     cy_2x_versions            = models.CharField(max_length=31, blank=True, null=True)
     has_releases              = models.BooleanField(default=False)
 
-    license_text = models.URLField(blank=True, null=True)
+    license_text    = models.URLField(blank=True, null=True)
+    license_confirm = models.BooleanField(default=False)
+    
     website      = models.URLField(blank=True, null=True)
     tutorial     = models.URLField(blank=True, null=True)
     citation     = models.CharField(max_length=31, blank=True, null=True)
