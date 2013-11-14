@@ -63,7 +63,7 @@ class App(models.Model):
 
     icon         = models.ImageField(upload_to=app_icon_path, blank=True, null=True)
 
-    authors      = models.ManyToManyField(Author, blank=True)
+    authors      = models.ManyToManyField(Author, blank=True, through='OrderedAuthor')
     editors      = models.ManyToManyField(User, blank=True)
 
     cy_2x_plugin_download     = models.URLField(blank=True, null=True)
@@ -120,6 +120,17 @@ class App(models.Model):
 
     def __str__(self):
         return self.name
+
+class OrderedAuthor(models.Model):
+    author       = models.ForeignKey(Author)
+    app          = models.ForeignKey(App)
+    author_order = models.PositiveSmallIntegerField(default = 0)
+
+    def __str__(self):
+        return '%d: %s by %s' % (self.author_order, self.app.name, self.author.name)
+
+    class Meta:
+        ordering = ["author_order"]
 
 VersionRE = re.compile(r'^(\d+)(?:\.(\d)+)?(?:\.(\d)+)?(?:\.([\w-]+))?$')
 

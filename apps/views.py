@@ -9,7 +9,7 @@ from django.utils.text import unescape_entities
 from util.view_util import json_response, html_response, obj_to_dict, get_object_or_none
 from util.img_util import scale_img
 from util.id_util import fullname_to_name
-from models import Tag, App, Author, Screenshot, Release
+from models import Tag, App, Author, OrderedAuthor, Screenshot, Release
 
 # Returns a unicode string encoded in a cookie
 def _unescape_and_unquote(s):
@@ -339,12 +339,12 @@ def _save_authors(app, request):
 		institution = request.POST.get('institution_' + str(i))
 		if not institution:
 			institution = None
-		authors.append((name, institution))
+		authors.append((name, institution, i))
 	
 	app.authors.clear()
-	for name, institution in authors:
+	for name, institution, author_order in authors:
 		author, _ = Author.objects.get_or_create(name = name, institution = institution)
-		app.authors.add(author)
+		ordered_author = OrderedAuthor.objects.create(app = app, author = author, author_order = author_order)
 
 def _save_release_notes(app, request):
 	release_count = request.POST.get('release_count')
