@@ -172,7 +172,7 @@
 					<div class="span8">
 						Authors:
 						<ul>
-							{% for author in app.authors.all %}
+							{% for author in app.ordered_authors %}
 							<li>
 								<a href="{% url 'author_page' author.name %}">
 									{{ author.name }} {% if author.institution %} ({{ author.institution }}){% endif %}

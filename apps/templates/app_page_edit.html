@@ -12,6 +12,7 @@
 <script type="text/javascript" src="{% get_static_prefix %}common/js/setup_ajax_for_csrf.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/js/markdown_util.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/js/msgs.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}apps/js/jquery.tablednd.js"></script>
 {% endblock %}
 
 {% block title %}- Edit {{ app.fullname }}{% endblock %}
@@ -405,9 +406,12 @@ AppPageEdit.add_editor('{{ editor.email|escapejs }}', '{{ editor.username|escape
 {% endfor %}
 
 AppPageEdit.setup_author_add_btn();
-{% for author in app.authors.all %}
+{% for author in app.ordered_authors %}
 AppPageEdit.add_author('{{ author.name }}', {% if author.institution %}'{{ author.institution }}'{% else %}null{% endif %});
 {% endfor %}
+$(function() {
+  AppPageEdit.setup_authors_dnd();
+});
 
 {% if app.has_releases %}
 AppPageEdit.setup_release_notes();

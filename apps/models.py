@@ -115,6 +115,10 @@ class App(models.Model):
     def page_url(self):
         return reverse('app_page', args=[self.name])
 
+    @property
+    def ordered_authors(self):
+        return (a.author for a in OrderedAuthor.objects.filter(app = self))
+
     search_schema = ('^fullname', 'description', 'details')
     search_key = 'name'
 

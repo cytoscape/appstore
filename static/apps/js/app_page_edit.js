@@ -470,6 +470,12 @@ var AppPageEdit = (function($)
             add_author(null, null);
         });
     }
+
+    function setup_authors_dnd() {
+        authors_table.tableDnD({
+            'onDrop': authors_modified,
+        });
+    }
     
     /* ===============================
          Release Notes
@@ -854,6 +860,7 @@ var AppPageEdit = (function($)
         'add_editor': add_editor,
         'setup_author_add_btn': setup_author_add_btn,
         'add_author': add_author,
+        'setup_authors_dnd': setup_authors_dnd,
         'setup_release_notes': setup_release_notes,
         'setup_cancel_btn': setup_cancel_btn,
         'setup_save_btn': setup_save_btn,
