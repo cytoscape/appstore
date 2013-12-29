@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from django.core.management.base import BaseCommand
 
-from apps.models import App, Author, AuthorOrder
+from apps.models import App, Author, OrderedAuthor
 from CyAppStore.util.id_util import fullname_to_name
 from CyAppStore.apps.views import _parse_iso_date
 
@@ -94,10 +94,9 @@ class Command(BaseCommand):
                 app.details = plugin['description']
 
             if not app.authors.count() and 'authors' in plugin:
-                author_order = 0
-                for name, institution in plugin['authors']:
+                for author_order, (name, institution) in enumerate(plugin['authors']):
                     author, _ = Author.objects.get_or_create(name = name, institution = institution)
-                    author_order = AuthorOrder.objects.create(app = app, author = author, author_order = author_order)
+                    author_order = OrderedAuthor.objects.create(app = app, author = author, author_order = author_order)
 
             app.cy_2x_plugin_download = plugin['download']
             app.cy_2x_plugin_version = plugin['version']
