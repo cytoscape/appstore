@@ -36,8 +36,8 @@ class AppPending(models.Model):
     class Meta:
         ordering = ['created']
 
-    def __str__(self):
-        return u'%s %s from %s' % (self.fullname, self.version, self.submitter.email)
+    def __unicode__(self):
+        return self.fullname + ' ' + self.version + ' from ' + self.submitter.email
 
     def make_release(self, app):
         if not app.has_releases:
