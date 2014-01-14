@@ -4,7 +4,7 @@ from urllib import urlopen
 
 from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
-from django.http import HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
 from django.conf import settings
 from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
@@ -251,3 +251,40 @@ def artifact_exists(request):
         return HttpResponseBadRequest('groupId, artifactId, or version not specified')
     deployUrl = _get_deploy_url(groupId, artifactId, version)
     return json_response(_url_exists(deployUrl))
+
+_PluginXmlUrl = 'http://chianti.ucsd.edu/cyto_web/plugins/plugins.xml'
+def _forward_plugins_xml(request_post):
+    try:
+        reader = urlopen(_PluginXmlUrl)
+        if reader.getcode() != 200:
+            raise Error('retrieve failed')
+        r = HttpResponse(content_type = 'application/xml')
+        r.write(reader.read())
+        return r
+    except:
+        return HttpResponse('Unable to retrieve: %s' % PluginXmlUrl, content_type='text/plain', status=503)
+
+def _check_app_exists(request_post):
+    app_name = request_post.get('app_name')
+    app_exists = App.objects.filter(fullname__exact = app_name).count() > 0
+    return json_response(app_exists)
+
+
+_Cy2xPluginsActions = {
+    'plugins_xml': _forward_plugins_xml,
+    'app_exists': _check_app_exists,
+}
+
+@login_required
+def cy2x_plugins(request):
+    if not request.user.is_staff:
+        return HttpResponseForbidden()
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if not action:
+            return HttpResponseBadRequest('action must be specified')
+        if not action in _Cy2xPluginsActions:
+            return HttpResponseBadRequest('invalid action--must be: %s' % ', '.join(_Cy2xPluginsActions.keys()))
+        return _Cy2xPluginsActions[action](request.POST)
+    else:
+        return html_response('cy2x_plugins.html', {}, request)
