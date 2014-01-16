@@ -34,58 +34,14 @@
   </div>
 </div>
 
-<script type="text/html" id="new-app-tmpl">
-  <table class="table table-bordered">
-    <tbody>
-      <tr>
-        <td><strong>New app page?</strong></td>
-        <td>Yes</td>
-      </tr>
-      <tr>
-        <td><strong>App name</strong></td>
-        <td>${ fullname }</td>
-      </tr>
-    </tbody>
-  </table>
-</script>
 
-<script type="text/html" id="existing-app-tmpl">
-  <table class="table table-bordered">
-    <tbody>
-      <tr>
-        <td><strong>New app page?</strong></td>
-        <td>No</td>
-      </tr>
-      <tr>
-        <td><strong>App name</strong></td>
-        <td>${ fullname }</td>
-      </tr>
-      <tr>
-        <td><strong>2.x plugin download</strong></td>
-        <td><a href="${ cy2x_plugin_download }">${ cy2x_plugin_download }</a></td>
-      </tr>
-      <tr>
-        <td><strong>2.x plugin version</strong></td>
-        <td>${ cy2x_plugin_version }</td>
-      </tr>
-      <tr>
-        <td><strong>Release date</strong></td>
-        <td>${ release_date.getUTCFullYear() }-${ release_date.getUTCMonth() + 1 }-${ release_date.getUTCDate() }</td>
-      </tr>
-    </tbody>
-  </table>
+<script type="text/javascript">
+$.get('{% get_static_prefix %}submit_app/html/cy2x_plugins.tmpl.html', function(tmpls) {
+  $('body').append(tmpls);
+});
 </script>
 
 <script type="text/javascript">
-  function parse_iso_date(str) {
-    var d = new Date(str);
-    if (isNaN(d.getTime())) {
-      return null;
-    } else {
-      return d;
-    }
-  }
-
   function clean_str(str) {
     var trimmed = str.trim();
     if (trimmed.length === 0) {
@@ -114,7 +70,7 @@
       var version = ($(this)).text();
       versions.push(version);
     });
-    return versions;
+    return versions.join(', ');
   }
 
   /*
@@ -175,7 +131,7 @@
         'cy2x_plugin_version':  plugin_dom.children('pluginVersion').text(),
         'cy2x_plugin_download': plugin_dom.children('url').text(),
         'cy_versions':          parse_cy_versions(plugin_dom.children('cytoscapeVersions')),
-        'release_date':         parse_iso_date(plugin_dom.children('release_date').text()),
+        'release_date':         plugin_dom.children('release_date').text(),
       }
       var other_plugin = plugins[fullname];
       if ((other_plugin === undefined) || (compare_versions(plugin, other_plugin) > 0)) {
@@ -183,6 +139,47 @@
       }
     });
     return plugins;
+  }
+
+  function new_submit_new_plugin_request(plugin) {
+    var request = {};
+
+    $.each([
+      'fullname',
+      'details',
+      'cy2x_plugin_download',
+      'cy2x_plugin_version',
+      'cy_versions',
+      'release_date',
+      ], function(i, field) {
+      request[field] = plugin[field];
+    });
+
+    request['author_count'] = plugin.authors.length;
+    $.each(plugin.authors, function(i, author) {
+      request['author_' + i.toString()] = author[0];
+      if (author[1] !== null) {
+        request['institution_' + i.toString()] = author[1];
+      }
+    });
+
+    return request;
+  }
+
+  function new_update_existing_plugin_request(plugin) {
+    var request = {};
+
+    $.each([
+      'fullname',
+      'cy2x_plugin_download',
+      'cy2x_plugin_version',
+      'cy_versions',
+      'release_date',
+      ], function(i, field) {
+      request[field] = plugin[field];
+    });
+
+    return request;
   }
 
   function update_page_with_plugins_dom(plugins_dom) {
@@ -199,9 +196,28 @@
         return;
       }
       var plugin = plugins[fullname];
-      $.post('', {'action': 'app_exists', 'app_name': fullname}, function(exists) {
-        var tmpl = exists ? $('#existing-app-tmpl') : $('#new-app-tmpl') ;
+      $.post('', {'action': 'app_info', 'app_fullname': fullname}, function(app_info) {
+        var tmpl = app_info.exists ? $('#existing-app-tmpl') : $('#new-app-tmpl');
+        plugin['app_page_url'] = 'http://apps.cytoscape.org' + app_info['url'];
         $('#app-info').empty().append(tmpl.tmpl(plugin));
+        $('#accept-btn').click(function() {
+          var btn = $(this);
+          if (btn.hasClass('disabled')) {
+            return;
+          }
+          var req_func = app_info.exists ? new_update_existing_plugin_request : new_submit_new_plugin_request;
+          var req = req_func(plugin);
+          req['action'] = 'update';
+          console.log(req);
+          btn.addClass('disabled');
+          btn.text('Submitting...');
+          $.post('', req, function() {
+            btn.html('<i class="icon-ok icon-white"></i> Done');
+            btn.parent().append('<a href="' + plugin.app_page_url + '">&rarr; Go to app page</a>');
+          }).fail(function() {
+            CyMsgs.add_msg('Failed to submit app info update due to server error.', 'error', 'server_fail');
+          });
+        });
       });
     });
   }
