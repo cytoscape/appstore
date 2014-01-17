@@ -73,21 +73,6 @@ $.get('{% get_static_prefix %}submit_app/html/cy2x_plugins.tmpl.html', function(
     return versions.join(', ');
   }
 
-  /*
-  function compare_versions(plugin_a, plugin_b) {
-    var result = compare_versions_x(plugin_a, plugin_b);
-    var s;
-    if (result === 1) {
-      s = '>';
-    } else if (result === -1) {
-      s = '<';
-    } else {
-      s = '=';
-    }
-    return result;
-  }
-  */
-
   function compare_versions(plugin_a, plugin_b) {
     var a_pieces = plugin_a.cy2x_plugin_version.split('.');
     var b_pieces = plugin_b.cy2x_plugin_version.split('.');
