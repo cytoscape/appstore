@@ -69,6 +69,8 @@ class App(models.Model):
     cy_2x_plugin_version      = models.CharField(max_length=31, blank=True, null=True)
     cy_2x_plugin_release_date = models.DateField(blank=True, null=True)
     cy_2x_versions            = models.CharField(max_length=31, blank=True, null=True)
+
+    latest_release_date       = models.DateField(blank=True, null=True)
     has_releases              = models.BooleanField(default=False)
 
     license_text    = models.URLField(blank=True, null=True)

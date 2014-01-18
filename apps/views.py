@@ -22,7 +22,7 @@ def _unescape_and_unquote(s):
 
 class _NavPanelConfig:
 	min_tag_count = 3
-	num_of_top_tags = 10
+	num_of_top_tags = 20
 	tag_cloud_max_font_size_em = 2.0
 	tag_cloud_min_font_size_em = 1.0
 	tag_cloud_delta_font_size_em = tag_cloud_max_font_size_em - tag_cloud_min_font_size_em 
@@ -69,16 +69,14 @@ def _flush_tag_caches():
 # ============================================
 
 class _DefaultConfig:
-	num_of_top_apps = 4
+	num_of_top_apps = 6
 
 def apps_default(request):
-	featured_apps = App.objects.filter(featured = True)
-	voted_apps = App.objects.all().order_by('votes').reverse()[:_DefaultConfig.num_of_top_apps]
+	latest_apps = App.objects.all().order_by('-latest_release_date')[:_DefaultConfig.num_of_top_apps]
 	downloaded_apps = App.objects.all().order_by('downloads').reverse()[:_DefaultConfig.num_of_top_apps]
 	
 	c = {
-		'featured_apps': featured_apps,
-		'voted_apps': voted_apps,
+		'latest_apps': latest_apps,
 		'downloaded_apps': downloaded_apps,
 		'go_back_to': 'home',
 	}

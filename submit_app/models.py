@@ -40,10 +40,6 @@ class AppPending(models.Model):
         return self.fullname + ' ' + self.version + ' from ' + self.submitter.email
 
     def make_release(self, app):
-        if not app.has_releases:
-            app.has_releases = True
-            app.save()
-            
         release, _ = Release.objects.get_or_create(app = app, version = self.version)
         release.works_with = self.cy_works_with
         release.active = True
@@ -53,6 +49,11 @@ class AppPending(models.Model):
         for dependee in self.dependencies.all():
             release.dependencies.add(dependee)
         release.calc_checksum()
+
+        if not app.has_releases:
+            app.has_releases = True
+        app.latest_release_date = release.created
+        app.save()
 
         if self.pom_xml_file and self.javadocs_jar_file:
             api, _ = ReleaseAPI.objects.get_or_create(release = release)
