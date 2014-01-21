@@ -18,12 +18,11 @@ class Author(models.Model):
 	search_schema = ('name', 'institution')
 	search_key = 'id'
 	
-	def __str__(self):
-		name_ascii = self.name.encode('ascii', 'backslashreplace')
+	def __unicode__(self):
 		if not self.institution:
-			return name_ascii
-		institution_ascii = self.institution.encode('ascii', 'backslashreplace')
-		return '%s @ %s' % (name_ascii, institution_ascii)
+			return self.name
+		else:
+			return self.name + ' (' + self.institution + ')'
 
 _TagCountCache = dict()
 
@@ -44,7 +43,7 @@ class Tag(models.Model):
 	search_schema = ('fullname', )
 	search_key = 'name'
 	
-	def __str__(self):
+	def __unicode__(self):
 		return self.name
 	class Meta:
 		ordering = ["name"]
@@ -70,6 +69,8 @@ class App(models.Model):
     cy_2x_plugin_version      = models.CharField(max_length=31, blank=True, null=True)
     cy_2x_plugin_release_date = models.DateField(blank=True, null=True)
     cy_2x_versions            = models.CharField(max_length=31, blank=True, null=True)
+
+    latest_release_date       = models.DateField(blank=True, null=True)
     has_releases              = models.BooleanField(default=False)
 
     license_text    = models.URLField(blank=True, null=True)
@@ -122,7 +123,7 @@ class App(models.Model):
     search_schema = ('^fullname', 'description', 'details')
     search_key = 'name'
 
-    def __str__(self):
+    def __unicode__(self):
         return self.name
 
 class OrderedAuthor(models.Model):
@@ -130,8 +131,8 @@ class OrderedAuthor(models.Model):
     app          = models.ForeignKey(App)
     author_order = models.PositiveSmallIntegerField(default = 0)
 
-    def __str__(self):
-        return '%d: %s by %s' % (self.author_order, self.app.name, self.author.name)
+    def __unicode__(self):
+        return unicode(self.author_order) + ': ' + self.app.name + ' by ' + self.author.name
 
     class Meta:
         ordering = ["author_order"]
@@ -176,7 +177,7 @@ class Release(models.Model):
     def release_download_url(self):
         return reverse('release_download', args=[self.app.name, self.version])
 
-    def __str__(self):
+    def __unicode__(self):
         return self.app.fullname + ' ' + self.version
 
     def calc_checksum(self):
@@ -212,7 +213,7 @@ class Screenshot(models.Model):
     screenshot = models.ImageField(upload_to=screenshot_path)
     thumbnail  = models.ImageField(upload_to=thumbnail_path)
 
-    def __str__(self):
+    def __unicode__(self):
         return '%s - %d' % (self.app.fullname, self.id)
 
 def javadocs_path(release_api, filename):
@@ -226,8 +227,8 @@ class ReleaseAPI(models.Model):
     javadocs_jar_file = models.FileField(upload_to=javadocs_path)
     pom_xml_file      = models.FileField(upload_to=pom_xml_path)
 
-    def __str__(self):
-        return str(self.release)
+    def __unicode__(self):
+        return unicode(self.release)
 
     def extract_javadocs_jar(self):
         file = self.javadocs_jar_file

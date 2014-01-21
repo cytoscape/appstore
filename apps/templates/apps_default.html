@@ -8,18 +8,13 @@
     .span4 { margin-bottom: 1em; }
   </style>
   <div class="row">
-    <div class="span4"><h2>Featured Apps</h2></div>
+    <div class="span4"><h2>Newest Releases</h2></div>
     <div class="span4" style="text-align: right; margin-top: 1.0em;">
       <a href="{% url 'getstarted' %}" class="btn btn-warning">Get Started with the App Store &raquo;</a>
     </div>
   </div>
-  <div class="row">{% app_buttons featured_apps %}</div>
-  <div class="row"><div class="span8"><h2>Top Voted Apps</h2></div></div>
-  <div class="row">{% app_buttons voted_apps %}</div>
+  <div class="row">{% app_buttons latest_apps %}</div>
   <div class="row"><div class="span8"><h2>Top Downloaded Apps</h2></div></div>
   <div class="row">{% app_buttons downloaded_apps %}</div>
-  <script type="text/javascript">
-    //CyMsgs.add_msg("", "info");
-  </script>
   <a style="display: none;" href="/media/fu.txt">fu skript kiddiez</a>
 {% endblock %}

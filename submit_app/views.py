@@ -4,14 +4,15 @@ from urllib import urlopen
 
 from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
-from django.http import HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
 from django.conf import settings
 from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
 
 from util.view_util import html_response, json_response, get_object_or_none
 from util.id_util import fullname_to_name
-from apps.models import Release, App
+from apps.models import Release, App, Author, OrderedAuthor
+from apps.views import _parse_iso_date
 from models import AppPending
 from .pomparse import PomAttrNames, parse_pom
 from .processjar import process_jar
@@ -251,3 +252,89 @@ def artifact_exists(request):
         return HttpResponseBadRequest('groupId, artifactId, or version not specified')
     deployUrl = _get_deploy_url(groupId, artifactId, version)
     return json_response(_url_exists(deployUrl))
+
+#
+# 2.x plugin management page
+#
+
+_PluginXmlUrl = 'http://chianti.ucsd.edu/cyto_web/plugins/plugins.xml'
+def _forward_plugins_xml(request_post):
+    try:
+        reader = urlopen(_PluginXmlUrl)
+        if reader.getcode() != 200:
+            raise Error('retrieve failed')
+        r = HttpResponse(content_type = 'application/xml')
+        r.write(reader.read())
+        return r
+    except:
+        return HttpResponse('Unable to retrieve: %s' % PluginXmlUrl, content_type='text/plain', status=503)
+
+def _app_info(request_post):
+    fullname = request_post.get('app_fullname')
+    name = fullname_to_name(fullname)
+    url = reverse('app_page', args=(name,))
+    exists = App.objects.filter(name = name).count() > 0
+    return json_response({'url': url, 'exists': exists})
+
+def _update_app_page(request_post):
+    fullname = request_post.get('fullname')
+    if not fullname:
+        return HttpResponseBadRequest('"fullname" not specified')
+    name = fullname_to_name(fullname)
+    app = get_object_or_none(App, name = name)
+    if not app:
+        app = App.objects.create(name = name, fullname = fullname)
+
+    details = request_post.get('details')
+    if details:
+        app.details = details
+
+    cy2x_plugin_download = request_post.get('cy2x_plugin_download')
+    if cy2x_plugin_download:
+        app.cy_2x_plugin_download = cy2x_plugin_download
+
+    cy2x_plugin_version = request_post.get('cy2x_plugin_version')
+    if cy2x_plugin_download:
+        app.cy_2x_plugin_version = cy2x_plugin_version
+
+    cy_versions = request_post.get('cy_versions')
+    if cy2x_plugin_download:
+        app.cy_2x_versions = cy_versions
+
+    release_date = request_post.get('release_date')
+    if cy2x_plugin_download:
+        app.cy_2x_plugin_release_date = _parse_iso_date(release_date)
+
+    author_count = request_post.get('author_count')
+    if author_count:
+        author_count = int(author_count)
+        for i in range(author_count):
+            name = request_post.get('author_' + str(i))
+            if not name:
+                return HttpResponseBadRequest('no such author at index ' + str(i))
+            institution = request_post.get('institution_' + str(i))
+            author, _ = Author.objects.get_or_create(name = name, institution = institution)
+            author_order = OrderedAuthor.objects.create(app = app, author = author, author_order = i)
+
+    app.save()
+    return json_response(True)
+
+_Cy2xPluginsActions = {
+    'plugins_xml': _forward_plugins_xml,
+    'app_info': _app_info,
+    'update': _update_app_page,
+}
+
+@login_required
+def cy2x_plugins(request):
+    if not request.user.is_staff:
+        return HttpResponseForbidden()
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if not action:
+            return HttpResponseBadRequest('action must be specified')
+        if not action in _Cy2xPluginsActions:
+            return HttpResponseBadRequest('invalid action--must be: %s' % ', '.join(_Cy2xPluginsActions.keys()))
+        return _Cy2xPluginsActions[action](request.POST)
+    else:
+        return html_response('cy2x_plugins.html', {}, request)
