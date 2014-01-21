@@ -1,5 +1,5 @@
-#cy-nav-panel #title {
-  padding-bottom: 0.5em;
+#cy-nav-panel #title h3 {
+  margin: 0.2em 0 0 0;
 }
 
 #cy-tag-list h5 {
