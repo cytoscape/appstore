@@ -215,20 +215,24 @@ var AppStats = (function() {
       addTotalColumn(timelineByDay);
       addTotalColumn(timelineCum);
 
+      var options = {
+        'legendPosition': 'newRow'
+      };
+
       // create timeline visualization
       var timelineChart = new google.visualization.AnnotatedTimeLine(document.getElementById('timeline-chart'));
-      timelineChart.draw(timelineCum, {});
+      timelineChart.draw(timelineCum, options);
 
       // setup buttons that switch between by-day and cumulative timelines
       $('#timeline-by-day').click(function() {
         $(this).parent().find('button').removeClass('active');
         $(this).addClass('active');
-        timelineChart.draw(timelineByDay, {});
+        timelineChart.draw(timelineByDay, options);
       });
       $('#timeline-cumulative').click(function() {
         $(this).parent().find('button').removeClass('active');
         $(this).addClass('active');
-        timelineChart.draw(timelineCum, {});
+        timelineChart.draw(timelineCum, options);
       });
 
       // setup "save as csv" button
