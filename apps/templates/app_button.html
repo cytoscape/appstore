@@ -6,6 +6,7 @@
   fullname="{{ app.fullname }}"
   votes="{{ app.votes }}"
   downloads="{{ app.downloads }}"
+  latest_release_date="{{ app.latest_release_date.isoformat }}"
   onClick="window.location='{% url 'app_page' app.name %}';">
 
   {% if app.has_releases %}

@@ -14,7 +14,19 @@
     </div>
   </div>
   <div class="row">{% app_buttons latest_apps %}</div>
+  <div class="row">
+    <div class="span8" style="text-align: right;">
+      <a href="{% url 'all_apps'%}#newest release">More &raquo;</a>
+    </div>
+  </div>
+
   <div class="row"><div class="span8"><h2>Top Downloaded Apps</h2></div></div>
   <div class="row">{% app_buttons downloaded_apps %}</div>
+  <div class="row">
+    <div class="span8" style="text-align: right;">
+      <a href="{% url 'all_apps'%}#downloads">More &raquo;</a>
+    </div>
+  </div>
+
   <a style="display: none;" href="/media/fu.txt">fu skript kiddiez</a>
 {% endblock %}

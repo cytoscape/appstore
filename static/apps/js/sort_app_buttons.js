@@ -1,6 +1,18 @@
 var SortAppButtons = (function() {
     var descending = false;
     var prev_sort_by = null;
+
+    var ISO_DATE_RE = /(\d{4})\-(\d{1,2})\-(\d{1,2})/;
+    function parseISODate(dateStr) {
+      var pieces = ISO_DATE_RE.exec(dateStr);
+      if (pieces === null) {
+        return null;
+      }
+      var y = parseInt(pieces[1], 10);
+      var m = parseInt(pieces[2], 10);
+      var d = parseInt(pieces[3], 10);
+      return new Date(y, m - 1, d);
+    }
     
     var sort_funcs = {
       'int': function(attr_name) {
@@ -18,6 +30,19 @@ var SortAppButtons = (function() {
                 if (nameA > nameB)
                     return 1;
                 else if (nameB > nameA)
+                    return -1;
+                else
+                    return 0;
+            }
+        },
+
+        'date': function(attr_name) {
+            return function(a, b) {
+                var dateA = parseISODate(a.attr(attr_name));
+                var dateB = parseISODate(b.attr(attr_name));
+                if (dateA > dateB)
+                    return 1;
+                else if (dateB > dateA)
                     return -1;
                 else
                     return 0;
@@ -68,7 +93,7 @@ var SortAppButtons = (function() {
             } else {
                 buttons.find('button .triangle').html('');
                 prev_sort_by = sort_by;
-                descending = (attr_type === 'int');
+                descending = (attr_type === 'int' || attr_type === 'date');
             }
 
             if (!$(this).hasClass('active')) {
@@ -88,12 +113,21 @@ var SortAppButtons = (function() {
    return {
        'init_sort_buttons': function(container) {
             setup_sort_buttons(container);
-            var sort_by = $.cookie(SORT_BY_COOKIE);
+            var sort_by_hash = window.location.hash.substring(1);
+            var sort_by_cookie = $.cookie(SORT_BY_COOKIE);
+            var descending_cookie = $.cookie(SORT_DESCENDING_COOKIE);
+            var sort_by;
+            if (sort_by_hash === "") {
+              sort_by = sort_by_cookie;
+            } else {
+              sort_by = sort_by_hash;
+              descending_cookie = "";
+            }
             var sort_button = sort_button_by_name(container, sort_by);
             if (sort_button.length === 0) {
                sort_button_by_name(container, 'name').click();
             } else {
-               descending = ($.cookie(SORT_DESCENDING_COOKIE) === 'false');
+               descending = (descending_cookie === 'false');
                prev_sort_by = sort_by;
                sort_button.click();
             }

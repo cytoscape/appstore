@@ -27,10 +27,11 @@ def list_of_apps(apps, include_relevancy = False):
     apps_with_releases = filter(lambda a: a.has_releases, apps)
     apps_without_releases = filter(lambda a: not a.has_releases, apps)
     # a list of sort buttons to display
-                    # button name   div attr name   attr type
-    sort_criteria = (('name',       'fullname',     'str'),
-                     ('downloads',  'downloads',    'int'),
-                     ('votes',      'votes',        'int'))
+                    # button name       div attr name          attr type
+    sort_criteria = (('name',           'fullname',            'str'),
+                     ('downloads',      'downloads',           'int'),
+                     ('votes',          'votes',               'int'),
+                     ('newest release', 'latest_release_date', 'date'))
     if (include_relevancy):
         sort_criteria = (('relevancy',  'order_index',  'int'), ) + sort_criteria
     return {'apps_with_releases': apps_with_releases,
