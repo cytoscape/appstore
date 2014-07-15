@@ -152,79 +152,72 @@ var AppPage = (function($) {
      ================================================================
     */
     
-    
-    function setup_stars(config) {
-        var stars_tag       = $('#rating-stars');
-        var stars_empty_tag = $('#rating-stars-empty');
-        var stars_full_tag  = $('#rating-stars-filled');
-        var extra_tag       = $('#rating-count');
-        var loading_tag     = $('#rating-loading');
+    function rating_to_width_percent(rating) {
+        return Math.ceil(100 * rating / 5);
+    }
 
-        function setup_avg_rating(avg_rating_percentage, votes_num) {
-            stars_full_tag.css('width', avg_rating_percentage + '%');
-            extra_tag.html('(' + votes_num + ')');
-        }
-        
-        function set_to_loading() {
-            extra_tag.hide();
-            loading_tag.show();
-        }
-        
-        function set_to_loading_done() {
-            extra_tag.show();
-            loading_tag.hide();
-        }
+    function width_percent_to_rating(width_percent) {
+        return Math.ceil(width_percent * 5 / 100);
+    }
 
-        function remove_post_rating() {
-            stars_tag.off('mouseenter').off('mousemove').off('mouseleave').off('click').css('cursor', '');
-        }
-        
-        function setup_post_rating() {
-            var original_stars;
-            
-            function x_to_rating(x, width) {
-                var rating = 5 * x / width;
-                if (rating <= 0.5)
-                    return 0;
-                else if (rating > 5.0)
-                    return 5;
-                else
-                    return Math.ceil(rating);
-            }
-            
-            function rating_to_stars(rating) {
-                return 100 * rating / 5;
-            }
-            
-            stars_tag.css('cursor', 'pointer').mouseenter(function() {
-                original_stars = stars_full_tag.css('width');
-            }).mousemove(function(e) {
-                var rating = x_to_rating(e.pageX - $(this).offset().left, $(this).width());
-                var stars = rating_to_stars(rating);
-                stars_full_tag.css('width', stars + '%');
-            }).mouseleave(function() {
-                stars_full_tag.css('width', original_stars);
-            }).click(function(e) {
-                var rating = x_to_rating(e.pageX - $(this).offset().left, $(this).width());
-                
-                set_to_loading();
-                remove_post_rating();
-                $.post('', {'action': 'rate', 'rating': rating},
-                    function(data) {
-                        set_to_loading_done();
-                        original_stars = data.stars_percentage + '%';
-                        setup_avg_rating(data.stars_percentage, data.votes);
-                        stars_tag.tooltip({'title': 'Your rating has been submitted. Thanks!'});
-                        stars_tag.tooltip('show');
-                    });
+    function cursor_x_to_rating(cursor_x, stars_width) {
+        var rating = 5 * cursor_x / stars_width;
+        if (rating <= 0.5)
+            return 0;
+        else if (rating > 5.0)
+            return 5;
+        else
+            return Math.ceil(rating);
+    }
+
+    function setup_rate_popover(popover) {
+        var stars_tag      = $('.popover-content .rating-stars');
+        var stars_full_tag = $('.popover-content .rating-stars-filled');
+        var rating = 5;
+        $('.popover-title .close').click(function() {
+            popover.popover('toggle');
+        });
+        $('.popover-content .rating-stars').mousemove(function(e) {
+            var potential_rating = cursor_x_to_rating(e.pageX - $(this).offset().left, $(this).width());
+            var width_percent = rating_to_width_percent(potential_rating);
+            stars_full_tag.css('width', width_percent + '%');
+        }).click(function() {
+            rating = width_percent_to_rating(parseInt(stars_full_tag.css('width')));
+            $('.popover-content #rate-btn #rating').text(rating);
+        }).mouseleave(function() {
+            var width_percent = rating_to_width_percent(rating);
+            stars_full_tag.css('width', width_percent + '%');
+        });
+        $('.popover-content #rate-btn').click(function() {
+            $(this).text('Submitting...').attr('disabled', 'true');
+            $.post('', {'action': 'rate', 'rating': rating}, function(data) {
+                popover.off('click').popover('destroy').css('cursor', 'default');
+                popover.find('.rating-stars-filled').css('width', data.stars_percentage.toString() + '%');
+                $('#rating-count').text('(' + data.votes.toString() + ')');
+                popover.tooltip({'title': 'Your rating has been submitted. Thanks!'}).tooltip('show');
+                setTimeout(function() {
+                    popover.tooltip('hide');
+                }, 5000);
             });
-        }
-    
-        setup_avg_rating(config.avg_rating_percentage, config.votes_num);
-        
-        setup_post_rating();
-	}
-    
+        });
+    }
+
+    function setup_stars() {
+        var stars_tag       = $('#app-usage-info .rating-stars');
+        var stars_empty_tag = $('#app-usage-info .rating-stars-empty');
+        var stars_full_tag  = $('#app-usage-info .rating-stars-filled');
+        stars_tag.popover({
+            'trigger': 'manual',
+            'content': $('#rate-popover-content').html()
+        }).click(function() {
+            stars_tag.popover('toggle');
+            setup_rate_popover($(this));
+        });
+        stars_empty_tag.click(stars_tag.click);
+        stars_full_tag.click(stars_tag.click);
+    }
+
+
     function setup_details() {
         MarkdownUtil.format($('#cy-app-details-md'));
     }

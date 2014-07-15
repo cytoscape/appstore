@@ -66,13 +66,12 @@
 <div class="row">
 	<div class="span12" id="app-usage-info">
 		{# Ratings #}
-		<div id="rating-stars">
-			<i id="rating-stars-empty" class="icon-cy-stars-empty"></i>
-			<i id="rating-stars-filled" class="icon-cy-stars-filled"></i>
-			<span id="rating-spacer"></span>
+		<div class="rating-stars" data-placement="bottom" data-title="Rate this app! <a class='close' style='margin-left: 0.5em;'>&times;</a>" data-html="true">
+			<i class="rating-stars-empty icon-cy-stars-empty"></i>
+			<i class="rating-stars-filled icon-cy-stars-filled" style="width: {{ app.stars_percentage|escapejs }}%;"></i>
+			<span class="rating-spacer"></span>
 		</div>
-		<img id="rating-loading" src="{% get_static_prefix %}common/img/loading_small.gif">
-		<span id="rating-count"></span>
+		<span id="rating-count">({{ app.votes|escapejs }})</span>
 		{# End Ratings #}
 
 		{# Downloads #}
@@ -393,6 +392,17 @@
 {% endif %}
 {# End license modal dialog #}
 
+{# Vote popover content #}
+<script type="text/html" id="rate-popover-content">
+<div class="rating-stars">
+	<i class="rating-stars-empty icon-cy-stars-empty"></i>
+	<i class="rating-stars-filled icon-cy-stars-filled" style="width: 100%;"></i>
+	<span class="rating-spacer"></span>
+</div>
+<button class="btn btn-mini" id="rate-btn">Rate it <span id="rating">5</span> star(s)</button>
+</script>
+{# End vote popover content #}
+
 <script type="text/javascript" src="{% get_static_prefix %}apps/js/app_page.js"></script>
 	
 <script type="text/javascript">
@@ -410,10 +420,7 @@ AppPage.setup_cy_2x_download_popover('{% get_static_prefix %}apps/img/plugins_di
 AppPage.setup_details();
 {% endif %}
 
-AppPage.setup_stars({
-	'avg_rating_percentage': '{{ app.stars_percentage|escapejs }}',
-	'votes_num': '{{ app.votes|escapejs }}'
-});
+AppPage.setup_stars();
 
 AppPage.setup_release_notes();
 </script>

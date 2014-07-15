@@ -13,13 +13,14 @@
     padding-left: 1em;
 }
 
-#rating-stars { 
+.rating-stars { 
     position: relative;
     width: 85px;
     display: inline;
+    cursor: pointer;
 }
 
-#rating-stars-empty {
+.rating-stars-empty {
     position: absolute;
     top: 0;
     left: 0;
@@ -27,14 +28,14 @@
     z-index: 101;
 }
 
-#rating-stars-filled {
+.rating-stars-filled {
     position: absolute;
     top: 0;
     left: 0;
     z-index: 102;
 }
 
-#rating-spacer {
+.rating-spacer {
   padding-left: 90px;
 }
 
