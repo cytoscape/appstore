@@ -50,6 +50,8 @@ var AppPage = (function($) {
                     func();
                 });
                 install_btn.click(function() {
+                    var license_iframe = license_modal.find('iframe');
+                    license_iframe.attr('src', license_iframe.attr('data-src'));
                     license_modal.modal('show');
                 });
             } else {
