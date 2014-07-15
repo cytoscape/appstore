@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load url from future %}
+{% load static %}
 
 {% block content %}
     <div class="row">
@@ -30,4 +31,23 @@
             </a>
         </div>
     </div>
+    <div class="row" style="margin-top: 1em;">
+        <div class="span5">
+            Are you already signed into Google but want to use another account? <a id="signoutandinlink" href="#" onclick="signOutAndInOfGoogle();">Click here.</a>
+        </div>
+    </div>
+    <script type="text/javascript">
+    function signOutAndInOfGoogle() {
+        var logoutframe =
+            $('<iframe>').
+            attr('src', 'https://accounts.google.com/logout').
+            hide();
+        $('body').append(logoutframe);
+        $('#signoutandinlink').replaceWith('<img src="{% get_static_prefix %}common/img/loading_small.gif">');
+        setTimeout(function() {
+            logoutframe.remove();
+            window.location = "{% url 'socialauth_begin' 'google-oauth2' %}?next={{ next_url }}";
+        }, 2000);
+    }
+    </script>
 {% endblock %}
