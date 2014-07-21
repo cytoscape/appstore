@@ -202,6 +202,16 @@ def app_page(request, app_name):
 #      App Page Editing
 # ============================================
 
+@login_required
+def author_names(app, request):
+	names = [a.name for a in Author.objects.exclude(name__isnull=True)]
+	return json_response(names)
+
+@login_required
+def institution_names(app, request):
+	names = [a.institution for a in Author.objects.exclude(institution__isnull=True)]
+	return json_response(names)
+
 isoDateRe = re.compile(r'(\d{4})-(\d{2})-(\d{2})')
 def _parse_iso_date(string):
 	matches = isoDateRe.match(string)

@@ -410,6 +410,7 @@ AppPageEdit.setup_author_add_btn();
 AppPageEdit.add_author('{{ author.name }}', {% if author.institution %}'{{ author.institution }}'{% else %}null{% endif %});
 {% endfor %}
 $(function() {
+  AppPageEdit.setup_authors_typeahead();
   AppPageEdit.setup_authors_dnd();
 });
 

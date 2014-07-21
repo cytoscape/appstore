@@ -8,5 +8,7 @@ urlpatterns = patterns('',
     url(r'^with_author/(.{1,300})$',          'apps.views.apps_with_author',     name='author_page'),
     url(r'^(\w{1,100})$',                     'apps.views.app_page',             name='app_page'),
     url(r'^(\w{1,100})/edit$',                'apps.views.app_page_edit',        name='app_page_edit'),
+    url(r'^(\w{1,100})/author_names$',        'apps.views.author_names'),
+    url(r'^(\w{1,100})/institution_names$',   'apps.views.institution_names'),
     url(r'^(\w{1,100})/download/(.{1,31})$',  'download.views.release_download'), # old url for downloads
 )

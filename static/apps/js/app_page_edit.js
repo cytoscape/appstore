@@ -448,6 +448,9 @@ var AppPageEdit = (function($)
     
     var authors_table = $('#cy-app-authors');
     var author_tmpl = $('#cy-author-row-tmpl');
+
+    var author_names = null;
+    var institution_names = null;
     
     function authors_modified() {
         SaveActions['authors'] = true;
@@ -461,6 +464,7 @@ var AppPageEdit = (function($)
             authors_modified();
         });
         field_change(author_tag.find('input'), authors_modified);
+        update_typeahead_fields();
     }
     
     var author_add_btn = $('#cy-app-author-add');
@@ -475,6 +479,33 @@ var AppPageEdit = (function($)
         authors_table.tableDnD({
             'onDrop': authors_modified,
         });
+    }
+
+    function setup_authors_typeahead() {
+        $.get("author_names", function(data) {
+            author_names = remove_duplicates(data);
+            update_typeahead_fields();
+        });
+        $.get("institution_names", function(data) {
+            institution_names = remove_duplicates(data);
+            update_typeahead_fields();
+        });
+    }
+
+    function update_typeahead_fields() {
+        if (author_names === null || institution_names === null) {
+            return;
+        }
+        $('.cy-app-author-name').typeahead({source: author_names});
+        $('.cy-app-author-institution').typeahead({source: institution_names});
+    }
+
+    function remove_duplicates(list) {
+        var unique = [];
+        $.each(list, function(i, el){
+            if($.inArray(el, unique) === -1) unique.push(el);
+        });
+        return unique;
     }
     
     /* ===============================
@@ -860,6 +891,7 @@ var AppPageEdit = (function($)
         'add_editor': add_editor,
         'setup_author_add_btn': setup_author_add_btn,
         'add_author': add_author,
+        'setup_authors_typeahead': setup_authors_typeahead,
         'setup_authors_dnd': setup_authors_dnd,
         'setup_release_notes': setup_release_notes,
         'setup_cancel_btn': setup_cancel_btn,
