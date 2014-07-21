@@ -90,7 +90,7 @@
     {# Footer #}
     <hr style="margin-top: 6em;">
     <footer style="text-align: center;">
-      {% ifnotequal footer_selected 'about' %}<a href="{% url 'about' %}">{% endifnotequal %}About{% ifnotequal footer_selected 'about' %}</a>{% endifnotequal %}
+      {% ifnotequal footer_selected 'about' %}<a href="{% url 'about' %}">{% endifnotequal %}About&ndash;Cite us!{% ifnotequal footer_selected 'about' %}</a>{% endifnotequal %}
       &bull;
       {% ifnotequal footer_selected 'contact' %}<a href="{% url 'contact' %}">{% endifnotequal %}Contact Us{% ifnotequal footer_selected 'contact' %}</a>{% endifnotequal %}
 
