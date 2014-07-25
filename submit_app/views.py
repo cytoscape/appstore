@@ -51,6 +51,9 @@ def _user_accepted(request, pending):
     if app:
         if not app.is_editor(request.user):
             return HttpResponseForbidden('You are not authorized to add releases, because you are not an editor')
+        if not app.active:
+            app.active = True
+            app.save()
         pending.make_release(app)
         pending.delete_files()
         pending.delete()
@@ -273,7 +276,7 @@ def _app_info(request_post):
     fullname = request_post.get('app_fullname')
     name = fullname_to_name(fullname)
     url = reverse('app_page', args=(name,))
-    exists = App.objects.filter(name = name).count() > 0
+    exists = App.objects.filter(name = name, active = True).count() > 0
     return json_response({'url': url, 'exists': exists})
 
 def _update_app_page(request_post):
@@ -282,7 +285,9 @@ def _update_app_page(request_post):
         return HttpResponseBadRequest('"fullname" not specified')
     name = fullname_to_name(fullname)
     app = get_object_or_none(App, name = name)
-    if not app:
+    if app:
+        app.active = True
+    else:
         app = App.objects.create(name = name, fullname = fullname)
 
     details = request_post.get('details')

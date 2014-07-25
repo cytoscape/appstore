@@ -8,6 +8,6 @@ def _app_to_obj(app):
 	return result
 
 def all(request):
-	all_apps = App.objects.all()
+	all_apps = App.objects.filter(active = True)
 	all_apps_fmt = [_app_to_obj(app) for app in all_apps if app.has_releases]
 	return json_response(all_apps_fmt)

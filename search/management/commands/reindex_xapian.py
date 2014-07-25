@@ -15,6 +15,10 @@ def index_model(dbs_root, model_name, model):
     indexer.set_stemmer(xapian.Stem('english'))
     (schema, keyname) = (model.search_schema, model.search_key)
     for obj in model.objects.all():
+        if hasattr(obj, 'active'):
+          active = getattr(obj, 'active')
+          if not active:
+            continue
         key = str(getattr(obj, keyname))
         doc = xapian.Document()
         doc.set_data(key)

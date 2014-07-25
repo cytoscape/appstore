@@ -36,7 +36,7 @@ class Tag(models.Model):
 		if self.name in _TagCountCache:
 			count = _TagCountCache[self.name]
 		else:
-			count = App.objects.filter(tags = self).count()
+			count = App.objects.filter(active = True, tags = self).count()
 			_TagCountCache[self.name] = count
 		return count
 	
@@ -88,6 +88,8 @@ class App(models.Model):
 
     featured = models.BooleanField(default=False)
     competition_winner_dec_2012 = models.BooleanField(default=False)
+
+    active = models.BooleanField(default=False)
 
     def is_editor(self, user):
         if not user:

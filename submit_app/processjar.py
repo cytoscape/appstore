@@ -40,7 +40,7 @@ def _app_dependencies_to_releases(app_dependencies):
     for dependency in app_dependencies:
         app_name, app_version = dependency
 
-        app = get_object_or_none(App, fullname = app_name)
+        app = get_object_or_none(App, active = True, fullname = app_name)
         if not app:
             raise ValueError('dependency on "%s": no such app exists' % app_name)
 

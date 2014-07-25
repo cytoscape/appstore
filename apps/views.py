@@ -72,8 +72,8 @@ class _DefaultConfig:
 	num_of_top_apps = 6
 
 def apps_default(request):
-	latest_apps = App.objects.all().order_by('-latest_release_date')[:_DefaultConfig.num_of_top_apps]
-	downloaded_apps = App.objects.all().order_by('downloads').reverse()[:_DefaultConfig.num_of_top_apps]
+	latest_apps = App.objects.filter(active=True).order_by('-latest_release_date')[:_DefaultConfig.num_of_top_apps]
+	downloaded_apps = App.objects.filter(active=True).order_by('downloads').reverse()[:_DefaultConfig.num_of_top_apps]
 	
 	c = {
 		'latest_apps': latest_apps,
@@ -83,7 +83,7 @@ def apps_default(request):
 	return html_response('apps_default.html', c, request, processors = (_nav_panel_context, ))
 
 def all_apps(request):
-	apps = App.objects.all().order_by('name')
+	apps = App.objects.filter(active=True).order_by('name')
 	c = {
 		'apps': apps,
 		'navbar_selected_link': 'all',
@@ -99,7 +99,7 @@ def wall_of_apps(request):
 		apps_in_not_top_tags.update(not_top_tag.app_set.all())
 	tags.append(('other', apps_in_not_top_tags))
 	c = {
-		'total_apps_count': App.objects.all().count,
+		'total_apps_count': App.objects.filter(active=True).count,
 		'tags': tags,
 		'go_back_to': 'Wall of Apps',
 	}
@@ -107,7 +107,7 @@ def wall_of_apps(request):
 
 def apps_with_tag(request, tag_name):
 	tag = get_object_or_404(Tag, name = tag_name)
-	apps = App.objects.filter(tags = tag).order_by('name')
+	apps = App.objects.filter(active = True, tags = tag).order_by('name')
 	c = {
 		'tag': tag,
 		'apps': apps,
@@ -117,7 +117,7 @@ def apps_with_tag(request, tag_name):
 	return html_response('apps_with_tag.html', c, request, processors = (_nav_panel_context, ))
 
 def apps_with_author(request, author_name):
-	apps = App.objects.filter(authors__name__exact = author_name).order_by('name')
+	apps = App.objects.filter(active = True, authors__name__exact = author_name).order_by('name')
 	if not apps:
 		raise Http404('No such author "%s".' % author_name)
 
@@ -179,7 +179,7 @@ _AppActions = {
 }
 
 def app_page(request, app_name):
-	app = get_object_or_404(App, name = app_name)
+	app = get_object_or_404(App, active = True, name = app_name)
 	user = request.user if request.user.is_authenticated() else None
 	
 	if request.method == 'POST':
@@ -428,7 +428,7 @@ _AppEditActions = {
 
 @login_required
 def app_page_edit(request, app_name):
-	app = get_object_or_404(App, name = app_name)
+	app = get_object_or_404(App, active = True, name = app_name)
 	if not app.is_editor(request.user):
 		return HttpResponseForbidden()
 	
