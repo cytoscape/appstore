@@ -189,6 +189,7 @@ def _pending_app_accept(pending, request):
     name = fullname_to_name(pending.fullname)
     # we always create a new app, because only new apps require accepting
     app = App.objects.create(fullname = pending.fullname, name = name)
+    app.active = True
     app.editors.add(pending.submitter)
     app.save()
 
