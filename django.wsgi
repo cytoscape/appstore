@@ -2,7 +2,7 @@ import os
 from os.path import join as filejoin
 import sys
 
-SITE_PARENT_DIR = '/var/websites'
+SITE_PARENT_DIR = '/var/www'
 SITE_DIR = filejoin(SITE_PARENT_DIR, 'CyAppStore')
 
 sys.path.append(SITE_PARENT_DIR)
