@@ -39,6 +39,13 @@ def _nav_panel_context(request):
 	all_tags = _all_tags_of_count(_NavPanelConfig.min_tag_count)
 	sorted_tags = sorted(all_tags, key=lambda tag: tag.count)
 	sorted_tags.reverse()
+	try:
+    		tag = get_object_or_404(Tag, name = 'collections')
+        	idx = sorted_tags.index(tag)
+           	sorted_tags.pop(idx)
+           	sorted_tags.insert(0, tag)
+	except Http404:
+    		idx = 0
 	max_count = sorted_tags[0].count
 	min_count = sorted_tags[-1].count
 	count_delta = float(max_count - min_count)
@@ -46,7 +53,10 @@ def _nav_panel_context(request):
 	not_top_tags = sorted_tags[_NavPanelConfig.num_of_top_tags:]
 	
 	for tag in all_tags:
-		rel_count = (tag.count - min_count) / count_delta
+		try:
+			rel_count = (tag.count - min_count) / count_delta
+		except ZeroDivisionError:
+			rel_count = 1
 		font_size_em = rel_count * _NavPanelConfig.tag_cloud_delta_font_size_em + _NavPanelConfig.tag_cloud_min_font_size_em
 		tag.font_size_em = '%.2f' % font_size_em
 
