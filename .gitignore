@@ -13,3 +13,6 @@
 /download/geolite/GeoLiteCity.dat
 /download/geolite/last_updated
 /logs
+
+.idea
+CyAppStore.sqlite

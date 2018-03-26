@@ -1,0 +1,6 @@
+django < 1.9  # requires django.utils.importlib
+python-geoip
+django-social-auth
+Pillow
+gevent
+xapiand

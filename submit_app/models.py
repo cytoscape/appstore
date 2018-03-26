@@ -1,7 +1,5 @@
 from django.db import models
 from django.contrib.auth.models import User
-from conf.mvn import MVN_BIN_PATH, MVN_SETTINGS_PATH 
-from conf.emails import EMAIL_ADDR
 from django.conf import settings
 from apps.models import App, Release, ReleaseAPI
 from util.id_util import fullname_to_name
@@ -11,6 +9,12 @@ from threading import Thread
 import subprocess
 import datetime
 from django.core.mail import send_mail
+import warnings
+try:
+    from conf.mvn import MVN_BIN_PATH, MVN_SETTINGS_PATH
+    from conf.emails import EMAIL_ADDR
+except ImportError:
+    from conf.mock import MVN_BIN_PATH, MVN_SETTINGS_PATH, EMAIL_ADDR
 
 class AppPending(models.Model):
     submitter     = models.ForeignKey(User)
