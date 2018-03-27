@@ -1,15 +1,27 @@
+import os
 from os.path import join as filejoin
 from urlparse import urljoin
 
-from conf.paths import *
-from conf.emails import *
-from conf.dbs import *
-from conf.apikeys import *
-from conf.socialauth import *
-from conf.geoip import *
+try:
+    # credentials provided
+    from conf.paths import *
+    from conf.emails import *
+    from conf.dbs import *
+    from conf.apikeys import *
+    from conf.socialauth import *
+    from conf.geoip import *
+except ImportError:
+    from conf.mock import *
+    SITE_DIR = "/tmp/"
+    DATABASES = {
+        'default': {
+            'NAME': 'CyAppStore.sqlite',
+            'ENGINE': 'django.db.backends.sqlite3',
+        }
+    }
 
 # Django settings for CyAppStore project.
-
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 DJANGO_STATIC_AND_MEDIA = DEBUG
@@ -39,22 +51,22 @@ USE_L10N = False
 
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/home/media/media.lawrence.com/media/"
-MEDIA_ROOT = filejoin(SITE_DIR, 'media')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # URL that handles the media served from MEDIA_ROOT. Make sure to use a
 # trailing slash.
 # Examples: "http://media.lawrence.com/media/", "http://example.com/media/"
-MEDIA_URL = urljoin(SITE_URL, 'media/')
+MEDIA_URL = '/media/'
 
 # Absolute path to the directory static files should be collected to.
 # Don't put anything in this directory yourself; store your static files
 # in apps' "static/" subdirectories and in STATICFILES_DIRS.
 # Example: "/home/media/media.lawrence.com/static/"
-STATIC_ROOT = ''
+STATIC_ROOT = BASE_DIR + "/static/"
 
 # URL prefix for static files.
 # Example: "http://media.lawrence.com/static/"
-STATIC_URL = urljoin(SITE_URL, 'static/')
+STATIC_URL = '/static/'
 
 # URL prefix for admin static files -- CSS, JavaScript and images.
 # Make sure to use a trailing slash.
@@ -115,14 +127,14 @@ INSTALLED_APPS = (
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
     'social_auth',
-    'CyAppStore', # this must be included to find root templates
-    'CyAppStore.apps',
-    'CyAppStore.search',
-    'CyAppStore.submit_app',
-    'CyAppStore.users',
-    'CyAppStore.help',
-    'CyAppStore.backend',
-    'CyAppStore.download',
+    'CyAppStore',  # this must be included to find root templates
+    'apps',
+    'search',
+    'submit_app',
+    'users',
+    'help',
+    'backend',
+    'download',
 )
 
 AUTHENTICATION_BACKENDS = (
