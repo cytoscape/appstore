@@ -26,10 +26,10 @@ def login_done(request, backend, *args, **kwargs):
     else:
         try:
             return complete_process(request, backend, *args, **kwargs)
-        except Exception, e:
+        except Exception as e:
             logger.exception(e)
             return html_response('login.html', {'at_login': True, 'error': str(e)}, request)
-        
+
 def logout(request):
     auth.logout(request)
     next_url = request.GET.get('next', reverse('default-page'))
