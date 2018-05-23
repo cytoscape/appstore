@@ -1,6 +1,9 @@
 import json
 import re
-from cStringIO import StringIO
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 from django.http import HttpResponse
 from django.shortcuts import render_to_response
 from django.template import RequestContext
@@ -27,7 +30,7 @@ def get_object_or_none(model, *args, **kwargs):
         return model.objects.get(*args, **kwargs)
     except model.DoesNotExist:
         return None
-    
+
 IPAddrRE = re.compile(r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$')
 def ipaddr_str_to_long(ipaddr_str):
     m = IPAddrRE.match(ipaddr_str)
@@ -45,4 +48,3 @@ def ipaddr_long_to_str(ipaddr_long):
     ipaddr_long >>= 8
     oct1 = ipaddr_long & 255
     return '%d.%d.%d.%d' % (oct1, oct2, oct3, oct4)
-    
