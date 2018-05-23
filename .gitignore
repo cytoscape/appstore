@@ -14,5 +14,6 @@
 /download/geolite/last_updated
 /logs
 /appstore
+/venv
 .idea
 CyAppStore.sqlite

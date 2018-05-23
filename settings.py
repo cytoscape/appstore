@@ -1,6 +1,6 @@
 import os
 from os.path import join as filejoin
-from urlparse import urljoin
+from urllib.parse import urljoin
 
 try:
     # credentials provided
@@ -126,7 +126,7 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
-    'social_auth',
+    'social_django',
     'CyAppStore',  # this must be included to find root templates
     'apps',
     'search',
@@ -138,7 +138,7 @@ INSTALLED_APPS = (
 )
 
 AUTHENTICATION_BACKENDS = (
-    'social_auth.backends.google.GoogleOAuth2Backend',
+    'social_core.backends.google.GoogleOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 )
 
@@ -147,6 +147,8 @@ if DJANGO_STATIC_AND_MEDIA:
 	INSTALLED_APPS += ('django.contrib.staticfiles', )
 
 TEMPLATE_CONTEXT_PROCESSORS = (
+    'social_django.context_processors.backends',
+    'social_django.context_processors.login_redirect',
     'django.core.context_processors.debug',
     'django.core.context_processors.media',
     'django.core.context_processors.static',
@@ -193,4 +195,3 @@ LOGGING = {
         },
     }
 }
-
