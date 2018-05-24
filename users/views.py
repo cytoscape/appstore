@@ -31,6 +31,6 @@ def login_done(request, backend, *args, **kwargs):
             return html_response('login.html', {'at_login': True, 'error': str(e)}, request)
 
 def logout(request):
-    auth.logout(request)
+    auth_logout(request)
     next_url = request.GET.get('next', reverse('default-page'))
     return HttpResponseRedirect(next_url)
