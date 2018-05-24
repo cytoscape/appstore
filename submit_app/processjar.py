@@ -1,7 +1,7 @@
 from zipfile import ZipFile, BadZipfile
 from .mfparse import parse_manifest, max_of_lower_cytoscape_pkg_versions, parse_app_dependencies
 from apps.models import App, Release, VersionRE
-from django.utils.encoding import smart_unicode
+from django.utils.encoding import smart_text
 from util.view_util import get_object_or_none
 
 _MANIFEST_FILE_NAME = 'META-INF/MANIFEST.MF'
@@ -10,9 +10,9 @@ _MAX_MANIFEST_FILE_SIZE_B = 1024 * 1024
 def process_jar(jar_file, expect_app_name):
     try:
         archive = ZipFile(jar_file)
-    except BadZipfile, IOError:
+    except BadZipfile as IOError:
         raise ValueError('is not a valid zip file')
-    
+
     manifest_file = _get_manifest_file(archive)
     manifest = parse_manifest(manifest_file)
     manifest_file.close()
@@ -22,15 +22,15 @@ def process_jar(jar_file, expect_app_name):
     parser_func = _parse_osgi_bundle if is_osgi_bundle else _parse_simple_app
     app_name, app_ver, app_works_with, app_dependencies, has_export_pkg = parser_func(manifest)
 
-    app_name = smart_unicode(app_name, errors='replace')
+    app_name = smart_text(app_name, errors='replace')
     if expect_app_name and (not app_name == expect_app_name):
         raise ValueError('has app name as <tt>%s</tt> but must be <tt>%s</tt>' % (app_name, expect_app_name))
-    app_ver = smart_unicode(app_ver, errors='replace')
-    app_works_with = smart_unicode(app_works_with, errors='replace')
+    app_ver = smart_text(app_ver, errors='replace')
+    app_works_with = smart_text(app_works_with, errors='replace')
 
     try:
         app_dependencies = list(_app_dependencies_to_releases(app_dependencies))
-    except ValueError, e:
+    except ValueError as e:
         (msg, ) = e.args
         raise ValueError('has a problem with its manifest for entry <tt>Cytoscape-App-Dependencies</tt>: ' + msg)
 
@@ -55,7 +55,7 @@ def _get_manifest_file(zip_archive):
         manifest_info = zip_archive.getinfo(_MANIFEST_FILE_NAME)
     except KeyError:
         raise ValueError('does not have a manifest file located in <tt>%s</tt>' % _MANIFEST_FILE_NAME)
-    
+
     if manifest_info.file_size > _MAX_MANIFEST_FILE_SIZE_B:
         raise ValueError('has a manifest file that\'s too large; it can be at most %d bytes but is %d bytes' % (_MAX_MANIFEST_FILE_SIZE_B, manifest_info.file_size))
 
@@ -88,7 +88,7 @@ def _parse_simple_app(manifest):
     app_works_with = _last(manifest, 'Cytoscape-API-Compatibility')
     if not app_works_with:
         raise ValueError('does not have <tt>Cytoscape-API-Compatibility</tt> in its manifest')
-    
+
     app_dependencies = list() # simple apps can't have dependencies
     has_export_pkg = False # simple apps can't export packages
 
@@ -114,7 +114,7 @@ def _parse_osgi_bundle(manifest):
     if app_dependencies_str:
         try:
             app_dependencies = list(parse_app_dependencies(app_dependencies_str))
-        except ValueError, e:
+        except ValueError as e:
             (msg, ) = e.args
             raise ValueError('has a problem with the <tt>Cytoscape-App-Dependencies</tt> entry: ' + msg)
     else:
