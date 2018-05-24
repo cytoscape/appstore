@@ -1,6 +1,6 @@
-from zipfile import ZipFile 
+from zipfile import ZipFile
 from os.path import basename
-from urllib import urlopen
+from urllib.request import urlopen
 
 from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
@@ -13,7 +13,7 @@ from util.view_util import html_response, json_response, get_object_or_none
 from util.id_util import fullname_to_name
 from apps.models import Release, App, Author, OrderedAuthor
 from apps.views import _parse_iso_date
-from models import AppPending
+from .models import AppPending
 from .pomparse import PomAttrNames, parse_pom
 from .processjar import process_jar
 
@@ -33,7 +33,7 @@ def submit_app(request):
                     return HttpResponseRedirect(reverse('submit-api', args=[pending.id]))
                 else:
                     return HttpResponseRedirect(reverse('confirm-submission', args=[pending.id]))
-            except ValueError, e:
+            except ValueError as e:
                 context['error_msg'] = str(e)
     else:
         expect_app_name = request.GET.get('expect_app_name')
@@ -100,7 +100,7 @@ def _create_pending(submitter, fullname, version, cy_works_with, app_dependencie
 
 def _send_email_for_pending(pending):
     msg = u"""
-The following app has been submitted: 
+The following app has been submitted:
     ID: {id}
     Name: {fullname}
     Version: {version}
@@ -159,7 +159,7 @@ def _send_email_for_accepted_app(to_email, from_email, app_fullname, app_name, s
     msg = u"""Your app has been approved! Here is your app page:
 
   {server_url}{app_url}
-            
+
 To edit your app page:
  1. Go to {server_url}{app_url}
  2. Sign in as {author_email}
@@ -224,12 +224,12 @@ def pending_apps(request):
             return HttpResponseBadRequest('pending_id must be specified')
         try:
             pending_app = AppPending.objects.get(id = int(pending_id))
-        except AppPending.DoesNotExist, ValueError:
+        except AppPending.DoesNotExist as ValueError:
             return HttpResponseBadRequest('invalid pending_id')
         _PendingAppsActions[action](pending_app, request)
         if request.is_ajax():
             return json_response(True)
-            
+
     pending_apps = AppPending.objects.all()
     return html_response('pending_apps.html', {'pending_apps': pending_apps}, request)
 
@@ -251,7 +251,7 @@ def artifact_exists(request):
     if request.method != 'POST':
         return HttpResponseBadRequest('no data')
     postLookup = request.POST.get
-    groupId, artifactId, version = postLookup('groupId'), postLookup('artifactId'), postLookup('version') 
+    groupId, artifactId, version = postLookup('groupId'), postLookup('artifactId'), postLookup('version')
     if not groupId or not artifactId or not version:
         return HttpResponseBadRequest('groupId, artifactId, or version not specified')
     deployUrl = _get_deploy_url(groupId, artifactId, version)
