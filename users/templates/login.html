@@ -46,7 +46,7 @@
         $('#signoutandinlink').replaceWith('<img src="{% get_static_prefix %}common/img/loading_small.gif">');
         setTimeout(function() {
             logoutframe.remove();
-            window.location = "{% url 'socialauth_begin' 'google-oauth2' %}?next={{ next_url }}";
+            window.location = "{% url 'social:begin' 'google-oauth2' %}?next={{ next_url }}";
         }, 2000);
     }
     </script>

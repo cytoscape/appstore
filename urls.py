@@ -16,7 +16,6 @@ urlpatterns = patterns('',
 
     # Uncomment the next line to enable the admin:
     url(r'^admin/', include(admin.site.urls)),
-    url('', include('social_django.urls', namespace='social')),
 
     url(r'^$',          'apps.views.apps_default', name='default-page'),
     url(r'^apps/',       include('apps.urls')),
