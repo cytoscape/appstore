@@ -1,6 +1,6 @@
 import sys
 from xml.dom.minidom import parse
-from urllib import urlopen
+from urllib.request import urlopen
 from collections import defaultdict
 
 from django.core.management.base import BaseCommand

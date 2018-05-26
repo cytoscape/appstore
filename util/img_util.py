@@ -1,9 +1,9 @@
 from django.core.files import File
 from PIL import Image
 try:
-    from StringIO import StringIO
+    from BytesIO import BytesIO
 except ImportError:
-    from io import StringIO
+    from io import BytesIO
 def scale_img(f, name, max_px, dim):
     try:
         img = Image.open(f, 'r')
@@ -29,7 +29,7 @@ def scale_img(f, name, max_px, dim):
             return f
 
     scaled_img = img.resize((w, h), Image.ANTIALIAS)
-    scaled_buffer = StringIO()
+    scaled_buffer = BytesIO()
     scaled_img.save(scaled_buffer, 'PNG')
     scaled_f = File(scaled_buffer, name = name + '.png')
     scaled_f._set_size(len(scaled_buffer.getvalue()))

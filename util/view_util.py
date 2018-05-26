@@ -1,9 +1,9 @@
 import json
 import re
 try:
-    from StringIO import StringIO
+    from BytesIO import BytesIO
 except ImportError:
-    from io import StringIO
+    from io import BytesIO
 from django.http import HttpResponse
 from django.shortcuts import render_to_response
 from django.template import RequestContext
