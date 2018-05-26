@@ -1,28 +1,21 @@
 import os
 from os.path import join as filejoin
-from urllib.parse import urljoin
-
 try:
-    # credentials provided
-    from conf.paths import *
-    from conf.emails import *
-    from conf.dbs import *
-    from conf.apikeys import *
-    from conf.socialauth import *
-    from conf.geoip import *
+    from urllib.parse import urljoin
 except ImportError:
-    from conf.mock import *
-    SITE_DIR = "/tmp/"
-    DATABASES = {
-        'default': {
-            'NAME': 'CyAppStore.sqlite',
-            'ENGINE': 'django.db.backends.sqlite3',
-        }
-    }
+     from urlparse import urljoin
+
+# credentials provided
+from conf.paths import *
+from conf.emails import *
+from conf.dbs import *
+from conf.apikeys import *
+from conf.socialauth import *
+from conf.geoip import *
 
 # Django settings for CyAppStore project.
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEBUG = True
+#BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEBUG = True 
 TEMPLATE_DEBUG = DEBUG
 DJANGO_STATIC_AND_MEDIA = DEBUG
 
@@ -51,7 +44,7 @@ USE_L10N = False
 
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/home/media/media.lawrence.com/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = os.path.join(SITE_DIR, 'media')
 
 # URL that handles the media served from MEDIA_ROOT. Make sure to use a
 # trailing slash.
@@ -62,7 +55,7 @@ MEDIA_URL = '/media/'
 # Don't put anything in this directory yourself; store your static files
 # in apps' "static/" subdirectories and in STATICFILES_DIRS.
 # Example: "/home/media/media.lawrence.com/static/"
-STATIC_ROOT = BASE_DIR + "/static/"
+STATIC_ROOT = SITE_DIR + "/static/"
 
 # URL prefix for static files.
 # Example: "http://media.lawrence.com/static/"
