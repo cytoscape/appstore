@@ -1,5 +1,3 @@
-import pymysql
-pymysql.install_as_MySQLdb()
 import os
 from os.path import join as filejoin
 import sys
