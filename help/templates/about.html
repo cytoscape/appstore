@@ -1,14 +1,12 @@
 {% extends "base.html" %}
 
 {% block title %} - About{% endblock %}
-
 {% block more_head %}
 <!script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?libraries=places&key={{ google_api_key }}&sensor=false"></script>
   <style type="text/css">
     #institutions_map img { max-width: none; }
   </style>
 {% endblock %}
-
 {% block content %}
 	<div class="row">
 		<div class="span12">
@@ -51,14 +49,6 @@
 			<a href="{% url 'contact' %}">let us know</a>!
 		</div>
 	</div>
-
-	<div class="row">
-		<div class="span12">
-			<p></p>
-			<div id="institutions_map" style="width: 100%; height: 740px;"></div>
-		</div>
-	</div>
-
 
 	<script type="text/javascript">
 		$(function() {
@@ -181,8 +171,6 @@
 				});
 		});
 	</script>
-
-	<br />
         <h2>Cytoscape Consortium</h2>
 
         <div class="row">
