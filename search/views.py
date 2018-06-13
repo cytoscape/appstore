@@ -32,7 +32,7 @@ def _xapian_search(query_str, limit = None, only_matching_ids = False):
         raise ValueError('limit parameter must be a positive integer')
 
     all_results = {}
-    for model, (db, enquire, qp) in Xapian_Enquires.iteritems():
+    for model, (db, enquire, qp) in Xapian_Enquires.items():
         q = qp.parse_query(query_str, qp.FLAG_PARTIAL | qp.FLAG_PHRASE)
         enquire.set_query(q)
         matches = enquire.get_mset(0, limit if limit else db.get_doccount())

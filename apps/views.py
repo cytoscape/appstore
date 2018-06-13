@@ -14,7 +14,7 @@ from apps.models import Tag, App, Author, OrderedAuthor, Screenshot, Release
 # Returns a unicode string encoded in a cookie
 def _unescape_and_unquote(s):
 	if not s: return s
-	return unescape_entities(unquote(s).decode('utf-8'))
+	return unescape_entities(unquote(s))
 
 # ============================================
 #      Nav Panel

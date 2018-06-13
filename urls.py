@@ -16,6 +16,8 @@ urlpatterns = patterns('',
 
     # Uncomment the next line to enable the admin:
     url(r'^admin/', include(admin.site.urls)),
+    #url(r'',        include('social_auth.urls')),
+    url(r'^accounts/',include('users.urls')),
 
     url(r'^$',          'apps.views.apps_default', name='default-page'),
     url(r'^apps/',       include('apps.urls')),
