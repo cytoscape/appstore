@@ -1,7 +1,10 @@
 # settings for social authentication
 
-from urlparse import urljoin
-from paths import SITE_URL
+try:
+    from urllib.parse import urljoin
+except ImportError:
+     from urlparse import urljoin
+from conf.paths import SITE_URL
 
 SOCIAL_AUTH_COMPLETE_URL_NAME = 'login_done'
 SOCIAL_AUTH_ASSOCIATE_URL_NAME = 'socialauth_associate_complete'
