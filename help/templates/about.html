@@ -1,10 +1,9 @@
 {% extends "base.html" %}
-{% load url from future %}
 
 {% block title %} - About{% endblock %}
 
 {% block more_head %}
-<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?libraries=places&key={{ google_api_key }}&sensor=false"></script>
+<!script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?libraries=places&key={{ google_api_key }}&sensor=false"></script>
   <style type="text/css">
     #institutions_map img { max-width: none; }
   </style>
