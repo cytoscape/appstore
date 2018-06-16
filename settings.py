@@ -6,15 +6,25 @@ except ImportError:
      from urlparse import urljoin
 
 # credentials provided
-from conf.paths import *
-from conf.emails import *
-from conf.dbs import *
-from conf.apikeys import *
-from conf.socialauth import *
-from conf.geoip import *
-
+try:
+    from conf.paths import *
+    from conf.emails import *
+    from conf.dbs import *
+    from conf.apikeys import *
+    from conf.socialauth import *
+    from conf.geoip import *
+    SITE_DIR ="/var/www/CyAppStore/"
+except:
+    from conf.mock import *
+    SITE_DIR ="/var/www/CyAppStore/"
+    DATABASES = {
+        'default':{
+        'NAME':'/var/www/CyAppStore/CyAppStore.sqlite',
+        'ENGINE':'django.db.backends.sqlite3',
+        }
+    }
 # Django settings for CyAppStore project.
-#BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEBUG = True 
 TEMPLATE_DEBUG = DEBUG
 DJANGO_STATIC_AND_MEDIA = DEBUG
@@ -44,21 +54,25 @@ USE_L10N = False
 
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/home/media/media.lawrence.com/media/"
-MEDIA_ROOT = os.path.join(SITE_DIR, 'media')
+MEDIA_ROOT = filejoin(SITE_DIR, 'media')
+#MEDIA_ROOT = os.path.join(SITE_DIR, 'media')
 
 # URL that handles the media served from MEDIA_ROOT. Make sure to use a
 # trailing slash.
 # Examples: "http://media.lawrence.com/media/", "http://example.com/media/"
-MEDIA_URL = '/media/'
+MEDIA_URL = urljoin(SITE_URL, 'media/')
+#MEDIA_URL = '/media/'
 
 # Absolute path to the directory static files should be collected to.
 # Don't put anything in this directory yourself; store your static files
 # in apps' "static/" subdirectories and in STATICFILES_DIRS.
 # Example: "/home/media/media.lawrence.com/static/"
+#STATIC_ROOT = ''
 STATIC_ROOT = SITE_DIR + "/static/"
 
 # URL prefix for static files.
 # Example: "http://media.lawrence.com/static/"
+#STATIC_URL = urljoin(SITE_URL, 'static/')
 STATIC_URL = '/static/'
 
 # URL prefix for admin static files -- CSS, JavaScript and images.
@@ -83,7 +97,7 @@ if DJANGO_STATIC_AND_MEDIA:
 	STATICFILES_FINDERS = (
 	    'django.contrib.staticfiles.finders.FileSystemFinder',
 	    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-	#    'django.contrib.staticfiles.finders.DefaultStorageFinder',
+	    'django.contrib.staticfiles.finders.DefaultStorageFinder',
 	)
 
 # List of callables that know how to import templates from various sources.
@@ -109,6 +123,7 @@ TEMPLATE_DIRS = (
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
     filejoin(SITE_DIR, 'templates'),
+    filejoin(SITE_DIR, '/home/jeff/.local/lib/python3.6/site-packages/django/contrib/admin/templates'),
 )
 
 INSTALLED_APPS = (
@@ -129,9 +144,11 @@ INSTALLED_APPS = (
     'help',
     'backend',
     'download',
+    'review',
 )
 
 AUTHENTICATION_BACKENDS = (
+    #'social_auth.backends.google.GoogleOAuth2Backend',
     'social_core.backends.google.GoogleOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 )
@@ -188,4 +205,4 @@ LOGGING = {
             'propagate': True,
         },
     }
-}
+    }
