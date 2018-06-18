@@ -46,7 +46,7 @@ def versionStringToTuple(string):
 
 def testPython():
   from platform import python_version_tuple 
-  testVersion("python", (3,6,2), python_version_tuple())
+  testVersion("python", (3,6,5), python_version_tuple())
 
 def getXapianVersion():
   import xapian
@@ -111,7 +111,7 @@ def main():
     testPILImageSupport('JPEG', 'http://upload.wikimedia.org/wikipedia/commons/3/38/JPEG_example_JPG_RIP_001.jpg')
     testPILImageSupport('PNG',  'http://upload.wikimedia.org/wikipedia/commons/8/89/PNG-Gradient.png')
     testPILImageSupport('GIF',  'http://upload.wikimedia.org/wikipedia/commons/a/a0/Sunflower_as_gif_websafe.gif')
-  if testPackageAndVersion("django",     (2,0,5),   getDjangoVersion,     'Django==1.8.19'):
+  if testPackageAndVersion("django",     (1,8,0),   getDjangoVersion,     'Django==1.8.19'):
     testPackageAndVersion("social_auth", (0,7),   getSocialAuthVersion, 'django-social-auth==0.7.23')
   testMaven()
   testUnzip()
