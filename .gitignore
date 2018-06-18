@@ -1,6 +1,7 @@
 *.pyc
 *.sql
 *.tgz
+/static
 /backups
 /media
 /conf/apikeys.py
