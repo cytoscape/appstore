@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load i18n %}
 
 {% block more_head %}
 <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_page.css" />
@@ -61,7 +62,7 @@
 </div>
 {# End app header #}
 
-{# App usage info (ratings, downloads) #}
+{# App usage info (ratings, downloads, reviews) #}
 <div class="row">
 	<div class="span12" id="app-usage-info">
 		{# Ratings #}
@@ -81,7 +82,10 @@
 		</a>
 		{% endif %}
 		{# End Downloads #}
-
+		
+		{# Reviews #}
+		<a href="">{% trans "Review this app" %}</a>
+		{# End Reviews #}
 		<span class="app-usage-info-divider"></span>
 
 		{# badges #}
