@@ -1,7 +1,7 @@
 from zipfile import ZipFile
 from os.path import basename
 from urllib.request import urlopen
-
+import re
 from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
@@ -29,6 +29,10 @@ def submit_app(request):
                 fullname, version, works_with, app_dependencies, has_export_pkg = process_jar(f, expect_app_name)
                 pending = _create_pending(request.user, fullname, version, works_with, app_dependencies, f)
                 _send_email_for_pending(pending)
+                version_pattern ="^[0-9].[0-9].[0-9]+"
+                version_pattern = re.compile(version_pattern)
+                if (bool(version_pattern.match(version))!=True):
+                    raise ValueError("The version is not in proper pattern. It should have 3 order version numbering (e.g: x.y.z)")
                 if has_export_pkg:
                     return HttpResponseRedirect(reverse('submit-api', args=[pending.id]))
                 else:
