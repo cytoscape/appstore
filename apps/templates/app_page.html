@@ -62,7 +62,7 @@
 </div>
 {# End app header #}
 
-{# App usage info (ratings, downloads, reviews) #}
+{# App usage info (ratings, downloads, citations) #}
 <div class="row">
 	<div class="span12" id="app-usage-info">
 		{# Ratings #}
@@ -83,9 +83,9 @@
 		{% endif %}
 		{# End Downloads #}
 		
-		{# Reviews #}
-		<a href="">{% trans "Review this app" %}</a>
-		{# End Reviews #}
+		{# Citations #}
+		<a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ app.citation }}" target="_blank">{% trans "See Citations" %}</a>
+		{# End Citations #}
 		<span class="app-usage-info-divider"></span>
 
 		{# badges #}
@@ -349,7 +349,7 @@
 				</a></li>
 				{% endif %}
 				{% if app.automation %}
-				<li><a href="" target="_blank">
+				<li><a href="{{app.automation}}" target="_blank">
 					<i class="icon-list-alt"></i> Automation Support
 				</a></li>
 				{% endif %}
