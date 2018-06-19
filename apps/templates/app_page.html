@@ -84,7 +84,10 @@
 		{# End Downloads #}
 		
 		{# Citations #}
-		<a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ app.citation }}" target="_blank">{% trans "See Citations" %}</a>
+		{% if app.citation %}
+		<a> | </a>
+		<a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ app.citation }}" target="_blank">{% trans "  See Citations" %}</a>
+		{% endif %}
 		{# End Citations #}
 		<span class="app-usage-info-divider"></span>
 
