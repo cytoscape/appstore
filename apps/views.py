@@ -426,6 +426,7 @@ _AppEditActions = {
 	'save_tutorial':      _mk_basic_field_saver('tutorial'),
 	'save_citation':      _mk_basic_field_saver('citation'),
 	'save_coderepo':      _mk_basic_field_saver('coderepo'),
+        'save_automation':  _mk_basic_field_saver('automation'),
 	'save_contact':       _mk_basic_field_saver('contact'),
 	'save_details':       _mk_basic_field_saver('details'),
 	'save_tags':          _save_tags,

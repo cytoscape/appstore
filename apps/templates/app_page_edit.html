@@ -256,6 +256,10 @@
         <label><i class="icon-list-alt"></i> Code Repository:</label>
         <input type="text" value="{% if app.coderepo %}{{ app.coderepo }}{% endif %}">
       </fieldset>
+      <fieldset class="control-group" id="cy-app-automation">
+        <label><i class="icon-list-alt"></i> Automation Support:</label>
+        <input type="text" value="{% if app.automation %}{{ app.automation }}{% endif %}">
+      </fieldset>
       <fieldset class="control-group" id="cy-app-contact">
         <label><i class="icon-envelope"></i> Contact Email:</label>
         <input type="text" value="{% if app.contact %}{{ app.contact }}{% endif %}">

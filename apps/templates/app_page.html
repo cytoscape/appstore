@@ -104,6 +104,11 @@
 			<img src="{% get_static_prefix %}apps/img/open-source.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is open source.">
 		</a>
 		{% endif %}
+		{% if app.automation %}
+		<a href="{{ app.automation }}" target="_blank">
+			<img src="{% get_static_prefix %}apps/img/automation.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is open source.">
+		</a>
+		{% endif %}
 		{# end badges #}
 	</div>
 </div>
@@ -341,6 +346,11 @@
 				{% if app.coderepo %}
 				<li><a href="{{ app.coderepo }}" target="_blank">
 					<i class="icon-list-alt"></i> Code Repository
+				</a></li>
+				{% endif %}
+				{% if app.automation %}
+				<li><a href="" target="_blank">
+					<i class="icon-list-alt"></i> Automation Support
 				</a></li>
 				{% endif %}
 

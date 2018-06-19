@@ -80,6 +80,7 @@ class App(models.Model):
     tutorial     = models.URLField(blank=True, null=True)
     citation     = models.CharField(max_length=31, blank=True, null=True)
     coderepo     = models.URLField(blank=True, null=True)
+    automation	=	models.BooleanField(default=False)
     contact      = models.EmailField(blank=True, null=True)
 
     stars        = models.PositiveIntegerField(default=0)
