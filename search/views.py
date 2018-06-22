@@ -51,8 +51,17 @@ def _xapian_search(query_str, limit = None, only_matching_ids = False):
             all_results[model.__name__] = matched_objs
         return all_results
 
+def removespace(query):
+    final_query=''
+    for i in range(len(query)):
+        if query[i]==' ':
+            continue
+        final_query+=query[i]
+    return final_query
+
 def search(request):
     query = request.GET.get('q', None)
+    query = removespace(query)
     if not query:
         return HttpResponseBadRequest('"q" parameter not specified')
 
