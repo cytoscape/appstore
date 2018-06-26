@@ -62,7 +62,7 @@
 </div>
 {# End app header #}
 
-{# App usage info (ratings, downloads, citations) #}
+{# App usage info (ratings, downloads, posts, citations) #}
 <div class="row">
 	<div class="span12" id="app-usage-info">
 		{# Ratings #}
@@ -82,11 +82,16 @@
 		</a>
 		{% endif %}
 		{# End Downloads #}
-		
+
+		{# Posts #}
+		<a> | </a>
+		<a href="https://groups.google.com/forum/?fromgroups#!searchin/cytoscape-helpdesk/{{ app.fullname }}" target="_blank"> posts</a>
+		{# End Post #}
+
 		{# Citations #}
 		{% if app.citation %}
 		<a> | </a>
-		<a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ app.citation }}" target="_blank">{% trans "  See Citations" %}</a>
+		<a href="https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed_citedin&from_uid={{ app.citation }}" target="_blank">{% trans "  citations" %}</a>
 		{% endif %}
 		{# End Citations #}
 		<span class="app-usage-info-divider"></span>
@@ -107,9 +112,9 @@
 			<img src="{% get_static_prefix %}apps/img/open-source.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is open source.">
 		</a>
 		{% endif %}
-		{% if app.automation %}
+		{% if None not in app.automation %}
 		<a href="{{ app.automation }}" target="_blank">
-			<img src="{% get_static_prefix %}apps/img/automation.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is open source.">
+			<img src="https://image.flaticon.com/icons/svg/158/158373.svg" class="has-tooltip" data-toggle="tooltip" data-title="This app is open source.">
 		</a>
 		{% endif %}
 		{# end badges #}
@@ -311,11 +316,12 @@
 		{# end no downloads #}
 
 		{# app resources #}
-		<div class="well">
+		<div class="alert">
 			<ul class="nav nav-list">
-				<li class="nav-header">
-					Resources
-				</li>
+			<!li class="nav-header">
+			<h6><font="+5">		Resources</font> </h6>
+			<!/li> 
+
 				<li><a href="https://groups.google.com/forum/?fromgroups#!newtopic/cytoscape-helpdesk" target="_blank">
 					<i class="icon-question-sign"></i>
 					Ask a question
@@ -351,7 +357,7 @@
 					<i class="icon-list-alt"></i> Code Repository
 				</a></li>
 				{% endif %}
-				{% if app.automation %}
+				{% if None not in app.automation %}
 				<li><a href="{{app.automation}}" target="_blank">
 					<i class="icon-list-alt"></i> Automation Support
 				</a></li>
