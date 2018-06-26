@@ -61,13 +61,19 @@ def removespace(query):
 
 def search(request):
     query = request.GET.get('q', None)
-    query = removespace(query)
     if not query:
         return HttpResponseBadRequest('"q" parameter not specified')
-
+    query1 = removespace(query)
+    d = {
+        'results': _xapian_search(query1),
+        'search_query': query1,
+        'go_back_to': '&ldquo;%s&rdquo; search results' % query1,
+    }
     c = {
         'results': _xapian_search(query),
         'search_query': query,
     	'go_back_to': '&ldquo;%s&rdquo; search results' % query,
     }
-    return html_response('search.html', c, request, processors = (_nav_panel_context, ))
+    if None in (c['results']):
+        d = c
+    return html_response('search.html', d, request, processors = (_nav_panel_context, ))
