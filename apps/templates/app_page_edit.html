@@ -258,7 +258,7 @@
       </fieldset>
       <fieldset class="control-group" id="cy-app-automation">
         <label><i class="icon-list-alt"></i> Automation Support:</label>
-        <input type="text" value="{% if app.automation %}{{ app.automation }}{% endif %}">
+        <input type="text" value="{% if None not in app.automation %}{{ app.automation }}{% endif %}">
       </fieldset>
       <fieldset class="control-group" id="cy-app-contact">
         <label><i class="icon-envelope"></i> Contact Email:</label>

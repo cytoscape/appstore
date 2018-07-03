@@ -62,7 +62,7 @@
 </div>
 {# End app header #}
 
-{# App usage info (ratings, downloads, posts, citations) #}
+{# App usage info (ratings, downloads, posts, citations, discussions) #}
 <div class="row">
 	<div class="span12" id="app-usage-info">
 		{# Ratings #}
@@ -94,6 +94,10 @@
 		<a href="https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed_citedin&from_uid={{ app.citation }}" target="_blank">{% trans "  citations" %}</a>
 		{% endif %}
 		{# End Citations #}
+		{# Discussions #}
+<a> | </a>
+<a href="https://www.biostars.org/t/{{ app.fullname }}" target="_blank">{% trans "Discussions" %}</a>
+{# End Discussions #}
 		<span class="app-usage-info-divider"></span>
 
 		{# badges #}
@@ -112,9 +116,9 @@
 			<img src="{% get_static_prefix %}apps/img/open-source.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is open source.">
 		</a>
 		{% endif %}
-		{% if None not in app.automation %}
+		{% if app.automation %}
 		<a href="{{ app.automation }}" target="_blank">
-			<img src="https://image.flaticon.com/icons/svg/158/158373.svg" class="has-tooltip" data-toggle="tooltip" data-title="This app is open source.">
+			<img src="{% get_static_prefix %}apps/img/automation.png" class="has-tooltip" data-toggle="tooltip" data-title="This app supports automation.">
 		</a>
 		{% endif %}
 		{# end badges #}
@@ -357,9 +361,13 @@
 					<i class="icon-list-alt"></i> Code Repository
 				</a></li>
 				{% endif %}
-				{% if None not in app.automation %}
+				{% if app.automation %}
 				<li><a href="{{app.automation}}" target="_blank">
-					<i class="icon-list-alt"></i> Automation Support
+			   	
+				<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+						
+						<i class="fa fa-gear" style="color:black"></i>
+ Automation Support
 				</a></li>
 				{% endif %}
 
