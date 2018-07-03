@@ -116,6 +116,7 @@ var AppPageEdit = (function($)
         field_change($('#cy-app-tutorial'), field_modified('tutorial'));
         field_change($('#cy-app-citation'), field_modified('citation'));
         field_change($('#cy-app-coderepo'), field_modified('coderepo'));
+	field_change($('#cy-app-automation'), field_modified('automation'));
         field_change($('#cy-app-contact'), field_modified('contact'));
     }
         
@@ -680,7 +681,8 @@ var AppPageEdit = (function($)
         'tutorial': mk_field_save_action('Saving tutorial URL', 'save_tutorial', 'tutorial', $('#cy-app-tutorial input')),
         'citation': mk_field_save_action('Saving citation URL', 'save_citation', 'citation', $('#cy-app-citation input')),
         'coderepo': mk_field_save_action('Saving code repository URL', 'save_coderepo', 'coderepo', $('#cy-app-coderepo input')),
-        'contact': mk_field_save_action('Saving contact email', 'save_contact', 'contact', $('#cy-app-contact input')),
+        'automation': mk_field_save_action('Saving automation URL', 'save_automation', 'automation', $('#cy-app-automation input')),
+	'contact': mk_field_save_action('Saving contact email', 'save_contact', 'contact', $('#cy-app-contact input')),
         'details': mk_field_save_action('Saving details', 'save_details', 'details', $('#cy-app-details')),
         'tags': function() {
             var tags = $('#cy-app-tags-list .cy-app-tag-name');
