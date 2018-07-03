@@ -85,7 +85,7 @@
 
 		{# Posts #}
 		<a> | </a>
-		<a href="https://groups.google.com/forum/?fromgroups#!searchin/cytoscape-helpdesk/{{ app.fullname }}" target="_blank"> posts</a>
+		<a href="https://groups.google.com/forum/?fromgroups#!searchin/cytoscape-helpdesk/{{ app.fullname }}" target="_blank">helpdesk</a>
 		{# End Post #}
 
 		{# Citations #}
@@ -94,9 +94,9 @@
 		<a href="https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed_citedin&from_uid={{ app.citation }}" target="_blank">{% trans "  citations" %}</a>
 		{% endif %}
 		{# End Citations #}
-		{# Discussions #}
+		{# discussions #}
 <a> | </a>
-<a href="https://www.biostars.org/t/{{ app.fullname }}" target="_blank">{% trans "Discussions" %}</a>
+<a href="https://www.biostars.org/local/search/page/?q=cytoscape+{{ app.fullname }}" target="_blank">{% trans "discussions" %}</a>
 {# End Discussions #}
 		<span class="app-usage-info-divider"></span>
 
@@ -323,7 +323,7 @@
 			<ul class="nav nav-list">
 			<!li class="nav-header">
 			
-			<h5>		<i class="fa fa-circle-o-notch fa-spin" style="font-size:16px"></i>&ensp;<u> Resources</u></font> </h5>
+			<h5>		<i class="fa fa-circle-o-notch fa-spin" style="font-size:16px"></i>&ensp; RESOURCES</font> </h5>
 			<!/li> 
 
 				<li><a href="https://groups.google.com/forum/?fromgroups#!newtopic/cytoscape-helpdesk" target="_blank">
@@ -361,12 +361,11 @@
 					<i class="icon-list-alt"></i> Code Repository
 				</a></li>
 				{% endif %}
+				<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 				{% if 'www' in app.automation %}
 				<li><a href="http://{{app.automation}}" target="_blank">
-			   	
-				<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 						
-						<i class="fa fa-gear" style="color:black"></i>
+						<i class="fa fa-gear fa-spin" style="color:black"></i>
  Automation Support
 				</a></li>
 				{% endif %}
