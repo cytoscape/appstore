@@ -257,8 +257,9 @@
         <input type="text" value="{% if app.coderepo %}{{ app.coderepo }}{% endif %}">
       </fieldset>
       <fieldset class="control-group" id="cy-app-automation">
-        <label><i class="icon-list-alt"></i> Automation Support:</label>
-        <input type="text" value="{% if None not in app.automation %}{{ app.automation }}{% endif %}">
+	  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+        <label><i class="fa fa-gear fa-spin" style="color:black"></i> Automation Support:</label>
+        <input type="text" value="{% if 'www' in app.automation %}{{ app.automation }}{% endif %}">
       </fieldset>
       <fieldset class="control-group" id="cy-app-contact">
         <label><i class="icon-envelope"></i> Contact Email:</label>
