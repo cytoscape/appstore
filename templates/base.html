@@ -52,7 +52,7 @@
           </li>
           {# Search field #}
           <li>
-            <form action="{% url 'search' %}" method="get" class="navbar-search pull-right">
+            <form action="{% url 'haystack_search' %}" method="get" class="navbar-search pull-right">
               <input type="text" name="q" value="{{ search_query }}" class="search-query" placeholder="Search the App Store">
             </form>
           </li>
