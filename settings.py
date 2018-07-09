@@ -135,6 +135,8 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
+    'whoosh',
+    'haystack',
     'social_django',
     'CyAppStore',  # this must be included to find root templates
     'apps',
@@ -152,7 +154,12 @@ AUTHENTICATION_BACKENDS = (
     'social_core.backends.google.GoogleOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 )
-
+HAYSTACK_CONNECTIONS = {
+    'default': {
+        'ENGINE': 'haystack.backends.whoosh_backend.WhooshEngine',
+        'PATH': os.path.join(os.path.dirname(__file__), 'whoosh_index'),
+    },
+}
 
 if DJANGO_STATIC_AND_MEDIA:
 	INSTALLED_APPS += ('django.contrib.staticfiles', )

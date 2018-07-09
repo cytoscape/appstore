@@ -2,25 +2,15 @@
 {% load app_buttons %}
 
 {% block main %}
-    <h2>Search</h2>
+    
 
     <form method="get" action=".">
-        <table>
-            {{ form.as_table }}
-            <tr>
-                <td>&nbsp;</td>
-                <td>
-                    <input type="submit" value="Search">
-                </td>
-            </tr>
-        </table>
-
         {% if query %}
             <h3>Results</h3>
 
             {% for result in page.object_list %}
                 <p>
-                    <a href="{{ result.object.get_absolute_url }}">{{ result.object.title }}</a>
+                    <a href="http://cytoscape-app-dev.ucsd.edu/apps/{{ result.object.name}}">{{ result.object.name }}</a>
                 </p>
             {% empty %}
                 <p>No results found.</p>
