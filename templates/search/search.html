@@ -7,15 +7,31 @@
     <form method="get" action=".">
         {% if query %}
             <h3>Results</h3>
-
+	    <h4>Apps</h4>
             {% for result in page.object_list %}
-                <p>
+	    <p>
                     <a href="http://cytoscape-app-dev.ucsd.edu/apps/{{ result.object.name}}">{{ result.object.name }}</a>
                 </p>
             {% empty %}
                 <p>No results found.</p>
             {% endfor %}
-
+	    <h4>Authors</h4>
+	                {% for result in page.object_list %}
+			<p>{% for author in result.object.authors.all %}
+			<a href="http://cytoscape-app-dev.ucsd.edu/apps/with_author/{{author.name}}">{{ author.name }}</a>
+		    {% endfor %}
+			</p>
+			{% endfor %}
+<h4>Tags</h4>
+                        {% for result in page.object_list %}
+                        <p>{% for tag in result.object.tags.all %}
+                        <a href="http://cytoscape-app-dev.ucsd.edu/apps/with_tag/{{tag.name}}">{{ tag.name }}</a>
+                    {% endfor %}
+                </p>
+               
+             
+            {% endfor %}
+ 
             {% if page.has_previous or page.has_next %}
                 <div>
                     {% if page.has_previous %}<a href="?q={{ query }}&amp;page={{ page.previous_page_number }}">{% endif %}&laquo; Previous{% if page.has_previous %}</a>{% endif %}

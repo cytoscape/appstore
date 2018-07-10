@@ -1,9 +1,0 @@
-{{object.name}}
-{% for tag in object.tags.all %}
-    {{ tag.name }}
-{% endfor %}
-
-{% for author in object.authors.all %}
-    {{ author.name }}
-{% endfor %}
-
