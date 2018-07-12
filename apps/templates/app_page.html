@@ -62,7 +62,7 @@
 </div>
 {# End app header #}
 
-{# App usage info (ratings, downloads, posts, citations, discussions) #}
+{# App usage info (ratings, downloads, helpdesk, citations, discussions) #}
 <div class="row">
 	<div class="span12" id="app-usage-info">
 		{# Ratings #}
@@ -77,26 +77,26 @@
 		{# Downloads #}
 		{% if app.has_releases %}
 		<span class="app-usage-info-divider"></span>
-		<a href="{% url 'app_stats' app.name %}" target="_blank">
+		<a href="{% url 'app_stats' app.name %}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Click to view the download stats.">
 			{{ app.downloads }} downloads
 		</a>
 		{% endif %}
 		{# End Downloads #}
 
-		{# Posts #}
+		{# Helpdesk #}
 		<a> | </a>
-		<a href="https://groups.google.com/forum/?fromgroups#!searchin/cytoscape-helpdesk/{{ app.fullname }}" target="_blank">helpdesk</a>
-		{# End Post #}
+		<a href="https://groups.google.com/forum/?fromgroups#!searchin/cytoscape-helpdesk/{{ app.fullname }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search Cytoscape Helpdesk for questions about this app.">helpdesk</a>
+		{# End Helpdesk #}
 
 		{# Citations #}
 		{% if app.citation %}
 		<a> | </a>
-		<a href="https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed_citedin&from_uid={{ app.citation }}" target="_blank">{% trans "  citations" %}</a>
+		<a href="https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed_citedin&from_uid={{ app.citation }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search PubMed for articles citing this app">{% trans "  citations" %}</a>
 		{% endif %}
 		{# End Citations #}
 		{# discussions #}
 <a> | </a>
-<a href="https://www.biostars.org/local/search/page/?q=cytoscape+{{ app.fullname }}" target="_blank">{% trans "discussions" %}</a>
+<a href="https://www.biostars.org/local/search/page/?q=cytoscape+{{ app.fullname }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search BioStar for discussions about this app">{% trans "discussions" %}</a>
 {# End Discussions #}
 		<span class="app-usage-info-divider"></span>
 

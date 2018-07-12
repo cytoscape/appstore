@@ -4,6 +4,8 @@ from apps.models import App
 class AppIndex(indexes.SearchIndex, indexes.Indexable):
     text = indexes.EdgeNgramField(document = True, use_template = True)
     name = indexes.CharField(model_attr = 'name')
+    description = indexes.CharField(model_attr = 'description',null=True)
+    details = indexes.CharField(model_attr = 'details',null=True)
     has_releases = indexes.BooleanField(model_attr='has_releases')
     tags = indexes.MultiValueField(model_attr = 'tags',null=True)
     authors = indexes.MultiValueField(model_attr = 'authors',null=True)

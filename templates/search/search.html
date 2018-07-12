@@ -15,20 +15,42 @@
             {% empty %}
                 <p>No results found.</p>
             {% endfor %}
+
+
+
+
+
+
+
+
+
+
+
+              
+   
+
+
+
+
 	    <h4>Authors</h4>
 	                {% for result in page.object_list %}
-			<p>{% for author in result.object.authors.all %}
-			<a href="http://cytoscape-app-dev.ucsd.edu/apps/with_author/{{author.name}}">{{ author.name }}</a>
+			<ul>{% for author in result.object.authors.all %}
+			<li><a href="http://cytoscape-app-dev.ucsd.edu/apps/with_author/{{author.name}}">{{ author.name }} ({{ author.institution }})</a></li>
 		    {% endfor %}
-			</p>
+		    </ul>
+            {% empty %}
+                <p>No results found.</p>
+
 			{% endfor %}
 <h4>Tags</h4>
-                        {% for result in page.object_list %}
-                        <p>{% for tag in result.object.tags.all %}
-                        <a href="http://cytoscape-app-dev.ucsd.edu/apps/with_tag/{{tag.name}}">{{ tag.name }}</a>
-                    {% endfor %}
-                </p>
+<ul>  {% for result in page.object_list %}
+                        <li>{% for tag in result.object.tags.all %}
+					<a href="http://cytoscape-app-dev.ucsd.edu/apps/with_tag/{{tag.name}}">{{ tag.name }}</a>,
+					{% endfor %}</li>
+                </ul>
                
+            {% empty %}
+                <p>No results found.</p>
              
             {% endfor %}
  
@@ -44,4 +66,5 @@
         {% endif %}
     </form>
 {% endblock %}
+
 

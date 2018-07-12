@@ -1,8 +1,11 @@
 {{object.name}}
+{{ object.description }}
+{{ object.details }}
 {{object.has_releases}}
 {% for tag in object.tags.all %}
 {{ tag.name }}
 {% endfor %}
 {% for author in object.authors.all %}
 {{ author.name }}
+{{ author.institution }}
 {% endfor %}
