@@ -8,22 +8,21 @@
         {% if query %}
             <h3>Results</h3>
 	    <h4>Apps</h4>
-            {% for result in page.object_list %}
+<!--
+	    {% for result in page.object_list %}
 	    <p>
                     <a href="http://cytoscape-app-dev.ucsd.edu/apps/{{ result.object.name}}">{{ result.object.name }}</a>
                 </p>
             {% empty %}
                 <p>No results found.</p>
             {% endfor %}
-
-
-
-
-
-
               
-   
-
+	    {% for result in page.object_list %}
+	    <p>  <h6> {{result.object}} </h6> </p>
+	    {% endfor %}
+	      <div class="row"><div class="span8"><h3>Apps</h3></div></div>
+-->
+    {% list_of_apps page.object_list True %}
 
 
 
@@ -49,6 +48,7 @@
              
             {% endfor %}
  
+<!--
             {% if page.has_previous or page.has_next %}
                 <div>
                     {% if page.has_previous %}<a href="?q={{ query }}&amp;page={{ page.previous_page_number }}">{% endif %}&laquo; Previous{% if page.has_previous %}</a>{% endif %}
@@ -59,6 +59,7 @@
         {% else %}
             {# Show some example queries to run, maybe query syntax, something else? #}
         {% endif %}
+-->
     </form>
 {% endblock %}
 
