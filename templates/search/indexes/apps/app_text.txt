@@ -5,6 +5,7 @@
 {{ object.fullname }}
 {{ object.downloads }}
 {{ object.votes }}
+{{ object.stars }}
 {{ object.latest_release_date }}
 {% for tag in object.tags.all %}
 {{ tag.name }}

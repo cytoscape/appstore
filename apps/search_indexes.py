@@ -12,6 +12,7 @@ class AppIndex(indexes.SearchIndex, indexes.Indexable):
     authors = indexes.MultiValueField(model_attr = 'authors',null=True)
     downloads = indexes.IntegerField(model_attr = 'downloads',null = True)
     votes = indexes.IntegerField(model_attr = 'votes',null = True)
+    stars =indexes.IntegerField(model_attr = 'stars',null = True) 
     latest_release_date = indexes.DateField(model_attr = 'latest_release_date',null= True)
 
     
