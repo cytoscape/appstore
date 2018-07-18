@@ -1,6 +1,8 @@
 *.pyc
 *.sql
 *.tgz
+*.swp
+*.swo
 /static
 /backups
 /media
@@ -19,3 +21,4 @@
 /xapian-core-1.4.5
 /xapian-bindings-1.4.5
 /xapian_indices
+/whoosh_index
