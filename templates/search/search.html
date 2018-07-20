@@ -1,14 +1,16 @@
 {% extends "nav_panel.html" %}
+{% load static %}
+{% load i18n %}
 {% load app_buttons %}
 
 {% block main %}
     
 
     <form method="get" action=".">
-        {% if query %}
+ <!--       {% if query %}
             <h3>Results</h3>
 	    <h4>Apps</h4>
-<!--
+	  
 	    {% for result in page.object_list %}
 	    <p>
                     <a href="http://cytoscape-app-dev.ucsd.edu/apps/{{ result.object.name}}">{{ result.object.name }}</a>
@@ -20,10 +22,11 @@
 	    {% for result in page.object_list %}
 	    <p>  <h6> {{result.object}} </h6> </p>
 	    {% endfor %}
-	      <div class="row"><div class="span8"><h3>Apps</h3></div></div>
--->
-    {% list_of_apps_search page.object_list True %}
 
+	  -->
+	      <div class="row"><div class="span8"><h3>Apps</h3></div></div>
+
+    {% list_of_apps_search page.object_list True %}
 
 
 	    <h4>Authors</h4>
@@ -46,8 +49,8 @@
             {% empty %}
                 <p>No results found.</p>
              
-            {% endfor %}
- 
+            {% endfor %} 
+
 <!--
             {% if page.has_previous or page.has_next %}
                 <div>
@@ -61,6 +64,4 @@
         {% endif %}
 -->
     </form>
-{% endblock %}
-
-
+{% endblock %} 
