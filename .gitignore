@@ -3,6 +3,7 @@
 *.tgz
 *.swp
 *.swo
+/apps/migrations
 /static
 /backups
 /media
