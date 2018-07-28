@@ -25,21 +25,21 @@
 
 	  -->
 	      <div class="row"><div class="span8"><h3>Apps</h3></div></div>
-
+	{% if page.object_list %}
     {% list_of_apps_search page.object_list True %}
+	{% endif %}
 
-
-	    <h4>Authors</h4>
+	    <h3>Authors</h3>
 	                {% for result in page.object_list %}
 			<ul>{% for author in result.object.authors.all %}
 			<li><a href="http://cytoscape-app-dev.ucsd.edu/apps/with_author/{{author.name}}">{{ author.name }} ({{ author.institution }})</a></li>
 		    {% endfor %}
 		    </ul>
             {% empty %}
-                <p>No results found.</p>
+                <p></p>
 
 			{% endfor %}
-<h4>Tags</h4>
+<h3>Tags</h3>
 <ul>  {% for result in page.object_list %}
                         <li>{% for tag in result.object.tags.all %}
 					<a href="http://cytoscape-app-dev.ucsd.edu/apps/with_tag/{{tag.name}}">{{ tag.name }}</a>,
@@ -47,7 +47,7 @@
                 </ul>
                
             {% empty %}
-                <p>No results found.</p>
+                <p></p>
              
             {% endfor %} 
 
