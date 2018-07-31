@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block more_head %}
+  <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/nav_panel.css"/>
+  <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_button.css"/>
+  <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_stars.css"/>
+  <style type="text/css">
+    .icon-cy-tag-cloud {
+      background-image: url("{% get_static_prefix %}apps/img/tag_cloud.png");
+    }
+  </style>
+{% endblock %}
+{% block content %}
+<div class="row">
+ <div class="span4" id="cy-nav-panel">
+    <div class="well">
+      <div id="title">
+<!--        <table width="100%">
+          <tr>
+            <td>
+              <h4 style="margin: 0">
+                {% ifequal navbar_selected_link "all" %} 
+                  All Apps
+                {% else %}
+                  <a href="{% url 'all_apps' %}">All Apps</a>
+                {% endifequal %}
+              </h4>
+            </td>
+          </tr>
+          <tr>
+            <td><h3>Categories</h3></td>
+            <td>
+              <div class="pull-right">
+                <div id="cy-tag-buttons" class="btn-group">
+                  <button class="btn btn-mini" id="cy-tag-list-btn"><i class="icon-align-left"></i></button>
+                  <button class="btn btn-mini" id="cy-tag-cloud-btn"><i class="icon-cy-tag-cloud"></i></button>
+                </div>
+              </div>
+            </td>
+          </tr>
+	</table> -->
+      </div> 
+	  
+      <div id="cy-tag-list">
+        <ul class="nav nav-list" id="top-tags">
+          {% for tag in top_tags %}
+            <li {% ifequal tag.name selected_tag_name %} class="active" {% endifequal %}>
+            <a href="{% url 'tag_page' tag.name %}"><h5>
+              <span class="title">{{ tag.fullname }}</span>
+              <span class="count">({{ tag.count }})</span>
+            </h5></a></li>
+          {% endfor %}
+          <li class="divider"></li>
+	  <!--     <p><button class="btn btn-small" id="more-button"></button></p>  -->
+	  <a href="{% url 'all_apps' %}"><h3>All Apps</h3></a>
+        </ul>
+        <ul class="nav nav-list" id="not-top-tags">
+          {% for tag in not_top_tags %}
+            <li {% ifequal tag.name selected_tag_name %} class="active" {% endifequal %}>
+            <a href="{% url 'tag_page' tag.name %}"><h5>
+              <span class="title">{{ tag.fullname }}</span>
+              <span class="count">({{ tag.count }})</span>
+            </h5></a></li>
+          {% endfor %}
+        </ul>
+      </div>
+	
+      <div id="cy-tag-cloud">
+        {% for tag in all_tags %}
+        <a {% ifequal tag.name selected_tag_name %} class="cy-tag-cloud-active" {% endifequal %} style="font-size: {{ tag.font_size_em }}em" href="{% url 'tag_page' tag.name %}">{{tag.fullname}}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+      
+  <div class="span8">
+    {% block main %}{% endblock %}
+  </div>
+</div>
+
+<script type="text/javascript" src="{% get_static_prefix %}apps/js/nav_panel.js"></script>
+{% endblock %}
+

@@ -91,12 +91,13 @@
 		{# Citations #}
 		{% if app.citation %}
 		<a> | </a>
-		<a href="https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed_citedin&from_uid={{ app.citation }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search PubMed for articles citing this app">{% trans "  citations" %}</a>
+		<a href="https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed_citedin&from_uid={{ app.citation }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search PubMed for articles citing this app.">{% trans "  citations" %}</a>
+
 		{% endif %}
 		{# End Citations #}
 		{# discussions #}
 <a> | </a>
-<a href="https://www.biostars.org/local/search/page/?q=cytoscape+{{ app.fullname }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search BioStar for discussions about this app">{% trans "discussions" %}</a>
+<a href="https://www.biostars.org/local/search/page/?q=cytoscape+{{ app.fullname }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search BioStar for discussions about this app.">{% trans "discussions" %}</a>
 {# End Discussions #}
 		<span class="app-usage-info-divider"></span>
 
