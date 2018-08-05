@@ -40,10 +40,10 @@
 
 			{% endfor %}
 <h3>Tags</h3>
-<ul>  {% for result in page.object_list %}
-                        <li>{% for tag in result.object.tags.all %}
-					<a href="http://cytoscape-app-dev.ucsd.edu/apps/with_tag/{{tag.name}}">{{ tag.name }}</a>,
-					{% endfor %}</li>
+{% for result in page.object_list %}
+<ul>   {% for tag in result.object.tags.all %}
+			<li>	<a href="http://cytoscape-app-dev.ucsd.edu/apps/with_tag/{{tag.name}}">{{ tag.name }}</a> </li>
+					{% endfor %}
                 </ul>
                
             {% empty %}

@@ -14,9 +14,9 @@
 {% block content %}
 <div class="row">
  <div class="span4" id="cy-nav-panel">
-    <div class="well">
+<!--    <div class="well">
       <div id="title">
-<!--        <table width="100%">
+        <table width="100%">
           <tr>
             <td>
               <h4 style="margin: 0">
@@ -39,8 +39,8 @@
               </div>
             </td>
           </tr>
-	</table> -->
-      </div> 
+	</table>
+      </div> -->
 	  
       <div id="cy-tag-list">
         <ul class="nav nav-list" id="top-tags">
@@ -53,7 +53,7 @@
           {% endfor %}
           <li class="divider"></li>
 	  <!--     <p><button class="btn btn-small" id="more-button"></button></p>  -->
-	  <a href="{% url 'all_apps' %}"><h3>All Apps</h3></a>
+	  <!--	  <a href="{% url 'all_apps' %}"><h3>All Apps</h3></a> -->
         </ul>
         <ul class="nav nav-list" id="not-top-tags">
           {% for tag in not_top_tags %}
