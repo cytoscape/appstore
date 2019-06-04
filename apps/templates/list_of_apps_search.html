@@ -1,6 +1,5 @@
 {% load static %}
 {% load app_buttons %}
-
 {% if apps_with_releases %}
   <div class="row" style="margin-bottom: 4em;" id="apps-with-releases">
     <div class="span8">
@@ -35,5 +34,7 @@
 {% if apps_without_releases %}
   <div class="row">
     {% app_buttons apps_without_releases %}
+  
+
   </div>
 {% endif %}
