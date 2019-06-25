@@ -33,11 +33,11 @@ def parse_manifest(manifest_lines):
     for line in manifest_lines:
         if not line.strip(): continue # ignore empty lines
         line = line.rstrip()
-        if line.startswith(' '): # is this line a continuation?
+        if line.startswith(b' '): # is this line a continuation?
             if not vals: continue # if we haven't read any entries, ignore this continuation
             vals[-1] += line[1:] # add the continuation to the last value
         else:
-            (key, _, val) = line.partition(':')
+            (key, _, val) = line.partition(b':')
             keys.append(key.strip())
             vals.append(val.strip())
     return _multival_dict(zip(keys, vals))
