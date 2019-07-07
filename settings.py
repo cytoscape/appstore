@@ -23,6 +23,7 @@ except:
         'ENGINE':'django.db.backends.sqlite3',
         }
     }
+#jinja_env = Environment(extensions=['jinja2.ext.loopcontrols'])
 # Django settings for CyAppStore project.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEBUG = True 
@@ -160,6 +161,7 @@ HAYSTACK_CONNECTIONS = {
         'PATH': os.path.join(os.path.dirname(__file__), 'whoosh_index'),
     },
 }
+#jinja_env = Environment(extensions=['jinja2.ext.loopcontrols'])
 
 if DJANGO_STATIC_AND_MEDIA:
 	INSTALLED_APPS += ('django.contrib.staticfiles', )

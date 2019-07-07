@@ -1,16 +1,4 @@
 {{ object.name }}
 {{ object.description }}
 {{ object.details }}
-{{ object.has_releases }}
 {{ object.fullname }}
-{{ object.downloads }}
-{{ object.votes }}
-{{ object.stars }}
-{{ object.latest_release_date }}
-{% for tag in object.tags.all %}
-{{ tag.name }}
-{% endfor %}
-{% for author in object.authors.all %}
-{{ author.name }}
-{{ author.institution }}
-{% endfor %}

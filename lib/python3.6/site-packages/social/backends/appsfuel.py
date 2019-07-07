@@ -1,0 +1,1 @@
+from social_core.backends.appsfuel import AppsfuelOAuth2, AppsfuelOAuth2Sandbox

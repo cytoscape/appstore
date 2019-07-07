@@ -94,6 +94,7 @@ def _is_dblquote(string, i):
     return string[i] == '"' and string[i - 1] != '\\'
 
 def _split_by_pkg(s):
+
     return _split_by_char(s, ',')
 
 # Takes a string and splits it by a given char. This will not split the string
@@ -175,7 +176,7 @@ def _parse_version_range(s):
         start_range = '['
         start_ver = _parse_version(start)
 
-    if end[-1] == ']' or end[-1] == ')':
+    if end[-1] == ']' or end[-1] ==')':
         end_range = end[-1]
         end_ver = _parse_version(end[:-1])
     else:
@@ -188,6 +189,9 @@ def _parse_version_range(s):
 # returns a generator containing all the versions of
 # packages whose names begin with 'org.cytoscape'.
 def _lower_cytoscape_pkg_versions(s):
+    p = open('/var/www/CyAppStore/abc.txt','w+')
+    p.write(s)
+    p.close()
     for (pkgname, attrs) in map(_extract_pkg_and_attrs, _split_by_pkg(s)):
         if not 'version' in attrs or not pkgname.startswith('org.cytoscape'):
             continue

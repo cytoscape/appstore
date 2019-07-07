@@ -298,7 +298,7 @@
 			{% if app.has_releases %}
 			<p><strong>Version</strong> <a class="cy-app-2x-download-popover" href="{{ app.cy_2x_plugin_download }}">{{ app.cy_2x_plugin_version }}</a></p>
 			{% else %}
-			<button class="btn btn-large btn-primary btn-block cy-app-2x-download-popover" id="cy-app-install-btn" onClick="window.location.href='{{ app.cy_2x_plugin_download|escapejs }}'" >
+			<button class="btn btn-large btn-primary btn-block cy-app-2x-download-popover" id="cy-app-install-btn" onClick="window.location.href='https://github.com/cytoscape/cy2_plugin_archive'" >
 				<i class="icon-cy-install-download"></i>
 				<h4>Download</h4>
 			</button>
@@ -307,7 +307,7 @@
 			{% endif %}
 			{% if app.cy_2x_plugin_release_date %}<p><strong>Released</strong> {{ app.cy_2x_plugin_release_date|date:'j M Y' }}</p>{% endif %}
 			{% if app.cy_2x_versions %}<p><strong>Works with</strong> <a href="http://www.cytoscape.org" target="_blank">Cytoscape {{ app.cy_2x_versions }}</a></p>{% endif %}
-			<p><strong>Download Stats</strong> <a href="http://chianti.ucsd.edu/cyto_web/plugins/plugindownloadstatistics.php">Click here</a></p>
+		<!--	<p><strong>Download Stats</strong> <a href="http://chianti.ucsd.edu/cyto_web/plugins/plugindownloadstatistics.php">Click here</a></p> -->
 		</div>
 		{% endif %}
 		{# end 2.x download panel #}
@@ -322,10 +322,10 @@
 		{# app resources #}
 		<div class="alert">
 			<ul class="nav nav-list">
-			<!li class="nav-header">
+			<!--  li class="nav-header" -->
 			
-			<h5>		<!i class="fa fa-circle-o-notch fa-spin" style="font-size:16px"><!/i>&ensp; RESOURCES</font> </h5>
-			<!/li> 
+			<h5>		<!-- i class="fa fa-circle-o-notch fa-spin" style="font-size:16px"><!/i -->&ensp; RESOURCES</font> </h5>
+			<!--/li --> 
 
 				<li><a href="https://groups.google.com/forum/?fromgroups#!newtopic/cytoscape-helpdesk" target="_blank">
 					<i class="icon-question-sign"></i>

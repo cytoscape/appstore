@@ -1,0 +1,1 @@
+from social_pyramid.strategy import PyramidTemplateStrategy, PyramidStrategy

@@ -1,0 +1,1 @@
+from social_django.managers import UserSocialAuthManager

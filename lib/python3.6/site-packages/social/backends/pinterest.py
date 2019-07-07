@@ -1,0 +1,1 @@
+from social_core.backends.pinterest import PinterestOAuth2

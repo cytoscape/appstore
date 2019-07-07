@@ -1,0 +1,1 @@
+from social_core.backends.stackoverflow import StackoverflowOAuth2

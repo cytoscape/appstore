@@ -32,11 +32,12 @@ def app_button_by_name(app_name):
         return c 
 @register.inclusion_tag('app_buttons.html')
 def app_buttons(apps):
-    return {'apps': apps}
+    return {'apps': list(apps)}
 
 
 @register.inclusion_tag('list_of_apps_search.html')
 def list_of_apps_search(apps, include_relevancy = False):
+    apps = filter(lambda a: hasattr(a.object, 'has_releases'), apps)
     apps_with_releases = filter(lambda a: a.object.has_releases, apps)
     apps_without_releases = filter(lambda a: not a.object.has_releases, apps)
     # a list of sort buttons to display

@@ -1,0 +1,63 @@
+Metadata-Version: 2.0
+Name: python-social-auth
+Version: 0.3.6
+Summary: Python social authentication made simple.
+Home-page: https://github.com/omab/python-social-auth
+Author: Matias Aguirre
+Author-email: matiasaguirre@gmail.com
+License: BSD
+Keywords: django,flask,pyramid,webpy,openid,oauth,social auth
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Topic :: Internet
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Intended Audience :: Developers
+Classifier: Environment :: Web Environment
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Requires-Dist: social-auth-core
+Provides-Extra: cherrypy
+Requires-Dist: social-auth-app-cherrypy; extra == 'cherrypy'
+Provides-Extra: django
+Requires-Dist: social-auth-app-django; extra == 'django'
+Provides-Extra: django-mongoengine
+Requires-Dist: social-auth-app-django-mongoengine; extra == 'django-mongoengine'
+Provides-Extra: flask
+Requires-Dist: social-auth-app-flask; extra == 'flask'
+Requires-Dist: social-auth-app-flask-sqlalchemy; extra == 'flask'
+Provides-Extra: flask-mongoengine
+Requires-Dist: social-auth-app-flask-mongoengine; extra == 'flask-mongoengine'
+Provides-Extra: flask-peewee
+Requires-Dist: social-auth-app-flask-peewee; extra == 'flask-peewee'
+Provides-Extra: pyramid
+Requires-Dist: social-auth-app-pyramid; extra == 'pyramid'
+Provides-Extra: tornado
+Requires-Dist: social-auth-app-tornado; extra == 'tornado'
+Provides-Extra: webpy
+Requires-Dist: social-auth-app-webpy; extra == 'webpy'
+
+Python Social Auth
+==================
+
+Python Social Auth is an easy-to-setup social authentication/registration
+mechanism with support for several frameworks and auth providers.
+
+Crafted using base code from django-social-auth, it implements a common interface
+to define new authentication providers from third parties, and to bring support
+for more frameworks and ORMs.
+
+Deprecation notice - 2016-12-03
+-------------------------------
+
+As for Dec 03 2016, this library is now deprecated, the codebase was
+split and migrated into the `python-social-auth organization`_,
+where a more organized development process is expected to take place.
+
+Details about moving towards the new setup is documented in the
+`migrating to social`_ document.
+
+.. _python-social-auth organization: https://github.com/python-social-auth
+.. _migrating to social: https://github.com/omab/python-social-auth/blob/master/MIGRATING_TO_SOCIAL.md
+
+

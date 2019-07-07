@@ -1,0 +1,1 @@
+from social_core.backends.professionali import ProfessionaliOAuth2

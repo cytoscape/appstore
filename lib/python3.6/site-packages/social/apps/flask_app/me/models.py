@@ -1,0 +1,1 @@
+from social_flask_mongoengine.models import FlaskStorage, init_social

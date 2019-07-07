@@ -1,0 +1,1 @@
+from social_cherrypy.views import CherryPyPSAViews
