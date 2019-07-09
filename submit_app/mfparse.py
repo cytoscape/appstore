@@ -32,7 +32,7 @@ def parse_manifest(manifest_lines):
     vals = list()
     for line in manifest_lines:
         if not line.strip(): continue # ignore empty lines
-        line = line.rstrip()
+        line = line.splitlines()[0]
         if line.startswith(b' '): # is this line a continuation?
             if not vals: continue # if we haven't read any entries, ignore this continuation
             vals[-1] += line[1:] # add the continuation to the last value
@@ -189,9 +189,6 @@ def _parse_version_range(s):
 # returns a generator containing all the versions of
 # packages whose names begin with 'org.cytoscape'.
 def _lower_cytoscape_pkg_versions(s):
-    p = open('/var/www/CyAppStore/abc.txt','w+')
-    p.write(s)
-    p.close()
     for (pkgname, attrs) in map(_extract_pkg_and_attrs, _split_by_pkg(s)):
         if not 'version' in attrs or not pkgname.startswith('org.cytoscape'):
             continue
