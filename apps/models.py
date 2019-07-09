@@ -18,7 +18,7 @@ class Author(models.Model):
 	search_schema = ('name', 'institution')
 	search_key = 'id'
 
-	def __unicode__(self):
+	def __str__(self):
 		if not self.institution:
 			return self.name
 		else:
@@ -43,7 +43,7 @@ class Tag(models.Model):
 	search_schema = ('fullname', )
 	search_key = 'name'
 
-	def __unicode__(self):
+	def __str__(self):
 		return self.name
 	class Meta:
 		ordering = ["name"]
@@ -126,7 +126,7 @@ class App(models.Model):
     search_schema = ('^fullname', 'description', 'details')
     search_key = 'name'
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 class OrderedAuthor(models.Model):
@@ -180,7 +180,7 @@ class Release(models.Model):
     def release_download_url(self):
         return reverse('release_download', args=[self.app.name, self.version])
 
-    def __unicode__(self):
+    def __str__(self):
         return self.app.fullname + ' ' + self.version
 
     def calc_checksum(self):
