@@ -1,1 +1,0 @@
-from social_django.config import PythonSocialAuthConfig

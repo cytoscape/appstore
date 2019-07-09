@@ -1,1 +1,0 @@
-from social_webpy.strategy import WebpyTemplateStrategy, WebpyStrategy

@@ -29,10 +29,12 @@ def submit_app(request):
                 fullname, version, works_with, app_dependencies, has_export_pkg = process_jar(f, expect_app_name)
                 pending = _create_pending(request.user, fullname, version, works_with, app_dependencies, f)
                 _send_email_for_pending(pending)
-                version_pattern ="^[0-9].[0-9].[0-9]+"
-                version_pattern = re.compile(version_pattern)
-                if (bool(version_pattern.match(version))!=True):
-                    raise ValueError("The version is not in proper pattern. It should have 3 order version numbering (e.g: x.y.z)")
+                version_pattern1 ="^[0-9].[0-9].[0-9]+"
+                version_pattern1 = re.compile(version_pattern1)
+                version_pattern2 = "^[0-9].[0-9]+"
+                version_pattern2 = re.compile(version_pattern2)
+                if (bool(version_pattern1.match(version))!=True and bool(version_pattern2.match(version))!=True):
+                    raise ValueError("The version is not in proper pattern. It should have 2 order version numbering (e.g: x.y) or 3 order version numbering (e.g: x.y.z)")
                 if has_export_pkg:
                     return HttpResponseRedirect(reverse('submit-api', args=[pending.id]))
                 else:

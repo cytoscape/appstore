@@ -1,1 +1,0 @@
-from social_core.backends.pushbullet import PushbulletOAuth2

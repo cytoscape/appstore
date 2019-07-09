@@ -1,1 +1,0 @@
-from social_core.backends.stocktwits import StocktwitsOAuth2

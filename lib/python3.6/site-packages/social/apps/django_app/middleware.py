@@ -1,1 +1,0 @@
-from social_django.middleware import SocialAuthExceptionMiddleware

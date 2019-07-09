@@ -1,1 +1,0 @@
-from social_flask.strategy import FlaskTemplateStrategy, FlaskStrategy
