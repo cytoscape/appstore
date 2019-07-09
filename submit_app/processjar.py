@@ -3,8 +3,8 @@ from .mfparse import parse_manifest, max_of_lower_cytoscape_pkg_versions, parse_
 from apps.models import App, Release, VersionRE
 from django.utils.encoding import smart_text
 from util.view_util import get_object_or_none
-import manifesttool.parse
-from jarmanifest import manifest as mf
+#import manifesttool.parse
+#from jarmanifest import manifest as mf
 _MANIFEST_FILE_NAME = 'META-INF/MANIFEST.MF'
 _MAX_MANIFEST_FILE_SIZE_B = 1024 * 1024
 
@@ -23,10 +23,11 @@ def process_jar(jar_file, expect_app_name):
     manifest = ParseManifest(manifest_file)
     #manifest_file.close()
     archive.close()
-    f = open('/var/www/CyAppStore/manifest_sections.txt','w+')
-    f.write('MANIFEST-SECTIONS! '+str(manifest.sections))
-    f.write('/n MANIFEST-MAIN_SECTION: '+str(manifest.main_section))
-    f.close()
+#   for debugging purposes only
+#    f = open('/var/www/CyAppStore/manifest_sections.txt','w+')
+#    f.write('MANIFEST-SECTIONS! '+str(manifest.sections))
+#    f.write('/n MANIFEST-MAIN_SECTION: '+str(manifest.main_section))
+#    f.close()
     is_osgi_bundle = True if manifest.main_section[b'Bundle-SymbolicName'] else False
     parser_func = _parse_osgi_bundle # if is_osgi_bundle else _parse_simple_app
     app_name, app_ver, app_works_with, app_dependencies, has_export_pkg = parser_func(manifest)
@@ -145,9 +146,9 @@ def _parse_osgi_bundle(manifest):
     if not import_packages:
         raise ValueError('does not import any packages--<tt>Import-Package</tt> is not in its manifest')
     #import_packages = ','.join(import_packages)
-    p = open('var/www/CyAppStore/import.txt','w+')
-    p.write(import_packages)
-    p.close()
+    #p = open('var/www/CyAppStore/import.txt','w+')
+    #p.write(import_packages)
+    #p.close()
     max_cy_ver = max_of_lower_cytoscape_pkg_versions(import_packages)
     if max_cy_ver:
         app_works_with = _ver_tuple_to_str(max_cy_ver)
