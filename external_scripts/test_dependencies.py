@@ -1,10 +1,10 @@
-from urllib import urlopen
-from cStringIO import StringIO
+from urllib.request import urlopen
+from io import BytesIO
 from os.path import isfile
 import subprocess
 
 def pipInstallCmd(pkgname):
-  print '    Suggested installation command: pip install', pkgname
+  print('    Suggested installation command: pip install', pkgname)
 
 def testPackage(module, pipPkgName = None):
   if module:
@@ -12,7 +12,7 @@ def testPackage(module, pipPkgName = None):
       __import__(module)
       return True
     except ImportError:
-      print '[ FAIL ] Could not import "%s"' % module
+      print('[ FAIL ] Could not import "%s"' % module)
       if pipPkgName: pipInstallCmd(pipPkgName)
       return False
 
@@ -23,9 +23,9 @@ def testVersion(module, expected_version, version, pipPkgName = None):
       satisfied = False
       break
   if satisfied:
-    print '[  ok  ] %s: %s' % (module, versionTupleToString(version))
+    print('[  ok  ] %s: %s' % (module, versionTupleToString(version)))
   else:
-    print '[ FAIL ] %s: %s -- expected %s' % (module, versionTupleToString(version), versionTupleToString(expected_version))
+    print('[ FAIL ] %s: %s -- expected %s' % (module, versionTupleToString(version), versionTupleToString(expected_version)))
     if pipPkgName: pipInstallCmd(pipPkgName)
   return satisfied
 
@@ -46,7 +46,7 @@ def versionStringToTuple(string):
 
 def testPython():
   from platform import python_version_tuple 
-  testVersion("python", (2,6), python_version_tuple())
+  testVersion("python", (3,6,5), python_version_tuple())
 
 def getXapianVersion():
   import xapian
@@ -65,18 +65,18 @@ def getMySQLdbVersion():
   return MySQLdb.version_info
 
 def getPILVersion():
-  import PIL.Image
-  return versionStringToTuple(PIL.Image.VERSION)
+  import PIL
+  return versionStringToTuple(PIL.PILLOW_VERSION)
 
 def testPILImageSupport(name, url):
   from PIL import Image
 
   try:
-    f = StringIO(urlopen(url).read())
+    f = BytesIO(urlopen(url).read())
     Image.open(f).load()
-    print '[  ok  ] PIL supports', name
+    print('[  ok  ] PIL supports', name)
   except:
-    print '[ FAIL ] PIL could not load', name, 'file from', url
+    print('[ FAIL ] PIL could not load', name, 'file from', url)
 
 def testMaven():
   import sys
@@ -86,32 +86,32 @@ def testMaven():
   for var in ('MVN_BIN_PATH', 'MVN_SETTINGS_PATH'):
     path = getattr(mvn, var)
     if isfile(path):
-      print '[  ok  ]', var, 'configured to:', path
+      print('[  ok  ]', var, 'configured to:', path)
     else:
-      print '[ FAIL ] Not configured correctly in conf.mvn:', var
+      print('[ FAIL ] Not configured correctly in conf.mvn:', var)
       return
 
-  print '   Testing Maven...'
+  print( '   Testing Maven...')
   result = subprocess.call((mvn.MVN_BIN_PATH, '-version'))
   if result == 0:
-    print '[  ok  ] Invocation of Maven'
+    print( '[  ok  ] Invocation of Maven')
 
 def testUnzip():
   result = subprocess.call(('unzip',))
   if result == 0:
-    print '[  ok  ] Invocation of unzip'
+    print('[  ok  ] Invocation of unzip')
   else:
-    print '[ FAIL ] Unable to invoke unzip'
+    print( '[ FAIL ] Unable to invoke unzip')
 
 def main():
   testPython()
   testPackageAndVersion("MySQLdb",       (1,),    getMySQLdbVersion,    'MySQL-Python==1.2.3')
   testPackageAndVersion("xapian",        (1,),    getXapianVersion,     None)
-  if testPackageAndVersion("PIL",        (1,1,7), getPILVersion,        'PIL==1.1.7'):
+  if testPackageAndVersion("PIL",        (5,1,0), getPILVersion,        'Pillow==5.1.0'):
     testPILImageSupport('JPEG', 'http://upload.wikimedia.org/wikipedia/commons/3/38/JPEG_example_JPG_RIP_001.jpg')
     testPILImageSupport('PNG',  'http://upload.wikimedia.org/wikipedia/commons/8/89/PNG-Gradient.png')
     testPILImageSupport('GIF',  'http://upload.wikimedia.org/wikipedia/commons/a/a0/Sunflower_as_gif_websafe.gif')
-  if testPackageAndVersion("django",     (1,4),   getDjangoVersion,     'Django==1.4.5'):
+  if testPackageAndVersion("django",     (1,8,0),   getDjangoVersion,     'Django==1.8.19'):
     testPackageAndVersion("social_auth", (0,7),   getSocialAuthVersion, 'django-social-auth==0.7.23')
   testMaven()
   testUnzip()

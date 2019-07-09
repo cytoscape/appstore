@@ -49,11 +49,11 @@ class Command(BaseCommand):
         if not os.path.exists(XAPIAN_INDICES_DIR):
             os.mkdir(XAPIAN_INDICES_DIR)
         
-        print 'Indexing...',
-        sys.stdout.flush()
+        print('Indexing...',
+        sys.stdout.flush())
         for model_name, model in inspect.getmembers(models, inspect.isclass):
             if not 'search_schema' in dir(model): continue
-            print model_name,
-            sys.stdout.flush()
+            print(model_name,
+            sys.stdout.flush())
             index_model(XAPIAN_INDICES_DIR, model_name, model)
-        print 'done.'
+        print('done.')

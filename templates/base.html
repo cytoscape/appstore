@@ -1,4 +1,3 @@
-{% load url from future %}
 {% load static %}
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
@@ -46,14 +45,14 @@
             <a href="#" class="dropdown-toggle" data-toggle="dropdown">Submit an App <b class="caret"></b></a>
             <ul class="dropdown-menu">
               <li><a href="{% url 'submit-app' %}">Submit a 3.0 App</a></li>
-              <li><a href="http://www.cytoscape.org/plugin_submit.html" target="_blank">Submit a 2.x Plugin</a></li>
+	      <!--     <li><a href="http://www.cytoscape.org/plugin_submit.html" target="_blank">Submit a 2.x Plugin</a></li> -->
               <li class="divider"></li>
               <li><a target="_blank" href="http://wiki.cytoscape.org/Cytoscape_3/AppDeveloper">Guide to 3.0 App Development</a></li>
             </ul>
           </li>
           {# Search field #}
           <li>
-            <form action="{% url 'search' %}" method="get" class="navbar-search pull-right">
+            <form action="{% url 'haystack_search' %}" method="get" class="navbar-search pull-right">
               <input type="text" name="q" value="{{ search_query }}" class="search-query" placeholder="Search the App Store">
             </form>
           </li>
@@ -97,8 +96,8 @@
       <span class="footer-divider"></span>
 
       <a href="{% url 'wall_of_apps' %}">Wall of Apps</a>
-      &bull;
-      <a href="{% url 'all_stats' %}">All Stats</a>
+      
+      <!--   <a href="{% url 'all_stats' %}">All Stats</a> -->
     </footer>
   </div>
 

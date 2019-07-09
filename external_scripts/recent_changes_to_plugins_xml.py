@@ -3,7 +3,7 @@ from itertools import ifilter
 import re
 import argparse
 import sys
-from urllib import urlopen
+from urllib.request import urlopen
 from datetime import date, timedelta, MINYEAR
 from smtplib import SMTP
 

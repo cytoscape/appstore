@@ -1,14 +1,16 @@
 from django.core.files import File
 from PIL import Image
-from cStringIO import StringIO
-
+try:
+    from BytesIO import BytesIO
+except ImportError:
+    from io import BytesIO
 def scale_img(f, name, max_px, dim):
     try:
         img = Image.open(f, 'r')
     except IOError:
         raise ValueError('invalid image file')
     (w, h) = img.size
-    
+
     if dim == 'h':
         if h > max_px:
             w = max_px * w / h
@@ -25,9 +27,9 @@ def scale_img(f, name, max_px, dim):
                 h = max_px
         else:
             return f
-    
+
     scaled_img = img.resize((w, h), Image.ANTIALIAS)
-    scaled_buffer = StringIO()
+    scaled_buffer = BytesIO()
     scaled_img.save(scaled_buffer, 'PNG')
     scaled_f = File(scaled_buffer, name = name + '.png')
     scaled_f._set_size(len(scaled_buffer.getvalue()))

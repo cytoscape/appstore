@@ -1,6 +1,11 @@
 *.pyc
 *.sql
 *.tgz
+*.swp
+*.swo
+/apps/migrations
+/static
+/backups
 /media
 /conf/apikeys.py
 /conf/dbs.py
@@ -13,6 +18,8 @@
 /download/geolite/GeoLiteCity.dat
 /download/geolite/last_updated
 /logs
-
-.idea
-CyAppStore.sqlite
+/myvirtualenv
+/xapian-core-1.4.5
+/xapian-bindings-1.4.5
+/xapian_indices
+/whoosh_index

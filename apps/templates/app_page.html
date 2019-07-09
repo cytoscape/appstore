@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% load url from future %}
+{% load i18n %}
 
 {% block more_head %}
 <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_page.css" />
@@ -62,7 +62,7 @@
 </div>
 {# End app header #}
 
-{# App usage info (ratings, downloads) #}
+{# App usage info (ratings, downloads, helpdesk, citations, discussions) #}
 <div class="row">
 	<div class="span12" id="app-usage-info">
 		{# Ratings #}
@@ -77,12 +77,28 @@
 		{# Downloads #}
 		{% if app.has_releases %}
 		<span class="app-usage-info-divider"></span>
-		<a href="{% url 'app_stats' app.name %}" target="_blank">
+		<a href="{% url 'app_stats' app.name %}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Click to view the download stats.">
 			{{ app.downloads }} downloads
 		</a>
 		{% endif %}
 		{# End Downloads #}
 
+		{# Helpdesk #}
+		<a> | </a>
+		<a href="https://groups.google.com/forum/?fromgroups#!searchin/cytoscape-helpdesk/{{ app.fullname }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search Cytoscape Helpdesk for questions about this app.">helpdesk</a>
+		{# End Helpdesk #}
+
+		{# Citations #}
+		{% if app.citation %}
+		<a> | </a>
+		<a href="https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed_citedin&from_uid={{ app.citation }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search PubMed for articles citing this app.">{% trans "  citations" %}</a>
+
+		{% endif %}
+		{# End Citations #}
+		{# discussions #}
+<a> | </a>
+<a href="https://www.biostars.org/local/search/page/?q=cytoscape+{{ app.fullname }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search BioStar for discussions about this app.">{% trans "discussions" %}</a>
+{# End Discussions #}
 		<span class="app-usage-info-divider"></span>
 
 		{# badges #}
@@ -99,6 +115,11 @@
 		{% if app.coderepo %}
 		<a href="{{ app.coderepo }}" target="_blank">
 			<img src="{% get_static_prefix %}apps/img/open-source.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is open source.">
+		</a>
+		{% endif %}
+		{% if 'www' in app.automation %}
+		<a href="https://{{ app.automation }}" target="_blank">
+			<img src="{% get_static_prefix %}apps/img/automation.png" class="has-tooltip" data-toggle="tooltip" data-title="This app supports automation.">
 		</a>
 		{% endif %}
 		{# end badges #}
@@ -277,7 +298,7 @@
 			{% if app.has_releases %}
 			<p><strong>Version</strong> <a class="cy-app-2x-download-popover" href="{{ app.cy_2x_plugin_download }}">{{ app.cy_2x_plugin_version }}</a></p>
 			{% else %}
-			<button class="btn btn-large btn-primary btn-block cy-app-2x-download-popover" id="cy-app-install-btn" onClick="window.location.href='{{ app.cy_2x_plugin_download|escapejs }}'" >
+			<button class="btn btn-large btn-primary btn-block cy-app-2x-download-popover" id="cy-app-install-btn" onClick="window.location.href='https://github.com/cytoscape/cy2_plugin_archive'" >
 				<i class="icon-cy-install-download"></i>
 				<h4>Download</h4>
 			</button>
@@ -286,7 +307,7 @@
 			{% endif %}
 			{% if app.cy_2x_plugin_release_date %}<p><strong>Released</strong> {{ app.cy_2x_plugin_release_date|date:'j M Y' }}</p>{% endif %}
 			{% if app.cy_2x_versions %}<p><strong>Works with</strong> <a href="http://www.cytoscape.org" target="_blank">Cytoscape {{ app.cy_2x_versions }}</a></p>{% endif %}
-			<p><strong>Download Stats</strong> <a href="http://chianti.ucsd.edu/cyto_web/plugins/plugindownloadstatistics.php">Click here</a></p>
+		<!--	<p><strong>Download Stats</strong> <a href="http://chianti.ucsd.edu/cyto_web/plugins/plugindownloadstatistics.php">Click here</a></p> -->
 		</div>
 		{% endif %}
 		{# end 2.x download panel #}
@@ -298,13 +319,14 @@
 		</div>
 		{% endif %}
 		{# end no downloads #}
-
 		{# app resources #}
-		<div class="well">
+		<div class="alert">
 			<ul class="nav nav-list">
-				<li class="nav-header">
-					Resources
-				</li>
+			<!--  li class="nav-header" -->
+			
+			<h5>		<!-- i class="fa fa-circle-o-notch fa-spin" style="font-size:16px"><!/i -->&ensp; RESOURCES</font> </h5>
+			<!--/li --> 
+
 				<li><a href="https://groups.google.com/forum/?fromgroups#!newtopic/cytoscape-helpdesk" target="_blank">
 					<i class="icon-question-sign"></i>
 					Ask a question
@@ -312,9 +334,9 @@
 
 				<li><a href="https://groups.google.com/forum/?fromgroups#!searchin/cytoscape-helpdesk/{{ app.fullname }}" target="_blank">
 					<i class="icon-comment"></i>
-					Search posts
+					Search helpdesk
 				</a></li>
-
+				<li><a href="https://www.biostars.org/local/search/page/?q=cytoscape+{{ app.fullname }}" target="_blank"><i class="icon-comment"></i> Search BioStars</a></li>
 				<li class="divider"></li>
 
 				{% if app.website %}
@@ -338,6 +360,14 @@
 				{% if app.coderepo %}
 				<li><a href="{{ app.coderepo }}" target="_blank">
 					<i class="icon-list-alt"></i> Code Repository
+				</a></li>
+				{% endif %}
+				<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+				{% if 'www' in app.automation %}
+				<li><a href="http://{{app.automation}}" target="_blank">
+						
+						<i class="fa fa-gear fa-spin" style="color:black"></i>
+ Automation Support
 				</a></li>
 				{% endif %}
 

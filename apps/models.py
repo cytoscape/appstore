@@ -5,7 +5,7 @@ import subprocess
 from os import mkdir, devnull
 import os.path
 from os.path import join as pathjoin
-from urlparse import urljoin
+from urllib.parse import urljoin
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
@@ -14,11 +14,11 @@ from django.core.urlresolvers import reverse
 class Author(models.Model):
 	name        = models.CharField(max_length=255)
 	institution = models.CharField(max_length=255, null=True, blank=True)
-	
+
 	search_schema = ('name', 'institution')
 	search_key = 'id'
-	
-	def __unicode__(self):
+
+	def __str__(self):
 		if not self.institution:
 			return self.name
 		else:
@@ -39,11 +39,11 @@ class Tag(models.Model):
 			count = App.objects.filter(active = True, tags = self).count()
 			_TagCountCache[self.name] = count
 		return count
-	
+
 	search_schema = ('fullname', )
 	search_key = 'name'
-	
-	def __unicode__(self):
+
+	def __str__(self):
 		return self.name
 	class Meta:
 		ordering = ["name"]
@@ -75,11 +75,12 @@ class App(models.Model):
 
     license_text    = models.URLField(blank=True, null=True)
     license_confirm = models.BooleanField(default=False)
-    
+
     website      = models.URLField(blank=True, null=True)
     tutorial     = models.URLField(blank=True, null=True)
     citation     = models.CharField(max_length=31, blank=True, null=True)
     coderepo     = models.URLField(blank=True, null=True)
+    automation   = models.URLField(blank=True, null=True)
     contact      = models.EmailField(blank=True, null=True)
 
     stars        = models.PositiveIntegerField(default=0)
@@ -125,7 +126,7 @@ class App(models.Model):
     search_schema = ('^fullname', 'description', 'details')
     search_key = 'name'
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
 class OrderedAuthor(models.Model):
@@ -179,7 +180,7 @@ class Release(models.Model):
     def release_download_url(self):
         return reverse('release_download', args=[self.app.name, self.version])
 
-    def __unicode__(self):
+    def __str__(self):
         return self.app.fullname + ' ' + self.version
 
     def calc_checksum(self):

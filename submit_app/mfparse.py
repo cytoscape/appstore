@@ -32,12 +32,12 @@ def parse_manifest(manifest_lines):
     vals = list()
     for line in manifest_lines:
         if not line.strip(): continue # ignore empty lines
-        line = line.rstrip()
-        if line.startswith(' '): # is this line a continuation?
+        line = line.splitlines()[0]
+        if line.startswith(b' '): # is this line a continuation?
             if not vals: continue # if we haven't read any entries, ignore this continuation
             vals[-1] += line[1:] # add the continuation to the last value
         else:
-            (key, _, val) = line.partition(':')
+            (key, _, val) = line.partition(b':')
             keys.append(key.strip())
             vals.append(val.strip())
     return _multival_dict(zip(keys, vals))
@@ -94,6 +94,7 @@ def _is_dblquote(string, i):
     return string[i] == '"' and string[i - 1] != '\\'
 
 def _split_by_pkg(s):
+
     return _split_by_char(s, ',')
 
 # Takes a string and splits it by a given char. This will not split the string
@@ -175,7 +176,7 @@ def _parse_version_range(s):
         start_range = '['
         start_ver = _parse_version(start)
 
-    if end[-1] == ']' or end[-1] == ')':
+    if end[-1] == ']' or end[-1] ==')':
         end_range = end[-1]
         end_ver = _parse_version(end[:-1])
     else:

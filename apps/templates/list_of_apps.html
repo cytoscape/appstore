@@ -16,18 +16,20 @@
               </button>
               {% endfor %}
             </span>
-          </td>
+	  </td> 
         </tr>
       </table>
     </div>
     {% app_buttons apps_with_releases %}
   </div>
+ 
   <script type="text/javascript" src="{% get_static_prefix %}apps/js/sort_app_buttons.js"></script>
   <script type="text/javascript">
     $(function() {
         SortAppButtons.init_sort_buttons($('#apps-with-releases'));
     });
   </script>
+ 
 {% endif %}
 
 {% if apps_without_releases %}

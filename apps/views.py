@@ -1,6 +1,6 @@
 import re
 import datetime
-from urllib import unquote
+from urllib.parse import unquote
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden
@@ -9,12 +9,12 @@ from django.utils.text import unescape_entities
 from util.view_util import json_response, html_response, obj_to_dict, get_object_or_none
 from util.img_util import scale_img
 from util.id_util import fullname_to_name
-from models import Tag, App, Author, OrderedAuthor, Screenshot, Release
+from apps.models import Tag, App, Author, OrderedAuthor, Screenshot, Release
 
 # Returns a unicode string encoded in a cookie
 def _unescape_and_unquote(s):
 	if not s: return s
-	return unescape_entities(unquote(s).decode('utf-8'))
+	return unescape_entities(unquote(s))
 
 # ============================================
 #      Nav Panel
@@ -25,7 +25,7 @@ class _NavPanelConfig:
 	num_of_top_tags = 20
 	tag_cloud_max_font_size_em = 2.0
 	tag_cloud_min_font_size_em = 1.0
-	tag_cloud_delta_font_size_em = tag_cloud_max_font_size_em - tag_cloud_min_font_size_em 
+	tag_cloud_delta_font_size_em = tag_cloud_max_font_size_em - tag_cloud_min_font_size_em
 
 def _all_tags_of_count(min_count):
 	return filter(lambda tag: tag.count >= min_count, Tag.objects.all())
@@ -40,10 +40,10 @@ def _nav_panel_context(request):
 	sorted_tags = sorted(all_tags, key=lambda tag: tag.count)
 	sorted_tags.reverse()
 	try:
-    		tag = get_object_or_404(Tag, name = 'collections')
-        	idx = sorted_tags.index(tag)
-           	sorted_tags.pop(idx)
-           	sorted_tags.insert(0, tag)
+		tag = get_object_or_404(Tag, name = 'collections')
+		idx = sorted_tags.index(tag)
+		sorted_tags.pop(idx)
+		sorted_tags.insert(0, tag)
 	except Http404:
     		idx = 0
 	if len(sorted_tags) > 0:
@@ -54,7 +54,7 @@ def _nav_panel_context(request):
 	count_delta = float(max_count - min_count)
 	top_tags = sorted_tags[:_NavPanelConfig.num_of_top_tags]
 	not_top_tags = sorted_tags[_NavPanelConfig.num_of_top_tags:]
-	
+
 	for tag in all_tags:
 		try:
 			rel_count = (tag.count - min_count) / count_delta
@@ -87,7 +87,7 @@ class _DefaultConfig:
 def apps_default(request):
 	latest_apps = App.objects.filter(active=True).order_by('-latest_release_date')[:_DefaultConfig.num_of_top_apps]
 	downloaded_apps = App.objects.filter(active=True).order_by('downloads').reverse()[:_DefaultConfig.num_of_top_apps]
-	
+
 	c = {
 		'latest_apps': latest_apps,
 		'downloaded_apps': downloaded_apps,
@@ -194,7 +194,7 @@ _AppActions = {
 def app_page(request, app_name):
 	app = get_object_or_404(App, active = True, name = app_name)
 	user = request.user if request.user.is_authenticated() else None
-	
+
 	if request.method == 'POST':
 		action = request.POST.get('action')
 		if not action:
@@ -256,7 +256,7 @@ def _save_tags(app, request):
 		tag_count = int(tag_count)
 	except ValueError:
 		raise ValueError('tag_count is not an integer')
-	
+
 	tags = []
 	for i in range(tag_count):
 		tag_key = 'tag_' + str(i)
@@ -264,12 +264,12 @@ def _save_tags(app, request):
 		if not tag:
 			raise ValueError('expected ' + tag_key)
 		tags.append(tag)
-	
+
 	app.tags.clear()
 	for tag in tags:
 		tag_obj, _ = Tag.objects.get_or_create(fullname = tag, name = fullname_to_name(tag))
 		app.tags.add(tag_obj)
-	
+
 	_flush_tag_caches()
 
 class _AppPageEditConfig:
@@ -303,11 +303,11 @@ def _delete_screenshot(app, request):
 	screenshot_id = request.POST.get('screenshot_id')
 	if not screenshot_id:
 		raise ValueError('no screenshot_id specified')
-	
+
 	try:
 		screenshot_id = int(screenshot_id)
 		screenshot = Screenshot.objects.get(id = screenshot_id)
-	except ValueError, Screenshot.DoesNotExist:
+	except (ValueError, Screenshot.DoesNotExist) as e:
 		raise ValueError('invalid screenshot_id')
 	screenshot.delete()
 
@@ -326,7 +326,7 @@ def _save_editors(app, request):
 		editors_count = int(editors_count)
 	except ValueError:
 		raise ValueError('editors_count is not an integer')
-	
+
 	usernames = list()
 	for i in range(editors_count):
 		key = 'editor_' + str(i)
@@ -334,7 +334,7 @@ def _save_editors(app, request):
 		if not username:
 			raise ValueError('expected ' + key)
 		usernames.append(username)
-	
+
 	app.editors.clear()
 	for username in usernames:
 		user = get_object_or_none(User, username = username)
@@ -350,7 +350,7 @@ def _save_authors(app, request):
 		authors_count = int(authors_count)
 	except ValueError:
 		raise ValueError('authors_count is not an integer')
-	
+
 	authors = list()
 	for i in range(authors_count):
 		key = 'author_' + str(i)
@@ -361,7 +361,7 @@ def _save_authors(app, request):
 		if not institution:
 			institution = None
 		authors.append((name, institution, i))
-	
+
 	app.authors.clear()
 	for name, institution, author_order in authors:
 		author, _ = Author.objects.get_or_create(name = name, institution = institution)
@@ -375,7 +375,7 @@ def _save_release_notes(app, request):
 		release_count = int(release_count)
 	except ValueError:
 		raise ValueError('release_count is not an integer')
-	
+
 	for i in range(release_count):
 		key = 'release_id_' + str(i)
 		release_id = request.POST.get(key)
@@ -383,7 +383,7 @@ def _save_release_notes(app, request):
 			raise ValueError('expected ' + key)
 		try:
 			release = Release.objects.get(id = int(release_id))
-		except Release.DoesNotExist, ValueError:
+		except (Release.DoesNotExist, ValueError) as e:
 			raise ValueError('release_id "%s" is invalid' % release_id)
 		notes_key = 'notes_' + str(i)
 		notes = request.POST.get(notes_key)
@@ -400,7 +400,7 @@ def _delete_release(app, request):
 		release_count = int(release_count)
 	except ValueError:
 		raise ValueError('release_count is not an integer')
-	
+
 	for i in range(release_count):
 		key = 'release_id_' + str(i)
 		release_id = request.POST.get(key)
@@ -408,26 +408,27 @@ def _delete_release(app, request):
 			raise ValueError('expected ' + key)
 		try:
 			release = Release.objects.get(id = int(release_id))
-		except Release.DoesNotExist, ValueError:
+		except (Release.DoesNotExist, ValueError) as e:
 			raise ValueError('release_id "%s" is invalid' % release_id)
 		release.active = False
 		release.save()
 	app.update_has_releases()
 
 _AppEditActions = {
-	'save_cy_2x_plugin_download':     _mk_basic_field_saver('cy_2x_plugin_download'), 
+	'save_cy_2x_plugin_download':     _mk_basic_field_saver('cy_2x_plugin_download'),
 	'save_cy_2x_plugin_version':      _mk_basic_field_saver('cy_2x_plugin_version'),
-	'save_cy_2x_plugin_release_date': _mk_basic_field_saver('cy_2x_plugin_release_date', func=_parse_iso_date), 
+	'save_cy_2x_plugin_release_date': _mk_basic_field_saver('cy_2x_plugin_release_date', func=_parse_iso_date),
 	'save_cy_2x_versions':            _mk_basic_field_saver('cy_2x_versions'),
-	'save_description':   _mk_basic_field_saver('description'), 
-	'save_license_text':  _mk_basic_field_saver('license_text'), 
-	'save_license_confirm':  _mk_basic_field_saver('license_confirm', func = lambda s: s.lower() == 'true'), 
-	'save_website':       _mk_basic_field_saver('website'), 
-	'save_tutorial':      _mk_basic_field_saver('tutorial'), 
-	'save_citation':      _mk_basic_field_saver('citation'), 
-	'save_coderepo':      _mk_basic_field_saver('coderepo'), 
-	'save_contact':       _mk_basic_field_saver('contact'), 
-	'save_details':       _mk_basic_field_saver('details'), 
+	'save_description':   _mk_basic_field_saver('description'),
+	'save_license_text':  _mk_basic_field_saver('license_text'),
+	'save_license_confirm':  _mk_basic_field_saver('license_confirm', func = lambda s: s.lower() == 'true'),
+	'save_website':       _mk_basic_field_saver('website'),
+	'save_tutorial':      _mk_basic_field_saver('tutorial'),
+	'save_citation':      _mk_basic_field_saver('citation'),
+	'save_coderepo':      _mk_basic_field_saver('coderepo'),
+        'save_automation':  _mk_basic_field_saver('automation'),
+	'save_contact':       _mk_basic_field_saver('contact'),
+	'save_details':       _mk_basic_field_saver('details'),
 	'save_tags':          _save_tags,
 	'upload_icon':        _upload_icon,
 	'upload_screenshot':  _upload_screenshot,
@@ -444,7 +445,7 @@ def app_page_edit(request, app_name):
 	app = get_object_or_404(App, active = True, name = app_name)
 	if not app.is_editor(request.user):
 		return HttpResponseForbidden()
-	
+
 	if request.method == 'POST':
 		action = request.POST.get('action')
 		if not action:
@@ -458,7 +459,7 @@ def app_page_edit(request, app_name):
 		app.save()
 		if request.is_ajax():
 			return json_response(result)
-	
+
 	all_tags = [tag.fullname for tag in Tag.objects.all()]
 	c = {
 		'app': app,
@@ -470,4 +471,3 @@ def app_page_edit(request, app_name):
         'release_uploaded': request.GET.get('upload_release') == 'true',
 	}
 	return html_response('app_page_edit.html', c, request)
-
