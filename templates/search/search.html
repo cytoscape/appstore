@@ -30,10 +30,13 @@
 	              <div class="row"><div class="span8"><h3>Apps</h3></div></div>
     {% list_of_apps_search page.object_list True %}
 	{% endif %}
-	  
+	{% if page.object_list %}	  
 		<h3>Authors</h3>
 
 
+	{% else %}
+	<h3> No Results Found </h3>
+	{% endif %}
 	                {% for result in page.object_list %}
 			
 				{% if result.object.institution %}
