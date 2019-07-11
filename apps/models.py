@@ -99,6 +99,9 @@ class App(models.Model):
             return True
         return user in self.editors.all()
 
+    def camelcase(self):
+        return ' '.join([c for c in camel_case_split(self.fullname)])
+
     @property
     def stars_percentage(self):
         return 100 * self.stars / self.votes / 5 if self.votes != 0 else 0
@@ -224,6 +227,17 @@ def javadocs_path(release_api, filename):
 
 def pom_xml_path(release_api, filename):
     return pathjoin(release_api.release.app.name, 'releases', release_api.release.version, filename)
+
+def camel_case_split(str): 
+    words = [[str[0]]] 
+  
+    for c in str[1:]: 
+        if words[-1][-1].islower() and c.isupper(): 
+            words.append(list(c)) 
+        else: 
+            words[-1].append(c) 
+  
+    return [''.join(word) for word in words] 
 
 class ReleaseAPI(models.Model):
     release           = models.ForeignKey(Release)

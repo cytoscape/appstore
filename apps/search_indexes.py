@@ -1,6 +1,20 @@
 from haystack import indexes
 from apps.models import App, Author, Tag
 
+def camel_case_split(str): 
+    words = [[str[0]]] 
+  
+    for c in str[1:]: 
+        if words[-1][-1].islower() and c.isupper(): 
+            words.append(list(c)) 
+        else: 
+            words[-1].append(c) 
+  
+    return [''.join(word) for word in words] 
+
+
+
+
 class AppIndex(indexes.SearchIndex, indexes.Indexable):
     text = indexes.EdgeNgramField(document = True, use_template = True)
     name = indexes.CharField(model_attr = 'name')
@@ -14,6 +28,11 @@ class AppIndex(indexes.SearchIndex, indexes.Indexable):
     #votes = indexes.IntegerField(model_attr = 'votes',null = True)
     #stars =indexes.IntegerField(model_attr = 'stars',null = True) 
     #latest_release_date = indexes.DateField(model_attr = 'latest_release_date',null= True)
+    camelcase = indexes.CharField()
+
+    
+    
+    
     
     def get_model(self):
         return App
