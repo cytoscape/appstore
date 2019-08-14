@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+    <div class="row">
+        <div class="span5">
+            <div class="page-header">
+                <h1>Sign In</h1>
+            </div>
+        </div>
+    </div>
+    {% if error %}
+        <div class="row">
+            <div class="span5 alert alert-error">
+                {{ error }}
+            </div>
+        </div>
+    {% endif %}
+    <div class="row">
+        <div class="span5">
+            <span class="label label-warning"><i class="icon-info-sign icon-white"></i> Notice</span>
+            The Cytoscape App Store will not give or sell your personal information
+            to others.
+        </div>
+    </div>
+    <div class="row" style="margin-top: 3em;">
+        <div class="span5">
+            <a href="{% url 'social:begin' 'google-oauth2' %}?next={{ next_url }}" class="btn btn-success">
+                Sign in with Google <i class="icon-chevron-right icon-white"></i>
+            </a>
+        </div>
+    </div>
+    <div class="row" style="margin-top: 1em;">
+        <div class="span5">
+            <a id="signoutandinlink" href="#" onclick="signOutAndInOfGoogle();">Click here to sign into another Google account.</a>
+        </div>
+    </div>
+    <script type="text/javascript">
+    function signOutAndInOfGoogle() {
+        var logoutframe =
+            $('<iframe>').
+            attr('src', 'https://accounts.google.com/logout').
+            hide();
+        $('body').append(logoutframe);
+        $('#signoutandinlink').replaceWith('<img src="{% get_static_prefix %}common/img/loading_small.gif">');
+        setTimeout(function() {
+            logoutframe.remove();
+            window.location = "{% url 'social:begin' 'google-oauth2' %}?next={{ next_url }}";
+        }, 2000);
+    }
+    </script>
+{% endblock %}

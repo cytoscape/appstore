@@ -1,0 +1,40 @@
+{% load static %}
+{% load app_buttons %}
+
+{% if apps_with_releases %}
+  <div class="row" style="margin-bottom: 4em;" id="apps-with-releases">
+    <div class="span8">
+      <table style="margin-bottom: 1em;">
+        <tr>
+     <!--     <td><span style="margin-right: 0.5em;">Sort by</span></td>
+          <td>
+            <span id="sort_app_buttons" class="btn-group">
+              {% for button_name, attr_name, attr_type in sort_criteria %}
+              <button class="btn btn-small" attr_name="{{ attr_name }}" attr_type="{{ attr_type }}">
+                <span class="title">{{ button_name }}</span>
+                <span class="triangle"></span>
+              </button>
+	      {% endfor %}
+            </span>
+	  </td> -->
+        </tr>
+      </table>
+    </div>
+    {% app_buttons apps_with_releases %}
+  </div>
+ 
+  <script type="text/javascript" src="{% get_static_prefix %}apps/js/sort_app_buttons.js"></script>
+  <script type="text/javascript">
+    $(function() {
+        SortAppButtons.init_sort_buttons($('#apps-with-releases'));
+    });
+  </script>
+ 
+{% endif %}
+
+{% if apps_without_releases %}
+<h4>Unsupported Plugins for Cytoscape 2.x </h4>
+  <div class="row">
+    {% app_buttons apps_without_releases %}
+  </div>
+{% endif %}

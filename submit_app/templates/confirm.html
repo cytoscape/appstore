@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}- Confirm Submission{% endblock %}
+
+{% block more_head %}
+<style type="text/css">
+  form { display: inline; }
+  #loading { display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="span12">
+            <div class="page-header">
+                <h1>Confirm Submission</h1>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="span6">
+            <p>We found the following information about your app:</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="span8">
+            <table class="table">
+              <tr>
+                <td><b>Is this a new app?</b></td>
+                <td>
+                  {% if pending.is_new_app %}
+                    Yes&mdash;a new app page will be created after an App Store administrator approves your app
+                  {% else %}
+                    No&mdash;this submission is an updated version of an existing app
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td><b>App Name</b></td>
+                <td>{{ pending.fullname }}</td>
+              </tr>
+              <tr>
+                <td><b>App Version</b></td>
+                <td>{{ pending.version }}</td>
+              </tr>
+              <tr>
+                <td><b>Minimum Cytoscape Version</b></td>
+                <td>{{ pending.cy_works_with }}</td>
+              </tr>
+              <tr>
+                <td><b>App Dependencies</b></td>
+                <td>
+                  {% if pending.dependencies.count %}
+                      {% for release in pending.dependencies.all %}
+                        <p><i class="icon-ok"></i> {{ release.app.fullname }}&nbsp;&nbsp;{{ release.version }}</p>
+                      {% endfor %}
+                  {% else %}
+                    None
+                  {% endif %}
+                </td>
+              </tr>
+            </table>
+
+            {% if pom_attrs %}
+              <p>
+                Maven POM information:
+                <table class="table">
+                  <tr>
+                    <td><b>Group ID</b></td>
+                    <td>{{ pom_attrs.groupId }}</td>
+                  </tr>
+                  <tr>
+                    <td><b>Artifact ID</b></td>
+                    <td>{{ pom_attrs.artifactId }}</td>
+                  </tr>
+                  <tr>
+                    <td><b>Version</b></td>
+                    <td>{{ pom_attrs.version }}</td>
+                  </tr>
+                </table>
+              </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="span12">
+            <p>
+              Is the above information correct? <i>It cannot be changed after submission.</i>
+            </p>
+            <div id="loading">
+              <img src="{% get_static_prefix %}common/img/loading.gif">
+            </div>
+            <form action="{% url 'confirm-submission' pending.id %}" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="cancel">
+              <input type="submit" class="btn btn-danger" value="No, cancel it">
+            </form>
+            <form action="{% url 'confirm-submission' pending.id %}" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="accept">
+              <input type="submit" class="btn btn-success" value="Yes, accept it">
+            </form>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+      $(function() {
+        $('form').submit(function() {
+          $('input[type=submit]').hide();
+          $('#loading').show();
+        });
+      });
+    </script>
+{% endblock %}
+    

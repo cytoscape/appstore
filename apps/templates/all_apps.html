@@ -1,0 +1,11 @@
+{% extends "nav_panel.html" %}
+{% load static %}
+{% load app_buttons %}
+
+{% block title %}
+ - All Apps
+{% endblock %}
+
+{% block main %}
+{% list_of_apps apps %} 
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %} - Get Started with Installing Apps{% endblock %}
+
+{% block content %}
+  <style type="text/css">
+    h4 + img { margin-bottom: 6em; }
+    h4 { margin-bottom: 2em; }
+  </style>
+
+  <div class="row"><div class="span12"><div class="page-header"><h1>Get Started with Installing Apps</h1></div></div></div>
+
+  <div class="row"><div class="span12">
+      <h4>Is Cytoscape 3 installed? If not, download it from here:
+        <a target="_blank" href="http://www.cytoscape.org/download.html">http://www.cytoscape.org/download.html</a>
+      </h4>
+	  <img src="{% get_static_prefix %}help/img/getstarted_app_install_cy3_install.png">
+  </div></div>
+
+  <div class="row"><div class="span12">
+      <h4>Is Cytoscape running? If not, go ahead and start it.</h4>
+	  <img src="{% get_static_prefix %}help/img/getstarted_app_install_cy3_start.png">
+  </div></div>
+
+  <div class="row"><div class="span12">
+      <h4>After Cytoscape has started, switch back to the App Store and reload the page.</h4>
+	  <img src="{% get_static_prefix %}help/img/getstarted_app_install_cy3_switch_back.png">
+  </div></div>
+
+  <div class="row"><div class="span12">
+      <h4>Navigate to the app you want. Now click <em>Install</em>.</h4>
+	  <img src="{% get_static_prefix %}help/img/getstarted_app_install_cy3_click_install.png">
+  </div></div>
+
+  <div class="row"><div class="span12">
+      <h4>Wait for it...</h4>
+	  <img src="{% get_static_prefix %}help/img/getstarted_app_install_cy3_wait.png">
+  </div></div>
+
+  <div class="row"><div class="span12">
+      <h4>Okay! Your app is now installed. Switch back to Cytoscape and start using it.</h4>
+	  <img src="{% get_static_prefix %}help/img/getstarted_app_install_cy3_installed.png">
+  </div></div>
+{% endblock %}

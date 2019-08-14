@@ -1,0 +1,5 @@
+{{ object.name }}
+{{ object.description }}
+{{ object.details }}
+{{ object.fullname }}
+{{ object.camelcase }}

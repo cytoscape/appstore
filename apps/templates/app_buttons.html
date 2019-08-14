@@ -1,0 +1,19 @@
+{% load app_buttons %}
+<div class="span4" id=left">
+{% for app in apps %}
+
+    {% if not forloop.counter|divisibleby:2 %}
+      {% app_button app forloop.counter %}
+    {% endif %}
+    {% endfor %}
+</div>
+<div class="span4" id="right">
+ 
+		{% for app in apps %} 
+	
+    {% if forloop.counter|divisibleby:2 %}
+     
+    {% app_button app forloop.counter %}
+    {% endif %}
+{% endfor %}
+</div>

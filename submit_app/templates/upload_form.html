@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if expect_app_name %}
+        - Submit a New Release
+    {% else %}
+        - Submit an App
+    {% endif %}
+{% endblock %}
+    
+{% block more_head %}
+    <style type="text/css">
+        #instructions { display: none; }
+        #loading { display: none; }
+        #instructions li { margin-bottom: 1em; }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="span12">
+    <div class="page-header">
+      {% if expect_app_name %}
+      <h1>
+        Submit a New Release
+        <small>{{ expect_app_name }}</small>
+      </h1>
+      {% else %}
+      <h1>Submit an App</h1>
+      {% endif %}
+    </div>
+  </div>
+</div>
+    
+{% if error_msg %}
+<div class="row">
+  <div class="span8">
+    <div class="alert alert-error">
+      The file you submitted {% autoescape off %}{{ error_msg }}{% endautoescape %}.
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<form action="" method="POST" enctype="multipart/form-data">
+  {% csrf_token %}
+  {% if expect_app_name %}
+    <input type="hidden" name="expect_app_name" value="{{ expect_app_name }}">
+  {% endif %}
+  <div class="row">
+    <div class="span12">
+      Your app .jar file:
+      <input type="file" name="file" id="input-file" class="span8">
+    </div>
+  </div>
+  <div id="instructions">
+    <div class="row">
+      <div class="span12">
+        <h5>When you click Submit, the App Store will check your jar's manifest file for the following things:</h5>
+      </div>
+    </div>
+    <div class="row">
+<!--      <div class="span6">
+        <h3>Simple Apps</h3>
+        If you are submitting a simple app, your manifest must include the following:
+        <ul>
+          <li><tt>Cytoscape-App-Name</tt>&mdash;this must match exactly the name of your app including spaces</li>
+          <li><tt>Cytoscape-App-Version</tt>&mdash;this must follow this form:
+          <i>major</i>[.<i>minor</i>[.<i>tag</i>[.<i>patch</i>]]]
+          (<i>major</i>, <i>minor</i>, and <i>tag</i> must be non-negative integers,
+          and <i>patch</i> can be any string without spaces)</li>
+          <li><tt>Cytoscape-API-Compatibility</tt>&mdash;this should match the versions of the Cytoscape API jar with which your app can compile</li>
+        </ul>
+
+        <p>Example</p>
+        <pre>
+Cytoscape-App-Name: My Example Plugin
+Cytoscape-App-Version: 1.4
+Cytoscape-API-Compatibility: 3.0, 3.1</pre>
+</div> -->
+      <div class="span6">
+        <h3>OSGi Bundles</h3>
+        If you are submitting an OSGi bundle, your manifest must include the following:
+        <ul>
+          <li><tt>Bundle-SymbolicName</tt>&mdash;this can be anything, but it is needed by OSGi to uniquely identify the bundle</li>
+          <li><tt>Bundle-Name</tt>&mdash;this must match exactly the name of your app including spaces</li>
+          <li><tt>Bundle-Version</tt>&mdash;this must follow this form:
+          <i>major</i>[.<i>minor</i>[.<i>tag</i>[.<i>patch</i>]]]
+          (<i>major</i>, <i>minor</i>, and <i>tag</i> must be non-negative integers,
+          and <i>patch</i> can be any string without spaces)</li>
+          <li><tt>Import-Package</tt>&mdash;imports at least one Cytoscape bundle</li>
+        </ul>
+
+        <p>Example</p>
+        <pre>
+Bundle-SymbolicName: com.example.myplugin
+Bundle-Name: My Example Plugin
+Bundle-Version: 1.4
+Import-Package: org.cytoscape.application.swing;version="[3.0,4)", ...
+</pre>
+      </div>
+    </div>
+    <div class="row">
+      <div class="span6">
+        <button type="submit" class="btn btn-primary">Submit</button>
+        <div id="loading">
+          <img src="{% get_static_prefix %}common/img/loading.gif">
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+<br />
+    <div class="row">
+        <div class="span8">
+            <span class="label label-warning"><i class="icon-info-sign icon-white"></i> Notice</span>
+            Uploading an app using certain browsers/OS combinations may cause a hang or timeout. 
+            We have only seen this with linux distros so far. So, if your upload hangs, please 
+            consider trying the upload from a different system.
+        </div>
+    </div>
+    <script type="text/javascript">
+        $(function() {
+            var instructions_tag = $('#instructions');
+            var loading_tag = $('#loading');
+            var file_field = $('form input[type=file]');
+            var submit_btn = $('button[type=submit]');
+            
+            $('form').submit(function() {
+                submit_btn.hide();
+                loading_tag.show();
+            })
+            
+            file_field.change(function() {
+                instructions_tag.show('slow', 'linear');
+                if (file_field.val())
+                  submit_btn.removeAttr('disabled');
+                else
+                  submit_btn.attr('disabled', 'true');
+            });
+        });
+    </script>
+{% endblock %}

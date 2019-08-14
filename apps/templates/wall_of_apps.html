@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block more_head %}
+	<style type="text/css">
+		.cy-app-icon {
+			width: 64px;
+			height: 64px;
+			background-position: center center;
+			background-repeat: no-repeat;
+			border-radius: 0.5em;
+			padding: 0.5em;
+			display: inline-block;
+		}
+
+		.cy-app-icon:hover {
+			background-color: #EDEDCA;
+		}
+
+		.container {
+			left: 20px;
+			width: 95%;
+		}
+	</style>
+{% endblock %}
+
+{% block title %}
+ - Wall of Apps
+{% endblock %}
+
+{% block content %}
+	<h1>
+		Wall of Apps
+		<small>{{ total_apps_count }} total</small>
+	</h1>
+	<table class="table">
+		{% for tagname, apps in tags %}
+			<tr>
+				<td>{{ tagname }}</td>
+				<td>
+					{% for app in apps %}
+						<a href="{% url 'app_page' app.name %}">
+							<i class="cy-app-icon" rel="tooltip" title="{{ app.fullname }}" style="background-image: url({{ app.icon_url }});"></i>
+						</a>
+					{% endfor %}
+				</td>
+			</tr> 
+		{% endfor %}
+	</table>
+<script type="text/javascript">
+	$(function() {
+		$('.cy-app-icon[rel=tooltip]').tooltip();
+	});
+</script>
+{% endblock %}

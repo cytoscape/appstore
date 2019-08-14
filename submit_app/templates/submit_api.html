@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}- Submit an API?{% endblock %}
+
+{% block more_head %}
+<script type="text/javascript" src="{% get_static_prefix %}common/js/setup_ajax_for_csrf.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="span12">
+    <div class="page-header">
+      <h1>
+        Submit an API?
+        <small>{{ pending.fullname }}</small>
+      </h1>
+    </div>
+  </div>
+</div>
+
+{% if error_msg %}
+<div class="row">
+  <div class="span8">
+    <div class="alert alert-error">
+      {% autoescape off %}{{ error_msg }}{% endautoescape %}.
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<form action="" method="post" enctype="multipart/form-data">
+{% csrf_token %}
+
+<div class="row">
+  <div class="span6">
+    <p>
+      We found that your app exports OSGi packages. Do you want to submit an API? To submit an API, upload:
+    </p>
+    <ol>
+      <li>
+        <p>
+          The <b><tt>pom.xml</tt> file</b> used to build your app. This is used to get the group ID, artifact ID,
+          version, and dependencies of your app. That way, other developers can compile their apps against yours.
+        </p>
+        <p>
+          Please ensure that:
+          <ul id="pom-advice">
+            <li id="pom-advice-coordinates">The <tt>groupId</tt>, <tt>artifactId</tt>, and <tt>version</tt> tags are present under the <tt>project</tt> tag.</li>
+            <li id="pom-advice-no-cyto">The <tt>groupId</tt> does not begin with <tt>org.cytoscape</tt> to prevent confusion between Cytoscape core
+              bundles from app bundles.</li>
+            <li id="pom-advice-no-replacing">An artifact with the exact same group ID, artifact ID, and version does not already exist in the <a href="http://code.cytoscape.org/nexus/content/repositories/apps/" target="_blank">App Repository</a>. It is not good practice to overwrite an old version that other apps depend on.</li>
+            <li id="pom-advice-parent">If your pom has a parent, please restate the necessary dependencies. The parent pom is local to your machine and is not available to others.</li>
+          </ul>
+        </p>
+        <div class="well">
+          <h4>pom.xml</h4>
+          <input type="file" name="pom_xml">
+          <div id="pom-verifying" class="text-info" style="display: none;">
+            <img src="{% get_static_prefix %}common/img/loading_blue.gif"> Verifying...
+          </div>
+          <div id="pom-verify-status"></div>
+        </div>
+        <div id="pom-info" style="display: none;">
+          <caption><h5>Please verify your pom's coordinates and correct any errors:</h5></caption>
+          <table class="table table-bordered">
+            <tr id="pom-info-groupId">
+              <td>Group ID</td>
+              <td style="font-family: monospace;"></td>
+            </tr>
+            <tr id="pom-info-artifactId">
+              <td>Artifact ID</td>
+              <td style="font-family: monospace;"></td>
+            </tr>
+            <tr id="pom-info-version">
+              <td>Version</td>
+              <td style="font-family: monospace;"></td>
+            </tr>
+          </table>
+        </div>
+        <div id="pom-status-msgs"></div>
+        <hr>
+      </li>
+      <li>
+        <p>
+          A <b>jar containing the Javadocs</b> of your app. That way other developers can learn to use
+          your app's API.
+        </p>
+        <p>You can generate the jar with this Maven command:</p>
+          <blockquote><tt>mvn javadoc:jar</tt></blockquote>
+          The jar will be located in the <tt>target</tt> directory with the suffix <tt style="white-space: nowrap;">-javadoc.jar</tt>.
+        </p>
+        <div class="well">
+          <h4>Javadocs Jar</h4>
+          <input type="file" name="javadocs_jar">
+        </div>
+      </li>
+      <hr>
+    </ol>
+    <button class="btn" type="submit" name="dont_submit">No, Don't Submit an API</button>
+    <button class="btn btn-success" type="submit" name="submit" disabled>Yes, Submit this API</button>
+  </div>
+</div>
+</form>
+
+<script type="text/javascript" src="{% get_static_prefix %}submit_app/js/submit_api.js"></script>
+<script type="text/javascript">
+  SubmitAPI.setupInputFiles();
+</script>
+{% endblock %}
+    
