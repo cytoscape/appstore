@@ -1,0 +1,16 @@
+body {
+  padding-top: 8em;
+  padding-bottom: 10em;
+}
+.navbar .navbar-inner .container {
+  padding-top: 0.6em;
+  padding-bottom: 0.6em;
+}
+
+.navbar .navbar-inner .container img {
+  padding-top: 0.35em;
+}
+
+.footer-divider {
+  margin-left: 3em;
+}
