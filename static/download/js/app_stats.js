@@ -76,11 +76,14 @@ var AppStats = (function() {
    */
   function downloadCSV(data) {
 	data = 'data:application/csv;charset=utf-8,' + encodeURIComponent(data);
-	filename = 'toCSV.csv';
+	filename = 'downloadStats.csv';
 	link = document.createElement('a');
         link.setAttribute('href', data);
         link.setAttribute('download', filename);
-        link.click();  
+ //       link.click();  
+	document.body.appendChild(link);
+        link.click();
+	document.body.removeChild(link);
   //	location.href = 'data:application/csv;charset=utf-8,' + encodeURIComponent(data);
 //	location.download = 'file.csv';
   }
@@ -228,18 +231,18 @@ var AppStats = (function() {
 
       // create timeline visualization
       var timelineChart = new google.visualization.AnnotatedTimeLine(document.getElementById('timeline-chart'));
-      timelineChart.draw(timelineCum, options);
+//     timelineChart.draw(timelineCum, options);
 
       // setup buttons that switch between by-day and cumulative timelines
       $('#timeline-by-day').click(function() {
         $(this).parent().find('button').removeClass('active');
         $(this).addClass('active');
-        timelineChart.draw(timelineByDay, options);
+  //      timelineChart.draw(timelineByDay, options);
       });
       $('#timeline-cumulative').click(function() {
         $(this).parent().find('button').removeClass('active');
         $(this).addClass('active');
-        timelineChart.draw(timelineCum, options);
+  //      timelineChart.draw(timelineCum, options);
       });
 
       // setup "save as csv" button
