@@ -117,8 +117,8 @@
 			<img src="{% get_static_prefix %}apps/img/open-source.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is open source.">
 		</a>
 		{% endif %}
-		{% if 'www' in app.automation %}
-		<a href="https://{{ app.automation }}" target="_blank">
+		{% if app.automation %}
+		<a href="{{ app.automation }}" target="_blank">
 			<img src="{% get_static_prefix %}apps/img/automation.png" class="has-tooltip" data-toggle="tooltip" data-title="This app supports automation.">
 		</a>
 		{% endif %}
@@ -363,8 +363,8 @@
 				</a></li>
 				{% endif %}
 				<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-				{% if 'www' in app.automation %}
-				<li><a href="http://{{app.automation}}" target="_blank">
+				{% if app.automation %}
+				<li><a href="{{app.automation}}" target="_blank">
 						
 						<i class="fa fa-gear fa-spin" style="color:black"></i>
  Automation Support
