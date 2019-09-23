@@ -26,7 +26,7 @@ except:
 #jinja_env = Environment(extensions=['jinja2.ext.loopcontrols'])
 # Django settings for CyAppStore project.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEBUG = True 
+DEBUG = False 
 TEMPLATE_DEBUG = DEBUG
 DJANGO_STATIC_AND_MEDIA = DEBUG
 #REVIEW_ALLOW_ANONYMOUS= True
