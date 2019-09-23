@@ -1,6 +1,7 @@
 from django.conf.urls import patterns, include, url
 from django.conf.urls.static import static
 from django.conf import settings
+from django.views.generic.simple import direct_to_template
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin
@@ -26,6 +27,8 @@ urlpatterns = patterns('',
     url(r'^users/',      include('users.urls')),
     url(r'^help/',       include('help.urls')),
     url(r'^backend/',    include('backend.urls')),
+    url(r'^robots\.txt$', direct_to_template,
+             {'template': 'robots.txt', 'mimetype': 'text/plain'}),
 )
 
 if settings.DJANGO_STATIC_AND_MEDIA:
