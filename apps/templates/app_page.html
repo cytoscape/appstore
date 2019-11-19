@@ -62,7 +62,7 @@
 </div>
 {# End app header #}
 
-{# App usage info (ratings, downloads, helpdesk, citations, discussions) #}
+{# App usage info (ratings, downloads, citations, discussions) #}
 <div class="row">
 	<div class="span12" id="app-usage-info">
 		{# Ratings #}
@@ -82,11 +82,6 @@
 		</a>
 		{% endif %}
 		{# End Downloads #}
-
-		{# Helpdesk #}
-		<a> | </a>
-		<a href="https://groups.google.com/forum/?fromgroups#!searchin/cytoscape-helpdesk/{{ app.fullname }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search Cytoscape Helpdesk for questions about this app.">helpdesk</a>
-		{# End Helpdesk #}
 
 		{# Citations #}
 		{% if app.citation %}
@@ -327,15 +322,11 @@
 			<h5>		<!-- i class="fa fa-circle-o-notch fa-spin" style="font-size:16px"><!/i -->&ensp; RESOURCES</font> </h5>
 			<!--/li --> 
 
-				<li><a href="https://groups.google.com/forum/?fromgroups#!newtopic/cytoscape-helpdesk" target="_blank">
+				<li><a href="https://cytoscape.org/documentation_users.html" target="_blank">
 					<i class="icon-question-sign"></i>
 					Ask a question
 				</a></li>
 
-				<li><a href="https://groups.google.com/forum/?fromgroups#!searchin/cytoscape-helpdesk/{{ app.fullname }}" target="_blank">
-					<i class="icon-comment"></i>
-					Search helpdesk
-				</a></li>
 				<li><a href="https://www.biostars.org/local/search/page/?q=cytoscape+{{ app.fullname }}" target="_blank"><i class="icon-comment"></i> Search BioStars</a></li>
 				<li class="divider"></li>
 
