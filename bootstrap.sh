@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
+# update apt database
+apt-get update
+
 # install base packages
 apt-get -y install apache2 apache2-dev apache2-utils ssl-cert wget
-# apt-get -y install libapache2-mod-security2
-apt-get -y install libapache2-mod-wsgi-py3
+apt-get -y install libapache2-mod-wsgi-py3 gcc g++
 apt-get -y install mysql-server
 apt-get -y install libjpeg8-dev
 apt-get -y install geoip-database
@@ -20,6 +22,9 @@ export PATH=/opt/miniconda3/bin:$PATH
 echo "export PATH=/opt/miniconda3/bin:$PATH" >> /root/.bash_profile
 echo "export PATH=/opt/miniconda3/bin:$PATH" >> /root/.bashrc
 sudo -u vagrant echo "export PATH=/opt/miniconda3/bin:$PATH" >> /home/vagrant/.bash_profile
+
+conda install -y -c conda-forge python-xapian
+
 
 # install mod_wsgi
 pip install mod_wsgi
@@ -42,46 +47,47 @@ mod_wsgi-express install-module | egrep "^LoadModule" > /etc/apache2/mods-availa
 # enable wsgi
 a2enmod wsgi
 
-# Pillow
-pip install Pillow
-
-# Django
-pip install Django==1.11.28
-
-# Mysql client
-pip install PyMySQL
-
-pip install urllib3
-pip install social-auth-app-django
-pip install sphinx
-
 # build and install xapian
 
-XAPIAN_VERSION="1.4.15"
-XAPIAN_CORE="xapian-core-"
-wget https://oligarchy.co.uk/xapian/${XAPIAN_VERSION}/${XAPIAN_CORE}${XAPIAN_VERSION}.tar.xz
-unxz ${XAPIAN_CORE}${XAPIAN_VERSION}.tar.xz
-tar -xf ${XAPIAN_CORE}${XAPIAN_VERSION}.tar
-pushd ${XAPIAN_CORE}${XAPIAN_VERSION}
-./configure
-make
-make install
-popd
-rm -rf ${XAPIAN_CORE}${XAPIAN_VERSION}*
+# XAPIAN_VERSION="1.4.15"
+#XAPIAN_CORE="xapian-core-"
+#wget https://oligarchy.co.uk/xapian/${XAPIAN_VERSION}/${XAPIAN_CORE}${XAPIAN_VERSION}.tar.xz
+#unxz ${XAPIAN_CORE}${XAPIAN_VERSION}.tar.xz
+#tar -xf ${XAPIAN_CORE}${XAPIAN_VERSION}.tar
+#pushd ${XAPIAN_CORE}${XAPIAN_VERSION}
+#./configure
+#make
+#make install
+#popd
+#rm -rf ${XAPIAN_CORE}${XAPIAN_VERSION}*
 
+# updates shared library cache
 ldconfig
 
 # build and install xapian-bindings
-XAPIAN_BINDINGS="xapian-bindings-"
-wget https://oligarchy.co.uk/xapian/${XAPIAN_VERSION}/${XAPIAN_BINDINGS}${XAPIAN_VERSION}.tar.xz
-unxz ${XAPIAN_BINDINGS}${XAPIAN_VERSION}.tar.xz
-tar -xf ${XAPIAN_BINDINGS}${XAPIAN_VERSION}.tar
-pushd ${XAPIAN_BINDINGS}${XAPIAN_VERSION}
-./configure --with-python3
-make
-make install
-popd
-rm -rf ${XAPIAN_BINDINGS}${XAPIAN_VERSION}*
+#XAPIAN_BINDINGS="xapian-bindings-"
+#wget https://oligarchy.co.uk/xapian/${XAPIAN_VERSION}/${XAPIAN_BINDINGS}${XAPIAN_VERSION}.tar.xz
+#unxz ${XAPIAN_BINDINGS}${XAPIAN_VERSION}.tar.xz
+#tar -xf ${XAPIAN_BINDINGS}${XAPIAN_VERSION}.tar
+#pushd ${XAPIAN_BINDINGS}${XAPIAN_VERSION}
+#./configure --with-python3
+#make
+#make install
+#popd
+#rm -rf ${XAPIAN_BINDINGS}${XAPIAN_VERSION}*
 
-echo "To run try this:"
-echo "python manage.py runserver 0.0.0.0:8000"
+pip install -r /vagrant/requirements.txt
+
+# TODO get app working properly
+cd /var/www
+mkdir CyAppStore
+cd CyAppStore
+cp -a /vagrant/* .
+
+# Replace default site configuration
+mv -f /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-available/000-default.conf.orig
+cp /vagrant/appstore.http.conf /etc/apache2/sites-available/000-default.conf
+systemctl reload apache2
+
+echo ""
+echo "Visit http://localhost:8080"
