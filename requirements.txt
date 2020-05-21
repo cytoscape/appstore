@@ -1,6 +1,11 @@
 django < 1.9  # requires django.utils.importlib
 python-geoip
-django-social-auth
+django-social-auth==0.7.28
+sphinx
+urllib3
+Whoosh==2.7.4
+django-haystack==2.4.0
 Pillow
 gevent
-xapiand
+# xapiand fails to install
+PyMySQL
