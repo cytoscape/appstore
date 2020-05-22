@@ -83,10 +83,29 @@ cd /var/www
 mkdir CyAppStore
 cd CyAppStore
 cp -a /vagrant/* .
+mkdir logs
+mkdir media
+rm /var/www/CyAppStore/appstore.http.conf
+rm /var/www/CyAppStore/appstore.include.conf
+
+cd /var/www/CyAppStore
+python manage.py syncdb --noinput
+python manage.py makemigrations --noinput
+python manage.py migrate --noinput
+
+# fix permissions
+chown -R www-data:www-data /var/www
+find /var/www -type d -exec chmod 2750 {} \+
+find /var/www -type f -exec chmod 640 {} \+
 
 # Replace default site configuration
-mv -f /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-available/000-default.conf.orig
-cp /vagrant/appstore.http.conf /etc/apache2/sites-available/000-default.conf
+mkdir /etc/apache2/includes
+cp /vagrant/appstore.include.conf /etc/apache2/includes/.
+cp /vagrant/appstore.http.conf /etc/apache2/sites-available/appstore.conf
+a2ensite appstore.conf
+
+
+# Reload apache
 systemctl reload apache2
 
 echo ""
