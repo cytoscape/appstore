@@ -107,12 +107,12 @@ def main():
   testPython()
   testPackageAndVersion("MySQLdb",       (1,),    getMySQLdbVersion,    'MySQL-Python==1.2.3')
   testPackageAndVersion("xapian",        (1,),    getXapianVersion,     None)
-  if testPackageAndVersion("PIL",        (5,1,0), getPILVersion,        'Pillow==5.1.0'):
+  if testPackageAndVersion("PIL",        (5, 1, 0), getPILVersion,        'Pillow==5.1.0'):
     testPILImageSupport('JPEG', 'http://upload.wikimedia.org/wikipedia/commons/3/38/JPEG_example_JPG_RIP_001.jpg')
     testPILImageSupport('PNG',  'http://upload.wikimedia.org/wikipedia/commons/8/89/PNG-Gradient.png')
     testPILImageSupport('GIF',  'http://upload.wikimedia.org/wikipedia/commons/a/a0/Sunflower_as_gif_websafe.gif')
-  if testPackageAndVersion("django",     (1,8,0),   getDjangoVersion,     'Django==1.8.19'):
-    testPackageAndVersion("social_auth", (0,7),   getSocialAuthVersion, 'django-social-auth==0.7.23')
+  if testPackageAndVersion("django",     (1, 8, 19),   getDjangoVersion,     'Django==1.8.19'):
+    testPackageAndVersion("social_auth", (0, 7),   getSocialAuthVersion, 'django-social-auth==0.7.23')
   testMaven()
   testUnzip()
 
