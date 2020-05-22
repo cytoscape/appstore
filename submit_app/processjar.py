@@ -1,33 +1,24 @@
 from zipfile import ZipFile, BadZipfile
-from .mfparse import parse_manifest, max_of_lower_cytoscape_pkg_versions, parse_app_dependencies
+from .mfparse import max_of_lower_cytoscape_pkg_versions, parse_app_dependencies
 from apps.models import App, Release, VersionRE
 from django.utils.encoding import smart_text
 from util.view_util import get_object_or_none
-#import manifesttool.parse
-#from jarmanifest import manifest as mf
+
 _MANIFEST_FILE_NAME = 'META-INF/MANIFEST.MF'
 _MAX_MANIFEST_FILE_SIZE_B = 1024 * 1024
 
+
 def process_jar(jar_file, expect_app_name):
+
     try:
-        archive = ZipFile(jar_file)
+        archive = ZipFile(jar_file.temporary_file_path())
     except BadZipfile as IOError:
         raise ValueError('is not a valid zip file')
 
-    #manifest_file = _get_manifest_file(archive)
-    try:
-        manifest_file = archive.read(_MANIFEST_FILE_NAME)
-    except:
-        pass
-    #manifest = parse_manifest(manifest_file)
+    manifest_file = archive.read(_MANIFEST_FILE_NAME)
     manifest = ParseManifest(manifest_file)
-    #manifest_file.close()
     archive.close()
-#   for debugging purposes only
-#    f = open('/var/www/CyAppStore/manifest_sections.txt','w+')
-#    f.write('MANIFEST-SECTIONS! '+str(manifest.sections))
-#    f.write('/n MANIFEST-MAIN_SECTION: '+str(manifest.main_section))
-#    f.close()
+
     is_osgi_bundle = True if manifest.main_section[b'Bundle-SymbolicName'] else False
     parser_func = _parse_osgi_bundle # if is_osgi_bundle else _parse_simple_app
     app_name, app_ver, app_works_with, app_dependencies, has_export_pkg = parser_func(manifest)
@@ -44,13 +35,16 @@ def process_jar(jar_file, expect_app_name):
         (msg, ) = e.args
         raise ValueError('has a problem with its manifest for entry <tt>Cytoscape-App-Dependencies</tt>: ' + msg)
 
-    return (app_name, app_ver, app_works_with, app_dependencies, has_export_pkg)
+    return app_name, app_ver, app_works_with, app_dependencies, has_export_pkg
+
 
 class Manifest(object):
 
     def __init__(self, main_section, sections):
         self.main_section = main_section
         self.sections = sections
+
+
 def ParseManifest(manifest_string):
     manifest_string = b'\n'.join(manifest_string.splitlines()).rstrip(b'\n')
     section_strings = manifest_string.split(b'\n\n')
@@ -61,6 +55,8 @@ def ParseManifest(manifest_string):
     except KeyError:
         raise InvalidJarError('Manifest entry has no Name attribute: %s' % entry)
     return Manifest(main_section, sections)
+
+
 def _ParseManifestSection(section):
     section = section.replace(b'\n ', b'')
     try:
@@ -83,6 +79,7 @@ def _app_dependencies_to_releases(app_dependencies):
 
         yield release
 
+
 def _get_manifest_file(zip_archive):
     try:
         manifest_info = zip_archive.getinfo(_MANIFEST_FILE_NAME)
@@ -98,9 +95,11 @@ def _get_manifest_file(zip_archive):
     except IOError:
         raise ValueError('does not have an accessible manifest file located in <tt>%s</tt>' % _MANIFEST_FILE_NAME)
 
+
 def _last(d, k):
     v = d.get(k)
     return v[-1] if v else None
+
 
 def _get_name_and_version(manifest, name_attr, version_attr):
     app_name = manifest.main_section[name_attr]
@@ -119,6 +118,7 @@ def _get_name_and_version(manifest, name_attr, version_attr):
 
     return (app_name, app_version)
 
+
 def _parse_simple_app(manifest):
     app_name, app_version = _get_name_and_version(manifest, 'Cytoscape-App-Name', 'Cytoscape-App-Version')
 
@@ -132,8 +132,10 @@ def _parse_simple_app(manifest):
 
     return (app_name, app_version, app_works_with, app_dependencies, has_export_pkg)
 
+
 def _ver_tuple_to_str(tup):
     return tup[0] + ('.' + tup[1] if tup[1] else '') + ('.' + tup[2] if tup[2] else '') + ('.' + tup[3] if tup[3] else '')
+
 
 def _parse_osgi_bundle(manifest):
     app_name, app_version = _get_name_and_version(manifest, b'Bundle-Name', b'Bundle-Version')
