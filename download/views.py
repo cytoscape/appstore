@@ -1,7 +1,6 @@
 import datetime
 
 from django.shortcuts import get_object_or_404
-from django.contrib.gis.geoip import GeoIP
 from django.http import HttpResponseRedirect
 
 from util.view_util import html_response, json_response, ipaddr_str_to_long, ipaddr_long_to_str
@@ -12,7 +11,6 @@ from download.models import ReleaseDownloadsByDate, AppDownloadsByGeoLoc, Downlo
 #   Download release
 # ===================================
 
-geoIP = GeoIP()
 
 def _client_ipaddr(request):
     forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -42,20 +40,6 @@ def release_download(request, app_name, version):
     # Record the download in the timeline
     _increment_count(ReleaseDownloadsByDate, release = release, when = when)
     _increment_count(ReleaseDownloadsByDate, release = None,    when = when)
-
-    # Look up geographical information about the user's IP address
-    #geoinfo = geoIP.city(ipaddr_long_to_str(ip4addr))
-    #if geoinfo:
-        # Record the download in the user's country
-     #   country_geoloc, _ = GeoLoc.objects.get_or_create(country = geoinfo['country_code'], region = '', city = '')
-        #_increment_count(AppDownloadsByGeoLoc, app = release.app, geoloc = country_geoloc)
-      ##  _increment_count(AppDownloadsByGeoLoc, app = None,        geoloc = country_geoloc)
-
-        #if geoinfo.get('city'):
-            # Record the download in the user's city
-         #   city_geoloc, _ = GeoLoc.objects.get_or_create(country = geoinfo['country_code'], region = geoinfo['region'], city = geoinfo['city'])
-          #  _increment_count(AppDownloadsByGeoLoc, app = release.app,  geoloc = city_geoloc)
-           # _increment_count(AppDownloadsByGeoLoc, app = None,         geoloc = city_geoloc)
 
     return HttpResponseRedirect(release.release_file_url)
 
