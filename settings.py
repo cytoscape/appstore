@@ -5,6 +5,8 @@ try:
 except ImportError:
      from urlparse import urljoin
 
+SITE_DIR = "/var/www/CyAppStore/"
+
 # credentials provided
 try:
     from conf.paths import *
@@ -12,23 +14,20 @@ try:
     from conf.dbs import *
     from conf.apikeys import *
     from conf.socialauth import *
-    # from conf.geoip import *
-    SITE_DIR ="/var/www/CyAppStore/"
 except:
     from conf.mock import *
-    SITE_DIR ="/var/www/CyAppStore/"
     DATABASES = {
-        'default':{
-        'NAME':'/var/www/CyAppStore/CyAppStore.sqlite',
-        'ENGINE':'django.db.backends.sqlite3',
+        'default': {
+            'NAME': '/var/www/CyAppStore/CyAppStore.sqlite',
+            'ENGINE': 'django.db.backends.sqlite3',
         }
     }
-#jinja_env = Environment(extensions=['jinja2.ext.loopcontrols'])
+
 # Django settings for CyAppStore project.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEBUG = False 
-TEMPLATE_DEBUG = DEBUG
+DEBUG = True
 DJANGO_STATIC_AND_MEDIA = DEBUG
+
 #REVIEW_ALLOW_ANONYMOUS= True
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -56,24 +55,24 @@ USE_L10N = False
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/home/media/media.lawrence.com/media/"
 MEDIA_ROOT = filejoin(SITE_DIR, 'media')
-#MEDIA_ROOT = os.path.join(SITE_DIR, 'media')
+# MEDIA_ROOT = os.path.join(SITE_DIR, 'media')
 
 # URL that handles the media served from MEDIA_ROOT. Make sure to use a
 # trailing slash.
 # Examples: "http://media.lawrence.com/media/", "http://example.com/media/"
 MEDIA_URL = urljoin(SITE_URL, 'media/')
-#MEDIA_URL = '/media/'
+# MEDIA_URL = '/media/'
 
 # Absolute path to the directory static files should be collected to.
 # Don't put anything in this directory yourself; store your static files
 # in apps' "static/" subdirectories and in STATICFILES_DIRS.
 # Example: "/home/media/media.lawrence.com/static/"
-#STATIC_ROOT = ''
+# STATIC_ROOT = ''
 STATIC_ROOT = SITE_DIR + "/static/"
 
 # URL prefix for static files.
 # Example: "http://media.lawrence.com/static/"
-#STATIC_URL = urljoin(SITE_URL, 'static/')
+# STATIC_URL = urljoin(SITE_URL, 'static/')
 STATIC_URL = '/static/'
 
 # URL prefix for admin static files -- CSS, JavaScript and images.
@@ -85,28 +84,48 @@ STATIC_URL = '/static/'
 ALLOWED_HOSTS = ['*']
 
 if DJANGO_STATIC_AND_MEDIA:
-	# Additional locations of static files
-	STATICFILES_DIRS = (
-	    # Put strings here, like "/home/html/static" or "C:/www/django/static".
-	    # Always use forward slashes, even on Windows.
-	    # Don't forget to use absolute paths, not relative paths.
-	    filejoin(SITE_DIR, 'static'),
-	)
+    # Additional locations of static files
+    STATICFILES_DIRS = (
+        # Put strings here, like "/home/html/static" or "C:/www/django/static".
+        # Always use forward slashes, even on Windows.
+        # Don't forget to use absolute paths, not relative paths.
+        filejoin(SITE_DIR, 'static'),
+    )
 
-	# List of finder classes that know how to find static files in
-	# various locations.
-	STATICFILES_FINDERS = (
-	    'django.contrib.staticfiles.finders.FileSystemFinder',
-	    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-	    'django.contrib.staticfiles.finders.DefaultStorageFinder',
-	)
+    # List of finder classes that know how to find static files in
+    # various locations.
+    STATICFILES_FINDERS = (
+        'django.contrib.staticfiles.finders.FileSystemFinder',
+        'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+        'django.contrib.staticfiles.finders.DefaultStorageFinder',
+    )
 
-# List of callables that know how to import templates from various sources.
-TEMPLATE_LOADERS = (
-    'django.template.loaders.filesystem.Loader',
-    'django.template.loaders.app_directories.Loader',
-#     'django.template.loaders.eggs.Loader',
-)
+# the old templates was deprecated in 1.8 and gone after
+# here is the new approach
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': SITE_DIR,
+        'OPTIONS': {
+             'debug': DEBUG,
+             'context_processors': [
+                 'social_django.context_processors.backends',
+                 'social_django.context_processors.login_redirect',
+                 'django.core.context_processors.debug',
+                 'django.core.context_processors.media',
+                 'django.core.context_processors.static',
+                 'django.core.context_processors.request',
+                 'django.contrib.auth.context_processors.auth',
+                 'django.contrib.messages.context_processors.messages'
+             ],
+             'loaders': [
+                 'django.template.loaders.filesystem.Loader',
+                 'django.template.loaders.app_directories.Loader'
+              ],
+         }
+    },
+]
+
 
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
@@ -118,14 +137,6 @@ MIDDLEWARE_CLASSES = (
 )
 
 ROOT_URLCONF = 'CyAppStore.urls'
-
-TEMPLATE_DIRS = (
-    # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
-    # Always use forward slashes, even on Windows.
-    # Don't forget to use absolute paths, not relative paths.
-    filejoin(SITE_DIR, 'templates'),
-    filejoin(SITE_DIR, '/home/jeff/.local/lib/python3.6/site-packages/django/contrib/admin/templates'),
-)
 
 INSTALLED_APPS = (
     'django.contrib.auth',
@@ -147,11 +158,9 @@ INSTALLED_APPS = (
     'help',
     'backend',
     'download',
-    #'review',
     )
 
 AUTHENTICATION_BACKENDS = (
-    #'social_auth.backends.google.GoogleOAuth2Backend',
     'social_core.backends.google.GoogleOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 )
@@ -161,22 +170,9 @@ HAYSTACK_CONNECTIONS = {
         'PATH': os.path.join(os.path.dirname(__file__), 'whoosh_index'),
     },
 }
-#jinja_env = Environment(extensions=['jinja2.ext.loopcontrols'])
 
 if DJANGO_STATIC_AND_MEDIA:
-	INSTALLED_APPS += ('django.contrib.staticfiles', )
-
-TEMPLATE_CONTEXT_PROCESSORS = (
-    'social_django.context_processors.backends',
-    'social_django.context_processors.login_redirect',
-    'django.core.context_processors.debug',
-    'django.core.context_processors.media',
-    'django.core.context_processors.static',
-    'django.core.context_processors.request',
-    'django.contrib.auth.context_processors.auth',
-    'django.contrib.messages.context_processors.messages',
-)
-
+    INSTALLED_APPS += ('django.contrib.staticfiles', )
 
 # A sample logging configuration. The only tangible logging
 # performed by this configuration is to send an email to
@@ -215,4 +211,3 @@ LOGGING = {
         },
     }
 }
-GEOIP_PATH = "/tmp/"
