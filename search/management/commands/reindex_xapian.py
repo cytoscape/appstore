@@ -6,7 +6,8 @@ import sys
 from apps import models
 import inspect
 import re
-from conf.xapian import XAPIAN_INDICES_DIR
+from settings import XAPIAN_INDICES_DIR
+
 
 def index_model(dbs_root, model_name, model):
     db_path = os.path.join(dbs_root, model_name)
