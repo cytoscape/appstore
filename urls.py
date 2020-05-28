@@ -1,4 +1,4 @@
-from django.conf.urls import patterns, include, url
+from django.conf.urls import include, url
 from django.conf.urls.static import static
 from django.conf import settings
 
@@ -10,7 +10,7 @@ admin.autodiscover()
 urlpatterns = [
     # Uncomment the next line to enable the admin:
     url(r'^admin/', include(admin.site.urls)),
-    url(r'^accounts/',include('users.urls')),
+    url(r'^accounts/', include('users.urls')),
     url(r'^$', apps_default, name='default-page'),
     url(r'^apps/', include('apps.urls')),
     url(r'^search', include('haystack.urls')),
