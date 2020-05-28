@@ -16,10 +16,21 @@ try:
     from conf.socialauth import *
 except:
     from conf.mock import *
+    # DATABASES = {
+    #     'default': {
+    #        'NAME': '/var/www/CyAppStore/CyAppStore.sqlite',
+    #        'ENGINE': 'django.db.backends.sqlite3',
+    #    }
+    #
+    # }
     DATABASES = {
         'default': {
-            'NAME': '/var/www/CyAppStore/CyAppStore.sqlite',
-            'ENGINE': 'django.db.backends.sqlite3',
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'AppStore',
+            'HOST': '127.0.0.1',
+            'PORT': '3306',
+            'USER': 'appstoreuser',
+            'PASSWORD': '@@PASSWORD@@',
         }
     }
 
@@ -150,7 +161,6 @@ INSTALLED_APPS = (
     'whoosh',
     'haystack',
     'social_django',
-    'CyAppStore',  # this must be included to find root templates
     'apps',
     'search',
     'submit_app',
@@ -158,6 +168,7 @@ INSTALLED_APPS = (
     'help',
     'backend',
     'download',
+    'CyAppStore'  # this must be included to find root templates
     )
 
 AUTHENTICATION_BACKENDS = (
@@ -182,6 +193,12 @@ if DJANGO_STATIC_AND_MEDIA:
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            'datefmt': "%d/%b/%Y %H:%M:%S"
+        },
+    },
     'filters': {
         'require_debug_false': {
             '()': 'django.utils.log.RequireDebugFalse',
@@ -196,9 +213,19 @@ LOGGING = {
         'mail_admins_always': {
             'level': 'ERROR',
             'class': 'django.utils.log.AdminEmailHandler'
-        }
+        },
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard'
+        },
     },
     'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARN',
+            'propagate': True,
+        },
         'django.request': {
             'handlers': ['mail_admins'],
             'level': 'ERROR',
