@@ -78,14 +78,14 @@ class Command(BaseCommand):
 
         for arg in args:
             if not arg in plugins_by_name:
-                print '"%s" not found in plugins.xml' % arg
+                sys.stdout.write(str(arg) + 'not found in plugins.xml\n')
                 return
     
         for fullname in args:
             plugin = plugins_by_name[fullname]
             plugin_name = fullname_to_name(fullname)
             
-            print '%s:' % plugin_name,
+            sys.stdout.write(str(plugin_name) + ':\n')
             sys.stdout.flush()
             app, _ = App.objects.get_or_create(name = plugin_name)
             if not app.fullname: app.fullname = fullname
@@ -104,5 +104,5 @@ class Command(BaseCommand):
             app.cy_2x_versions = ', '.join(plugin['cy-versions'])
             app.save()
 
-            print 'done.'
+            sys.stdout.write('done.\n')
             sys.stdout.flush()

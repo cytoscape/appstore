@@ -8,7 +8,7 @@ from download.models import GeoLoc, ReleaseDownloadsByDate, AppDownloadsByGeoLoc
 from util.view_util import ipaddr_long_to_str
 
 def increment_count(klass, **args):
-    print klass.__name__, args, ';',
+    sys.stdout.write(str(klass.__name__) + ' ' + str(args) + ';\n')
     sys.stdout.flush()
     obj, created = klass.objects.get_or_create(**args)
     obj.count += 1
@@ -24,7 +24,8 @@ class Command(BaseCommand):
             app     = release.app
             when    = created.date()
 
-            print '{0:5} {1:30} {2:15} {3:10} {4:15}'.format(id, app.fullname, release.version, str(when), ipaddr_long_to_str(ip4addr)),
+            a_str = '{0:5} {1:30} {2:15} {3:10} {4:15}'.format(id, app.fullname, release.version, str(when), ipaddr_long_to_str(ip4addr))
+            sys.stdout.write(a_str + '\n')
             sys.stdout.flush()
 
             dl = Download.objects.create(release = release, when = when, ip4addr = ip4addr)
@@ -44,5 +45,5 @@ class Command(BaseCommand):
                     increment_count(AppDownloadsByGeoLoc, app = app,  geoloc = city_geoloc)
                     increment_count(AppDownloadsByGeoLoc, app = None, geoloc = city_geoloc)
                     
-            print
+            sys.stdout.write('\n')
                     

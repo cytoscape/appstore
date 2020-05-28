@@ -1,4 +1,5 @@
 import os
+import sys
 import os.path
 from django.core.management.base import BaseCommand
 from django.conf import settings
@@ -59,18 +60,12 @@ def rm_unused_media_files():
 
 class Command(BaseCommand):
 	def handle(self, *args, **options):
-		print 'Tag:'
+		sys.stdout.write('\nTag:')
 		for tag in rm_empty_tags():
-			print '  ' + tag
-		print
+			sys.stdout.write('  ' + tag)
 
-		print 'Author:'
+
+		sys.stdout.write('\nAuthor:')
 		for author in rm_empty_authors():
-			print '  ' + author
-		print
+			sys.stdout.write('  ' + author)
 
-    '''
-		print 'Media:'
-		for file_path in rm_unused_media_files():
-			print '  ' + file_path
-    '''

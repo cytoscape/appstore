@@ -1,3 +1,4 @@
+import sys
 from os import makedirs, rename
 from os.path import basename, dirname, join as pathjoin, isdir, isfile
 from django.core.management.base import BaseCommand
@@ -34,16 +35,18 @@ class Command(BaseCommand):
         if absfilepath == absexpectedpath and isfile(absexpectedpath): continue
 
         if not isdir(expecteddirpath):
-          print 'mkdir', dirname(absexpectedpath)
+          sys.stdout.write('mkdir ' + str(dirname(absexpectedpath)) + '\n')
           makedirs(dirname(absexpectedpath))
 
         if isfile(absfilepath):
-          print 'mv', absfilepath, absexpectedpath
+          sys.stdout.write('mv ' + str(absfilepath) + ' ' + str(absexpectedpath) + '\n')
           rename(absfilepath, absexpectedpath)
         elif isfile(absexpectedpath):
-          print '%s.%d: incorrect path in db; ok' % (model_name, obj.id)
+          sys.stdout.write(str(model_name) + '.' + str(obj.id) +
+                           ': incorrect path in db; ok\n')
         else:
-          print 'MISSING FILE! (%s.%d) %s' % (model_name, obj.id, absfilepath)
+          sys.stdout.write('MISSING FILE! (' + str(model_name) + '.' +
+                           str(obj.id) + ') ' + str(absfilepath) + '\n')
 
         filefield.name = expectedpath
         obj.save()
