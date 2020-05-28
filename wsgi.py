@@ -11,6 +11,9 @@ import os
 import sys
 from os.path import join as filejoin
 from django.core.wsgi import get_wsgi_application
+import pymysql
+
+pymysql.install_as_MySQLdb()
 
 SITE_PARENT_DIR = '/var/www'
 SITE_DIR = filejoin(SITE_PARENT_DIR, 'CyAppStore')
