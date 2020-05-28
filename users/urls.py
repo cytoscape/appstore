@@ -1,9 +1,14 @@
-from django.conf.urls import patterns, include, url
+from django.conf.urls import include, url
 
-urlpatterns = patterns('',
-    url(r'', include('social_django.urls', namespace='social')),
-    url(r'login/$', 'users.views.login', name='login'),
-    url(r'^login$',                       'users.views.login',        name='login'),
-    url(r'^login/done/([\w-]{1,100})/$',  'users.views.login_done',   name='login_done'),
-    url(r'^logout$',                      'users.views.logout',       name='logout'),
-)
+from social_django import urls
+from users.views import login
+from users.views import login_done
+from users.views import logout
+urlpatterns = [
+    url(r'', include(urls, namespace='social')),
+    url(r'login/$', login, name='login'),
+    url(r'^login$', login, name='login'),
+    url(r'^login/done/([\w-]{1,100})/$', login_done,
+        name='login_done'),
+    url(r'^logout$', logout, name='logout'),
+]
