@@ -109,3 +109,6 @@ systemctl reload apache2
 
 echo ""
 echo "Visit http://localhost:8080"
+echo ""
+echo "or to test vagrant ssh ; cd /var/www/CyAppStore ; coverage run --source '.' manage.py test"
+echo ""
