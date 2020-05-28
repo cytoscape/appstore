@@ -9,8 +9,7 @@ Vagrant.configure(2) do |config|
   config.vm.box = "bento/ubuntu-18.04"
   config.vm.provision :shell, path: "bootstrap.sh"
   config.ssh.forward_x11 = true  
-  config.vm.network "forwarded_port", guest: 8000, host: 8081, host_ip: "127.0.0.1" 
-  config.vm.network "forwarded_port", guest: 80, host: 8080
+  config.vm.network "forwarded_port", guest: 8080, host: 8080, host_ip: "127.0.0.1"
   config.vm.provider "virtualbox" do |vb|
     vb.memory = "4096"
     vb.cpus = "2"
