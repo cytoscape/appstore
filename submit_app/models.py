@@ -23,7 +23,7 @@ class AppPending(models.Model):
     cy_works_with = models.CharField(max_length=31)
     created       = models.DateTimeField(auto_now_add=True)
     release_file  = models.FileField(upload_to='pending_releases')
-    dependencies  = models.ManyToManyField(Release, related_name='+', blank=True, null=True)
+    dependencies  = models.ManyToManyField(Release, related_name='+', blank=True)
     javadocs_jar_file = models.FileField(upload_to='pending_releases', blank=True, null=True)
     pom_xml_file      = models.FileField(upload_to='pending_releases', blank=True, null=True)
 
