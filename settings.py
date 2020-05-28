@@ -31,6 +31,9 @@ except:
             'PORT': '3306',
             'USER': 'appstoreuser',
             'PASSWORD': '@@PASSWORD@@',
+            'TEST': {
+                'NAME': 'test_AppStore',
+            }
         }
     }
 
