@@ -51,6 +51,9 @@ ldconfig
 
 pip install -r /vagrant/requirements.txt
 
+# for code coverage
+pip install coverage
+
 # create database
 mysqladmin create AppStore
 
