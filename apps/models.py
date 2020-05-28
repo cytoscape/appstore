@@ -14,52 +14,58 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.urlresolvers import reverse
 
+
 class Author(models.Model):
-	name        = models.CharField(max_length=255)
-	institution = models.CharField(max_length=255, null=True, blank=True)
+    name = models.CharField(max_length=255)
+    institution = models.CharField(max_length=255, null=True, blank=True)
 
-	search_schema = ('name', 'institution')
-	search_key = 'id'
+    search_schema = ('name', 'institution')
+    search_key = 'id'
 
-	def __str__(self):
-		if not self.institution:
-			return self.name
-		else:
-			return self.name + ' (' + self.institution + ')'
+    def __str__(self):
+        if not self.institution:
+            return self.name
+        else:
+            return self.name + ' (' + self.institution + ')'
+
 
 _TagCountCache = dict()
 
+
 class Tag(models.Model):
-	name     = models.CharField(max_length=255, unique=True)
-	fullname = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, unique=True)
+    fullname = models.CharField(max_length=255)
 
-	@property
-	def count(self):
-		global _TagCountCache
-		if self.name in _TagCountCache:
-			count = _TagCountCache[self.name]
-		else:
-			count = App.objects.filter(active = True, tags = self).count()
-			_TagCountCache[self.name] = count
-		return count
+    @property
+    def count(self):
+        global _TagCountCache
+        if self.name in _TagCountCache:
+            count = _TagCountCache[self.name]
+        else:
+            count = App.objects.filter(active = True, tags = self).count()
+            _TagCountCache[self.name] = count
+        return count
 
-	search_schema = ('fullname', )
-	search_key = 'name'
+    search_schema = ('fullname', )
+    search_key = 'name'
 
-	def __str__(self):
-		return self.name
-	class Meta:
-		ordering = ["name"]
+    def __str__(self):
+        return self.name
+    class Meta:
+        ordering = ["name"]
+
 
 GENERIC_ICON_URL = urljoin(settings.STATIC_URL, 'apps/img/app_icon_generic.png')
+
 
 def app_icon_path(app, filename):
     return pathjoin(app.name, filename)
 
+
 class App(models.Model):
-    name         = models.CharField(max_length=127, unique=True)
-    fullname     = models.CharField(max_length=127, unique=True)
-    description  = models.CharField(max_length=255, blank=True, null=True)
+    name = models.CharField(max_length=127, unique=True)
+    fullname = models.CharField(max_length=127, unique=True)
+    description = models.CharField(max_length=255, blank=True, null=True)
     details      = models.TextField(blank=True, null=True)
     tags         = models.ManyToManyField(Tag, blank=True)
 
@@ -104,7 +110,6 @@ class App(models.Model):
             return True
         li =[usr.email for usr in self.editors.all()]
         return user.email in li
-        
 
     def camelcase(self):
         return ' '.join([c for c in camel_case_split(self.fullname)])
@@ -139,9 +144,10 @@ class App(models.Model):
     def __str__(self):
         return self.name
 
+
 class OrderedAuthor(models.Model):
-    author       = models.ForeignKey(Author)
-    app          = models.ForeignKey(App)
+    author = models.ForeignKey(Author)
+    app = models.ForeignKey(App)
     author_order = models.PositiveSmallIntegerField(default = 0)
 
     def __unicode__(self):
@@ -150,10 +156,13 @@ class OrderedAuthor(models.Model):
     class Meta:
         ordering = ["author_order"]
 
+
 VersionRE = re.compile(r'^(\d+)(?:\.(\d)+)?(?:\.(\d)+)?(?:\.([\w-]+))?$')
+
 
 def release_file_path(release, filename):
     return pathjoin(release.app.name, 'releases', release.version, filename)
+
 
 class Release(models.Model):
     app           = models.ForeignKey(App)
