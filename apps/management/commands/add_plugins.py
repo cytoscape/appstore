@@ -6,8 +6,8 @@ from collections import defaultdict
 from django.core.management.base import BaseCommand
 
 from apps.models import App, Author, OrderedAuthor
-from CyAppStore.util.id_util import fullname_to_name
-from CyAppStore.apps.views import _parse_iso_date
+from appstore.util.id_util import fullname_to_name
+from appstore.apps.views import _parse_iso_date
 
 PLUGINS_XML_URL = 'http://cytoscape.org/plugins/plugins.xml'
 
