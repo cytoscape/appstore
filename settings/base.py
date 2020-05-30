@@ -1,48 +1,14 @@
 import os
-from os.path import join as filejoin
-try:
-    from urllib.parse import urljoin
-except ImportError:
-     from urlparse import urljoin
 
-SITE_DIR = "/var/www/CyAppStore/"
-
-# credentials provided
-try:
-    from conf.paths import *
-    from conf.emails import *
-    from conf.dbs import *
-    from conf.apikeys import *
-    from conf.socialauth import *
-except:
-    from conf.mock import *
-    # DATABASES = {
-    #     'default': {
-    #        'NAME': '/var/www/CyAppStore/CyAppStore.sqlite',
-    #        'ENGINE': 'django.db.backends.sqlite3',
-    #    }
-    #
-    # }
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'AppStore',
-            'HOST': '127.0.0.1',
-            'PORT': '3306',
-            'USER': 'appstoreuser',
-            'PASSWORD': '@@PASSWORD@@',
-            'TEST': {
-                'NAME': 'test_AppStore',
-            }
-        }
-    }
-
-# Django settings for CyAppStore project.
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEBUG = True
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+DEBUG = False
 DJANGO_STATIC_AND_MEDIA = DEBUG
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', ]
 
-#REVIEW_ALLOW_ANONYMOUS= True
+MVN_BIN_PATH = ""
+MVN_SETTINGS_PATH = ""
+EMAIL_ADDR = ""
+
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # although not all choices may be available on all operating systems.
@@ -66,62 +32,11 @@ USE_I18N = False
 # calendars according to the current locale
 USE_L10N = False
 
-# Absolute filesystem path to the directory that will hold user-uploaded files.
-# Example: "/home/media/media.lawrence.com/media/"
-MEDIA_ROOT = filejoin(SITE_DIR, 'media')
-# MEDIA_ROOT = os.path.join(SITE_DIR, 'media')
-
-# URL that handles the media served from MEDIA_ROOT. Make sure to use a
-# trailing slash.
-# Examples: "http://media.lawrence.com/media/", "http://example.com/media/"
-MEDIA_URL = urljoin(SITE_URL, 'media/')
-# MEDIA_URL = '/media/'
-
-# Absolute path to the directory static files should be collected to.
-# Don't put anything in this directory yourself; store your static files
-# in apps' "static/" subdirectories and in STATICFILES_DIRS.
-# Example: "/home/media/media.lawrence.com/static/"
-# STATIC_ROOT = ''
-STATIC_ROOT = SITE_DIR + "/static/"
-
-# URL prefix for static files.
-# Example: "http://media.lawrence.com/static/"
-# STATIC_URL = urljoin(SITE_URL, 'static/')
-STATIC_URL = '/static/'
-
-# URL prefix for admin static files -- CSS, JavaScript and images.
-# Make sure to use a trailing slash.
-# Examples: "http://foo.com/static/admin/", "/static/admin/".
-# (This setting is deprecated since Django 1.4--Samad)
-# ADMIN_MEDIA_PREFIX = urljoin(SITE_URL, 'static/admin/')
-
-ALLOWED_HOSTS = ['*']
-
-if DJANGO_STATIC_AND_MEDIA:
-    # Additional locations of static files
-    STATICFILES_DIRS = (
-        # Put strings here, like "/home/html/static" or "C:/www/django/static".
-        # Always use forward slashes, even on Windows.
-        # Don't forget to use absolute paths, not relative paths.
-        filejoin(SITE_DIR, 'static'),
-    )
-
-    # List of finder classes that know how to find static files in
-    # various locations.
-    STATICFILES_FINDERS = (
-        'django.contrib.staticfiles.finders.FileSystemFinder',
-        'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-        'django.contrib.staticfiles.finders.DefaultStorageFinder',
-    )
-
-# the old templates was deprecated in 1.8 and gone after
-# here is the new approach
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': SITE_DIR,
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'OPTIONS': {
-             'debug': DEBUG,
              'context_processors': [
                  'social_django.context_processors.backends',
                  'social_django.context_processors.login_redirect',
@@ -135,11 +50,10 @@ TEMPLATES = [
              'loaders': [
                  'django.template.loaders.filesystem.Loader',
                  'django.template.loaders.app_directories.Loader'
-              ],
+              ]
          }
-    },
+    }
 ]
-
 
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
@@ -150,7 +64,7 @@ MIDDLEWARE_CLASSES = (
     'social_django.middleware.SocialAuthExceptionMiddleware',
 )
 
-ROOT_URLCONF = 'CyAppStore.urls'
+ROOT_URLCONF = 'appstore.urls'
 
 INSTALLED_APPS = (
     'django.contrib.auth',
@@ -171,22 +85,28 @@ INSTALLED_APPS = (
     'help',
     'backend',
     'download',
-    'CyAppStore'  # this must be included to find root templates
+    'appstore'  # this must be included to find root templates
     )
 
 AUTHENTICATION_BACKENDS = (
     'social_core.backends.google.GoogleOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 )
+
 HAYSTACK_CONNECTIONS = {
     'default': {
         'ENGINE': 'haystack.backends.whoosh_backend.WhooshEngine',
-        'PATH': os.path.join(os.path.dirname(__file__), 'whoosh_index'),
+        'PATH': os.path.join(os.path.dirname(os.path.dirname(__file__)), 'build', 'whoosh_index'),
     },
 }
 
-if DJANGO_STATIC_AND_MEDIA:
-    INSTALLED_APPS += ('django.contrib.staticfiles', )
+# List of finder classes that know how to find static files in
+# various locations.
+STATICFILES_FINDERS = (
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    'django.contrib.staticfiles.finders.DefaultStorageFinder',
+)
 
 # A sample logging configuration. The only tangible logging
 # performed by this configuration is to send an email to
