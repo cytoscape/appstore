@@ -1,31 +1,27 @@
+import subprocess
+import datetime
+from os.path import basename, join as pathjoin
+from threading import Thread
+
 from django.db import models
 from django.contrib.auth.models import User
-from django.conf import settings
 from apps.models import App, Release, ReleaseAPI
 from util.id_util import fullname_to_name
 from util.view_util import get_object_or_none
-from os.path import basename, join as pathjoin
-from threading import Thread
-import subprocess
-import datetime
 from django.core.mail import send_mail
-import warnings
-try:
-    from conf.mvn import MVN_BIN_PATH, MVN_SETTINGS_PATH
-    from conf.emails import EMAIL_ADDR
-except ImportError:
-    from conf.mock import MVN_BIN_PATH, MVN_SETTINGS_PATH, EMAIL_ADDR
+from django.conf import settings
+
 
 class AppPending(models.Model):
-    submitter     = models.ForeignKey(User)
-    fullname      = models.CharField(max_length=127)
-    version       = models.CharField(max_length=31)
+    submitter = models.ForeignKey(User)
+    fullname = models.CharField(max_length=127)
+    version = models.CharField(max_length=31)
     cy_works_with = models.CharField(max_length=31)
-    created       = models.DateTimeField(auto_now_add=True)
-    release_file  = models.FileField(upload_to='pending_releases')
-    dependencies  = models.ManyToManyField(Release, related_name='+', blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+    release_file = models.FileField(upload_to='pending_releases')
+    dependencies = models.ManyToManyField(Release, related_name='+', blank=True)
     javadocs_jar_file = models.FileField(upload_to='pending_releases', blank=True, null=True)
-    pom_xml_file      = models.FileField(upload_to='pending_releases', blank=True, null=True)
+    pom_xml_file = models.FileField(upload_to='pending_releases', blank=True, null=True)
 
     def can_confirm(self, user):
         if user.is_staff or user.is_superuser:
@@ -83,8 +79,8 @@ def _deploy_artifact_async(api):
 def _deploy_artifact(api):
     pom_path = pathjoin(settings.MEDIA_ROOT, api.pom_xml_file.name)
     jar_path = pathjoin(settings.MEDIA_ROOT, api.release.release_file.name)
-    deploy_cmd = (MVN_BIN_PATH,
-        '-s', MVN_SETTINGS_PATH,
+    deploy_cmd = (settings.MVN_BIN_PATH,
+        '-s', settings.MVN_SETTINGS_PATH,
         'deploy:deploy-file',
         '-Dpackaging=jar',
         '-Durl=http://code.cytoscape.org/nexus/content/repositories/apps',
@@ -93,4 +89,4 @@ def _deploy_artifact(api):
         '-DrepositoryId=apps')
     cmd = subprocess.Popen(deploy_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False)
     cmdout, _ = cmd.communicate()
-    send_mail('Cytoscape App Store - App Repo Deploy (Release API ID: %d)' % api.id, cmdout, EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
+    send_mail('Cytoscape App Store - App Repo Deploy (Release API ID: %d)' % api.id, cmdout, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
