@@ -1,5 +1,5 @@
 """
-WSGI config for CyAppStore project.
+WSGI config for Cytoscape AppStore project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -16,11 +16,11 @@ import pymysql
 pymysql.install_as_MySQLdb()
 
 SITE_PARENT_DIR = '/var/www'
-SITE_DIR = filejoin(SITE_PARENT_DIR, 'CyAppStore')
+SITE_DIR = filejoin(SITE_PARENT_DIR, 'appstore')
 
 sys.path.append(SITE_PARENT_DIR)
 sys.path.append(SITE_DIR)
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "CyAppStore.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "appstore.settings.local")
 
 application = get_wsgi_application()
