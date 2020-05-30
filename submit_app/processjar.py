@@ -139,18 +139,12 @@ def _ver_tuple_to_str(tup):
 
 def _parse_osgi_bundle(manifest):
     app_name, app_version = _get_name_and_version(manifest, b'Bundle-Name', b'Bundle-Version')
-    #di = manifest.main_section[b'Cytoscape-App-Dependencies']
     import_packages = manifest.main_section[b'Import-Package']
-   # p = open('/var/www/CyAppStore/import.txt','w+')
-   # p.write(import_packages)
-   # p.close()
+
     import_packages = import_packages.decode("utf-8")
     if not import_packages:
         raise ValueError('does not import any packages--<tt>Import-Package</tt> is not in its manifest')
-    #import_packages = ','.join(import_packages)
-    #p = open('var/www/CyAppStore/import.txt','w+')
-    #p.write(import_packages)
-    #p.close()
+
     max_cy_ver = max_of_lower_cytoscape_pkg_versions(import_packages)
     if max_cy_ver:
         app_works_with = _ver_tuple_to_str(max_cy_ver)
