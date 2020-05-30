@@ -62,21 +62,33 @@ cat /vagrant/createdb.sql | sed "s/@@PASSWORD@@/$dbpass/g" > /tmp/createdb.sql
 
 mysql -u root < /tmp/createdb.sql
 
+APPSTORE="appstore"
 # TODO get app working properly
 cd /var/www
-mkdir CyAppStore
-cd CyAppStore
+mkdir $APPSTORE
+cd $APPSTORE
 cp -a /vagrant/* .
 mkdir logs
-mkdir media
+mkdir /var/www/html/media
+mkdir /var/www/html/misc
+
+cp /vagrant/favicon.ico /var/www/html/misc/.
+cp /vagrant/google_oauth2_logo.png /var/www/html/misc/.
 
 # update the database password
-sed -i "s/@@PASSWORD@@/$dbpass/g" /var/www/CyAppStore/settings.py
+sed -i "s/@@PASSWORD@@/$dbpass/g" /var/www/$APPSTORE/settings/vagrant.py
 
-rm /var/www/CyAppStore/appstore.http.conf
-rm /var/www/CyAppStore/appstore.include.conf
+# update wsgi
+sed -i "s/settings.local/settings.vagrant/g" /var/www/$APPSTORE/wsgi.py
 
-cd /var/www/CyAppStore
+# update manage.py
+sed -i "s/settings.local/settings.vagrant/g" /var/www/$APPSTORE/manage.py
+
+
+rm /var/www/$APPSTORE/appstore.http.conf
+rm /var/www/$APPSTORE/appstore.include.conf
+
+cd /var/www/$APPSTORE
 
 python manage.py makemigrations apps --noinput
 python manage.py makemigrations backend --noinput
@@ -89,6 +101,7 @@ python manage.py makemigrations --noinput
 
 python manage.py migrate --noinput
 python manage.py rebuild_index --noinput
+python manage.py collectstatic --noinput
 
 # fix permissions
 chown -R www-data:www-data /var/www
@@ -110,5 +123,5 @@ systemctl reload apache2
 echo ""
 echo "Visit http://localhost:8080"
 echo ""
-echo "or to test vagrant ssh ; cd /var/www/CyAppStore ; coverage run --source '.' manage.py test"
+echo "or to test vagrant ssh ; cd /var/www/$APPSTORE ; coverage run --source '.' manage.py test"
 echo ""
