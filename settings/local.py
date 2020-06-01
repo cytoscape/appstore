@@ -3,7 +3,8 @@ import settings
 from settings.base import *
 import os
 import warnings
-warnings.warn("Running local configuration")
+warnings.warn("Running local configuration which requires a "
+              "build/ directory to exist. This is made via make test")
 
 DEBUG = True
 DJANGO_STATIC_AND_MEDIA = DEBUG
