@@ -28,7 +28,12 @@ class Author(models.Model):
         else:
             return self.name + ' (' + self.institution + ')'
 
-
+"""
+:py:func:`dict` where key is :py:class:`~Tag` name
+and value is count of :py:class:`~App` objects
+with that tag name
+Populated by a call to :py:func:`~Tag.count`
+"""
 _TagCountCache = dict()
 
 
@@ -42,7 +47,7 @@ class Tag(models.Model):
         if self.name in _TagCountCache:
             count = _TagCountCache[self.name]
         else:
-            count = App.objects.filter(active = True, tags = self).count()
+            count = App.objects.filter(active=True, tags=self).count()
             _TagCountCache[self.name] = count
         return count
 
@@ -51,14 +56,28 @@ class Tag(models.Model):
 
     def __str__(self):
         return self.name
+
     class Meta:
+        """
+        Dictates tags are ordered by name
+        """
         ordering = ["name"]
 
 
-GENERIC_ICON_URL = urljoin(settings.STATIC_URL, 'apps/img/app_icon_generic.png')
+GENERIC_ICON_URL = urljoin(settings.STATIC_URL,
+                           'apps/img/app_icon_generic.png')
 
 
 def app_icon_path(app, filename):
+    """
+    Callable function used by :py:class:`~App` constructor
+    to set value of 'icon' to a path to `filename`
+
+    :param app:
+    :param filename:
+    :return: <app.name>/<filename>
+    :rtype str
+    """
     return pathjoin(app.name, filename)
 
 
@@ -66,35 +85,38 @@ class App(models.Model):
     name = models.CharField(max_length=127, unique=True)
     fullname = models.CharField(max_length=127, unique=True)
     description = models.CharField(max_length=255, blank=True, null=True)
-    details      = models.TextField(blank=True, null=True)
-    tags         = models.ManyToManyField(Tag, blank=True)
+    details = models.TextField(blank=True, null=True)
+    tags = models.ManyToManyField(Tag, blank=True)
 
-    icon         = models.ImageField(upload_to=app_icon_path, blank=True, null=True)
+    icon = models.ImageField(upload_to=app_icon_path, blank=True,
+                             null=True)
 
-    authors      = models.ManyToManyField(Author, blank=True, through='OrderedAuthor')
-    editors      = models.ManyToManyField(User, blank=True)
+    authors = models.ManyToManyField(Author, blank=True,
+                                     through='OrderedAuthor')
+    editors = models.ManyToManyField(User, blank=True)
 
-    cy_2x_plugin_download     = models.URLField(blank=True, null=True)
-    cy_2x_plugin_version      = models.CharField(max_length=31, blank=True, null=True)
+    cy_2x_plugin_download = models.URLField(blank=True, null=True)
+    cy_2x_plugin_version = models.CharField(max_length=31, blank=True,
+                                            null=True)
     cy_2x_plugin_release_date = models.DateField(blank=True, null=True)
-    cy_2x_versions            = models.CharField(max_length=31, blank=True, null=True)
+    cy_2x_versions = models.CharField(max_length=31, blank=True, null=True)
 
-    latest_release_date       = models.DateField(blank=True, null=True)
-    has_releases              = models.BooleanField(default=False)
+    latest_release_date = models.DateField(blank=True, null=True)
+    has_releases = models.BooleanField(default=False)
 
-    license_text    = models.URLField(blank=True, null=True)
+    license_text = models.URLField(blank=True, null=True)
     license_confirm = models.BooleanField(default=False)
 
-    website      = models.URLField(blank=True, null=True)
-    tutorial     = models.URLField(blank=True, null=True)
-    citation     = models.CharField(max_length=31, blank=True, null=True)
-    coderepo     = models.URLField(blank=True, null=True)
-    automation   = models.URLField(blank=True, null=True)
-    contact      = models.EmailField(blank=True, null=True)
+    website = models.URLField(blank=True, null=True)
+    tutorial = models.URLField(blank=True, null=True)
+    citation = models.CharField(max_length=31, blank=True, null=True)
+    coderepo = models.URLField(blank=True, null=True)
+    automation = models.URLField(blank=True, null=True)
+    contact = models.EmailField(blank=True, null=True)
 
-    stars        = models.PositiveIntegerField(default=0)
-    votes        = models.PositiveIntegerField(default=0)
-    downloads    = models.PositiveIntegerField(default=0)
+    stars = models.PositiveIntegerField(default=0)
+    votes = models.PositiveIntegerField(default=0)
+    downloads = models.PositiveIntegerField(default=0)
 
     featured = models.BooleanField(default=False)
     competition_winner_dec_2012 = models.BooleanField(default=False)
@@ -102,17 +124,52 @@ class App(models.Model):
     active = models.BooleanField(default=False)
 
     def is_editor(self, user):
+        """
+        Denotes if 'user' passed in can edit this App
+
+        :param user: The 'user' to check
+        :type user: :py:class:`~django.contrib.auth.models.User`
+        :return: `True` if 'user' can edit, `False` otherwise
+        :rtype: bool
+        """
         if not user:
             return False
         if user.is_staff or user.is_superuser:
             return True
         if user in self.editors.all():
             return True
-        li =[usr.email for usr in self.editors.all()]
+        li = [usr.email for usr in self.editors.all()]
         return user.email in li
 
+    @staticmethod
+    def _camel_case_split(the_str):
+        """
+        Splits camel cased string
+
+        :param the_str:
+        :return:
+        :rtype list
+        """
+        words = [[the_str[0]]]
+
+        for c in the_str[1:]:
+            if words[-1][-1].islower() and c.isupper():
+                words.append(list(c))
+            else:
+                words[-1].append(c)
+
+        return [''.join(word) for word in words]
+
     def camelcase(self):
-        return ' '.join([c for c in camel_case_split(self.fullname)])
+        """
+        Splits 'fullname' by capital characters and returns as
+        string with spaces between each word as defined by
+        capital letters
+
+        :return:
+        :rtype: str
+        """
+        return ' '.join([c for c in self._camel_case_split(self.fullname)])
 
     @property
     def stars_percentage(self):
@@ -136,7 +193,7 @@ class App(models.Model):
 
     @property
     def ordered_authors(self):
-        return (a.author for a in OrderedAuthor.objects.filter(app = self))
+        return (a.author for a in OrderedAuthor.objects.filter(app=self))
 
     search_schema = ('^fullname', 'description', 'details')
     search_key = 'name'
@@ -158,23 +215,38 @@ class OrderedAuthor(models.Model):
 
 
 VersionRE = re.compile(r'^(\d+)(?:\.(\d)+)?(?:\.(\d)+)?(?:\.([\w-]+))?$')
+"""
+Regular expression to verify a valid version
+used by :py:func:`~Release.version_tuple` function
+"""
 
 
 def release_file_path(release, filename):
-    return pathjoin(release.app.name, 'releases', release.version, filename)
+    """
+    Callable function used by :py:class:`~Release` constructor
+    to set release_file
+
+    :param release:
+    :param filename:
+    :return: <release.app.name>/releases/<release.version>/<filename>
+    :rtype: str
+    """
+    return pathjoin(release.app.name, 'releases',
+                    release.version, filename)
 
 
 class Release(models.Model):
-    app           = models.ForeignKey(App)
-    version       = models.CharField(max_length=31)
-    works_with    = models.CharField(max_length=31)
-    notes         = models.TextField(blank=True, null=True)
-    created       = models.DateTimeField(auto_now_add=True)
-    active        = models.BooleanField(default=True)
+    app = models.ForeignKey(App)
+    version = models.CharField(max_length=31)
+    works_with = models.CharField(max_length=31)
+    notes = models.TextField(blank=True, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    active = models.BooleanField(default=True)
 
-    release_file  = models.FileField(upload_to=release_file_path)
-    hexchecksum   = models.CharField(max_length=511, blank=True, null=True)
-    dependencies  = models.ManyToManyField('self', related_name='dependents', symmetrical=False)
+    release_file = models.FileField(upload_to=release_file_path)
+    hexchecksum = models.CharField(max_length=511, blank=True, null=True)
+    dependencies = models.ManyToManyField('self', related_name='dependents',
+                                          symmetrical=False)
 
     @property
     def version_tuple(self):
@@ -185,7 +257,7 @@ class Release(models.Model):
         major = int(major)
         minor = int(minor) if minor else None
         patch = int(patch) if patch else None
-        return (major, minor, patch, tag)
+        return major, minor, patch, tag
 
     @property
     def created_iso(self):
@@ -204,13 +276,12 @@ class Release(models.Model):
 
     def calc_checksum(self):
         cs = hashlib.sha512()
-        f = self.release_file.file
-        f.open('rb')
-        while True:
-            buf = f.read(128)
-            if not buf: break
-            cs.update(buf)
-        f.close()
+        with open(self.release_file.file, 'rb') as f:
+            while True:
+                buf = f.read(128)
+                if not buf:
+                    break
+                cs.update(buf)
         self.hexchecksum = '%s:%s' % (cs.name, cs.hexdigest())
         self.save()
 
@@ -224,41 +295,64 @@ class Release(models.Model):
     class Meta:
         ordering = ['-created']
 
+
 def screenshot_path(screenshot, filename):
+    """
+    Callable function used by :py:class:`~Screenshot`
+
+    :param screenshot:
+    :param filename:
+    :return:
+    """
     return pathjoin(screenshot.app.name, 'screenshots', filename)
 
+
 def thumbnail_path(screenshot, filename):
+    """
+    Callable function used by :py:class:`~Screenshot`
+
+    :param screenshot:
+    :param filename:
+    :return:
+    """
     return pathjoin(screenshot.app.name, 'thumbnails', filename)
 
+
 class Screenshot(models.Model):
-    app        = models.ForeignKey(App)
+    app = models.ForeignKey(App)
     screenshot = models.ImageField(upload_to=screenshot_path)
-    thumbnail  = models.ImageField(upload_to=thumbnail_path)
+    thumbnail = models.ImageField(upload_to=thumbnail_path)
 
     def __unicode__(self):
         return '%s - %d' % (self.app.fullname, self.id)
 
+
 def javadocs_path(release_api, filename):
+    """
+    Callable function used by :py:class:`~ReleaseApi`
+
+    :param release_api:
+    :param filename:
+    :return:
+    """
     return pathjoin(release_api.release.app.name, 'releases', release_api.release.version, filename)
+
 
 def pom_xml_path(release_api, filename):
+    """
+    Callable function used by :py:class:`~ReleaseApi`
+
+    :param release_api:
+    :param filename:
+    :return:
+    """
     return pathjoin(release_api.release.app.name, 'releases', release_api.release.version, filename)
 
-def camel_case_split(str): 
-    words = [[str[0]]] 
-  
-    for c in str[1:]: 
-        if words[-1][-1].islower() and c.isupper(): 
-            words.append(list(c)) 
-        else: 
-            words[-1].append(c) 
-  
-    return [''.join(word) for word in words] 
 
 class ReleaseAPI(models.Model):
-    release           = models.ForeignKey(Release)
+    release = models.ForeignKey(Release)
     javadocs_jar_file = models.FileField(upload_to=javadocs_path)
-    pom_xml_file      = models.FileField(upload_to=pom_xml_path)
+    pom_xml_file = models.FileField(upload_to=pom_xml_path)
 
     def __unicode__(self):
         return unicode(self.release)
@@ -268,9 +362,9 @@ class ReleaseAPI(models.Model):
         dirpath = file.path + '-extracted'
         if not os.path.exists(dirpath):
             mkdir(dirpath)
-        nullfile = open(devnull, 'w')
-        subprocess.call(['unzip', file.path, '-d', dirpath], stdout = nullfile, stderr = nullfile)
-        nullfile.close()
+        with open(devnull, 'w') as nullfile:
+            subprocess.call(['unzip', file.path, '-d', dirpath],
+                            stdout=nullfile, stderr=nullfile)
 
     def delete_files(self):
         dirpath = self.javadocs_jar_file.path + '-extracted'
