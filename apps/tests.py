@@ -178,6 +178,11 @@ class ReleaseTestCase(TestCase):
         self.assertEqual((2, 1, 3, None), myrel.version_tuple)
 
         myrel = Release.objects.create(app=ReleaseTestCase.APPOBJ,
+                                       version='2.1.4.',
+                                       release_file=uploaded)
+        self.assertEqual(None, myrel.version_tuple)
+
+        myrel = Release.objects.create(app=ReleaseTestCase.APPOBJ,
                                        version='3.4.6.foo',
                                        release_file=uploaded)
         self.assertEqual((3, 4, 6, 'foo'), myrel.version_tuple)
