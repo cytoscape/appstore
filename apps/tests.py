@@ -14,6 +14,7 @@ from apps.models import App
 from apps.models import Author
 from apps.models import Tag
 from apps import models as apps_models
+from apps.models import Release
 
 SMALL_GIF = (
     b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x00\x00\x00\x21\xf9\x04'
@@ -21,7 +22,10 @@ SMALL_GIF = (
     b'\x02\x4c\x01\x00\x3b'
 )
 
+
 class AuthorTestCase(TestCase):
+
+    Author.objects.all().delete()
 
     def setUp(self):
         Author.objects.create(name='Bob Smith',
@@ -44,6 +48,8 @@ class AuthorTestCase(TestCase):
 
 class TagTestCase(TestCase):
 
+    Tag.objects.all().delete()
+
     def test_only_one_tag(self):
         Tag.objects.create(name='foo')
         first = Tag.objects.get(name='foo')
@@ -64,6 +70,9 @@ class TagTestCase(TestCase):
 
 
 class AppTestCase(TestCase):
+
+    App.objects.all().delete()
+    User.objects.all().delete()
 
     def test_str_for_app(self):
         appobj = App.objects.create(name='foo')
@@ -143,8 +152,66 @@ class AppTestCase(TestCase):
         appobj = App.objects.create(name='y', fullname='y', icon=uploaded)
 
         self.assertTrue(os.path.join(settings.MEDIA_URL, 'y', 'small') in
-                         appobj.icon_url)
+                        appobj.icon_url)
 
 
+class ReleaseTestCase(TestCase):
 
+    App.objects.all().delete()
+    APPOBJ = App.objects.create(name='myapp', fullname='MyApp')
+    APPOBJ.save()
+
+    FILE_CONTENT = b'hello'
+
+    def test_version_tuple(self):
+        uploaded = SimpleUploadedFile('my.jar',
+                                      ReleaseTestCase.FILE_CONTENT,
+                                      content_type='text/plain')
+        myrel = Release.objects.create(app=ReleaseTestCase.APPOBJ,
+                                       version='1.0',
+                                       release_file=uploaded)
+        self.assertEqual((1, 0, None, None), myrel.version_tuple)
+
+        myrel = Release.objects.create(app=ReleaseTestCase.APPOBJ,
+                                       version='2.1.3',
+                                       release_file=uploaded)
+        self.assertEqual((2, 1, 3, None), myrel.version_tuple)
+
+        myrel = Release.objects.create(app=ReleaseTestCase.APPOBJ,
+                                       version='3.4.6.foo',
+                                       release_file=uploaded)
+        self.assertEqual((3, 4, 6, 'foo'), myrel.version_tuple)
+
+        myrel = Release.objects.create(app=ReleaseTestCase.APPOBJ,
+                                       version='3.4.6.13',
+                                       release_file=uploaded)
+        self.assertEqual((3, 4, 6, '13'), myrel.version_tuple)
+
+    def test_calc_checksum(self):
+        uploaded = SimpleUploadedFile('my.jar',
+                                      ReleaseTestCase.FILE_CONTENT,
+                                      content_type='text/plain')
+        myrel = Release.objects.create(app=ReleaseTestCase.APPOBJ,
+                                       version='1.0',
+                                       release_file=uploaded)
+
+        myrel.calc_checksum()
+        self.assertEqual('sha512:9b71d224bd62f3785d96d46ad'
+                         '3ea3d73319bfbc2890caadae2dff7251'
+                         '9673ca72323c3d99ba5c11d7c7acc6e1'
+                         '4b8c5da0c4663475c2e5c3adef46f73b'
+                         'cdec043', myrel.hexchecksum)
+
+    def test_delete_files(self):
+        uploaded = SimpleUploadedFile('my.jar',
+                                      ReleaseTestCase.FILE_CONTENT,
+                                      content_type='text/plain')
+        myrel = Release.objects.create(app=ReleaseTestCase.APPOBJ,
+                                       version='1.0',
+                                       release_file=uploaded)
+
+        self.assertNotEqual(None, myrel.release_file)
+        myrel.delete_files()
+
+        self.assertEqual(None, myrel.release_file)
 

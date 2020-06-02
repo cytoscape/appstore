@@ -276,14 +276,18 @@ class Release(models.Model):
 
     def calc_checksum(self):
         cs = hashlib.sha512()
-        with open(self.release_file.file, 'rb') as f:
+        f = self.release_file.file
+        f.open('rb')
+        try:
             while True:
                 buf = f.read(128)
                 if not buf:
                     break
                 cs.update(buf)
-        self.hexchecksum = '%s:%s' % (cs.name, cs.hexdigest())
-        self.save()
+            self.hexchecksum = '%s:%s' % (cs.name, cs.hexdigest())
+            self.save()
+        finally:
+            f.close()
 
     def delete_files(self):
         self.release_file.delete()
