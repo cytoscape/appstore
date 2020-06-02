@@ -1,11 +1,11 @@
-django==1.11.29  # requires django.utils.importlib
+django==2.0.13  # requires django.utils.importlib
 python-geoip
 django-social-auth==0.7.28
 social-auth-app-django==3.1.0
 sphinx
 urllib3
 Whoosh==2.7.4
-django-haystack==2.7.0
+django-haystack==2.8.1
 Pillow
 gevent
 PyMySQL
