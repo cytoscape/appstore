@@ -1,3 +1,6 @@
+
+[![Build Status](https://travis-ci.com/cytoscape/appstore.svg?branch=master)](https://travis-ci.com/cytoscape/appstore)
+
 If you'd like to learn about administration procedures, an introduction to the code base, and see the full test protocol, visit the __App Store Wiki__ page:
 <https://github.com/cytoscape/appstore/wiki/Administrator's-Guide>
 
