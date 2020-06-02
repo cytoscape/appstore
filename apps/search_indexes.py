@@ -1,6 +1,7 @@
 from haystack import indexes
 from apps.models import App, Author, Tag
 
+
 def camel_case_split(str): 
     words = [[str[0]]] 
   
@@ -11,8 +12,6 @@ def camel_case_split(str):
             words[-1].append(c) 
   
     return [''.join(word) for word in words] 
-
-
 
 
 class AppIndex(indexes.SearchIndex, indexes.Indexable):
@@ -30,12 +29,9 @@ class AppIndex(indexes.SearchIndex, indexes.Indexable):
     #latest_release_date = indexes.DateField(model_attr = 'latest_release_date',null= True)
     camelcase = indexes.CharField()
 
-    
-    
-    
-    
     def get_model(self):
         return App
+
 
 class AuthorIndex(indexes.SearchIndex, indexes.Indexable):
     text = indexes.EdgeNgramField(document = True, use_template = True)
