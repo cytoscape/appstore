@@ -210,9 +210,10 @@ _AppActions = {
 	'ratings_delete_all':  _app_ratings_delete_all,
 }
 
+
 def app_page(request, app_name):
-	app = get_object_or_404(App, active = True, name = app_name)
-	user = request.user if request.user.is_authenticated() else None
+	app = get_object_or_404(App, active=True, name=app_name)
+	user = request.user if request.user.is_authenticated else None
 
 	if request.method == 'POST':
 		action = request.POST.get('action')
