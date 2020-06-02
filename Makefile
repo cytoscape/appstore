@@ -61,7 +61,7 @@ test: build ## run tests via python manage.py test
 	python manage.py test
 
 coverage: build ## check code coverage
-	coverage run --source '.' manage.py test
+	coverage run --source '.' --omit=*/tests.py,migrations/*,wsgi.py manage.py test
 	coverage report -m
 	coverage html
 	$(BROWSER) htmlcov/index.html
