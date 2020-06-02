@@ -61,12 +61,12 @@ test: build ## run tests via python manage.py test
 	python manage.py test
 
 coverage: build ## check code coverage
-	coverage run --source '.' --omit=*/tests.py,migrations/*,wsgi.py manage.py test
+	coverage run --source '.' --omit=*/tests.py,*/migrations/*,build/*,wsgi.py manage.py test
 	coverage report -m
 	coverage html
 	$(BROWSER) htmlcov/index.html
 
-build: ## Build app into build directory
+build: ## Build app database and static content in build directory
 	mkdir -p build/whoosh_index
 	mkdir -p build/media
 	python manage.py makemigrations apps --noinput
