@@ -60,7 +60,11 @@ INSTALLED_APPS += ('django.contrib.staticfiles', )
 # TEMPLATES[0]['DIRS'] = [SITE_DIR]
 # TEMPLATES[0]['OPTIONS'] = DEBUG
 
+# tells python manage.py makemigrations to
+# store migration files under build/appstore/
+#
 MIGRATION_MODULES = {
+    'apps': 'build.appstore.apps',
     'download': 'build.appstore.download',
     'submit_app': 'build.appstore.submit_app'
 }
