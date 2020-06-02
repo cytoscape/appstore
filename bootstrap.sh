@@ -25,6 +25,9 @@ echo "export PATH=/opt/miniconda3/bin:$PATH" >> /root/.bash_profile
 echo "export PATH=/opt/miniconda3/bin:$PATH" >> /root/.bashrc
 sudo -u vagrant echo "export PATH=/opt/miniconda3/bin:$PATH" >> /home/vagrant/.bash_profile
 
+# install mysqlclient
+conda install -y mysqlclient
+
 # install mod_wsgi
 pip install mod_wsgi
 
@@ -58,12 +61,15 @@ pip install coverage
 mysqladmin create AppStore
 
 dbpass=`uuidgen`
+echo ""
+echo "The database password will be set to: $dbpass"
+echo "In case its need look at /tmp/createdb.sql"
+echo ""
 cat /vagrant/createdb.sql | sed "s/@@PASSWORD@@/$dbpass/g" > /tmp/createdb.sql
 
 mysql -u root < /tmp/createdb.sql
 
 APPSTORE="appstore"
-# TODO get app working properly
 cd /var/www
 mkdir $APPSTORE
 cd $APPSTORE
