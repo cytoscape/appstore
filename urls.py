@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 urlpatterns = [
     # Uncomment the next line to enable the admin:
-    url(r'^admin/', include(admin.site.urls)),
+    url(r'^admin/', admin.site.urls),
     url(r'^accounts/', include('users.urls')),
     url(r'^$', apps_default, name='default-page'),
     url(r'^apps/', include('apps.urls')),
