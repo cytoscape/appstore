@@ -13,7 +13,7 @@ from django.conf import settings
 
 
 class AppPending(models.Model):
-    submitter = models.ForeignKey(User)
+    submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=127)
     version = models.CharField(max_length=31)
     cy_works_with = models.CharField(max_length=31)
