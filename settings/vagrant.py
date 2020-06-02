@@ -22,6 +22,13 @@ XAPIAN_INDICES_DIR = os.path.join(SITE_DIR, 'xapian_indices')
 SITE_URL = "http://localhost:8080"
 SECRET_KEY = "12345"
 
+SOCIAL_AUTH_COMPLETE_URL_NAME = 'login_done'
+SOCIAL_AUTH_ASSOCIATE_URL_NAME = 'socialauth_associate_complete'
+SOCIAL_AUTH_DEFAULT_USERNAME = 'social_auth_user'
+LOGIN_URL = parse.urljoin(SITE_URL, 'users/login')
+LOGIN_REDIRECT_URL = SITE_URL
+LOGOUT_URL = parse.urljoin(SITE_URL, 'users/logout')
+
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/home/media/media.lawrence.com/media/"
 MEDIA_ROOT = os.path.join(STATIC_BASE_DIR, 'media')
