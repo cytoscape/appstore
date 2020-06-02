@@ -112,7 +112,7 @@ class AppTestCase(TestCase):
         blah_app_obj = App.objects.create(name='blah',
                                           fullname='blah full')
         blah_app_obj.save()
-        blah_app_obj.editors = [euser]
+        blah_app_obj.editors.add(euser)
         blah_app_obj = App.objects.get(name='blah')
         self.assertEqual(True, blah_app_obj.is_editor(euser))
 
@@ -157,9 +157,10 @@ class AppTestCase(TestCase):
 
 class ReleaseTestCase(TestCase):
 
-    App.objects.all().delete()
-    APPOBJ = App.objects.create(name='myapp', fullname='MyApp')
-    APPOBJ.save()
+    def setUp(self):
+        App.objects.all().delete()
+        ReleaseTestCase.APPOBJ = App.objects.create(name='myapp', fullname='MyApp')
+        ReleaseTestCase.APPOBJ.save()
 
     FILE_CONTENT = b'hello'
 
@@ -167,7 +168,8 @@ class ReleaseTestCase(TestCase):
         uploaded = SimpleUploadedFile('my.jar',
                                       ReleaseTestCase.FILE_CONTENT,
                                       content_type='text/plain')
-        myrel = Release.objects.create(app=ReleaseTestCase.APPOBJ,
+        appobj = App.objects.get(name='myapp')
+        myrel = Release.objects.create(app=appobj,
                                        version='1.0',
                                        release_file=uploaded)
         self.assertEqual((1, 0, None, None), myrel.version_tuple)
