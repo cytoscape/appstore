@@ -76,3 +76,6 @@ LOGGING['loggers']['appstore'] = {
     'level': 'DEBUG',
     'propagate': True,
 }
+
+# put the whoosh_index directory under build/ directory
+HAYSTACK_CONNECTIONS['default']['PATH'] = os.path.join(BUILD_DIR, 'whoosh_index')
