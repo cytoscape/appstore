@@ -81,6 +81,9 @@ INSTALLED_APPS += ('django.contrib.staticfiles', )
 
 # Output all logs
 LOGGING['handlers']['console']['level'] = 'DEBUG'
+LOGGING['handlers']['console']['class'] = 'logging.FileHandler'
+LOGGING['handlers']['console']['filename'] = os.path.join(SITE_DIR, 'logs', 'appstore.log')
+
 LOGGING['loggers']['appstore'] = {
     'handlers': ['console'],
     'level': 'DEBUG',
