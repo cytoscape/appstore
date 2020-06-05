@@ -1,14 +1,11 @@
 import re
 import hashlib
-from shutil import rmtree
+import shutil
 import subprocess
 from os import mkdir, devnull
 import os.path
 from os.path import join as pathjoin
-try:
-    from urllib.parse import urljoin
-except:
-    from urlparse import urljoin
+from urllib.parse import urljoin
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
@@ -205,10 +202,11 @@ class App(models.Model):
 class OrderedAuthor(models.Model):
     author = models.ForeignKey(Author, on_delete=models.CASCADE)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
-    author_order = models.PositiveSmallIntegerField(default = 0)
+    author_order = models.PositiveSmallIntegerField(default=0)
 
-    def __unicode__(self):
-        return unicode(self.author_order) + ': ' + self.app.name + ' by ' + self.author.name
+    def __str__(self):
+        return str(self.author_order) + ': ' + self.app.name +\
+               ' by ' + self.author.name
 
     class Meta:
         ordering = ["author_order"]
@@ -327,7 +325,7 @@ class Screenshot(models.Model):
     screenshot = models.ImageField(upload_to=screenshot_path)
     thumbnail = models.ImageField(upload_to=thumbnail_path)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %d' % (self.app.fullname, self.id)
 
 
@@ -358,8 +356,8 @@ class ReleaseAPI(models.Model):
     javadocs_jar_file = models.FileField(upload_to=javadocs_path)
     pom_xml_file = models.FileField(upload_to=pom_xml_path)
 
-    def __unicode__(self):
-        return unicode(self.release)
+    def __str__(self):
+        return str(self.release)
 
     def extract_javadocs_jar(self):
         file = self.javadocs_jar_file
@@ -373,6 +371,6 @@ class ReleaseAPI(models.Model):
     def delete_files(self):
         dirpath = self.javadocs_jar_file.path + '-extracted'
         if os.path.exists(dirpath):
-            rmtree(dirpath)
+            shutil.rmtree(dirpath)
         self.javadocs_jar_file.delete()
         self.pom_xml_file.delete()
