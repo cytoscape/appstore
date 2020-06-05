@@ -1,13 +1,10 @@
 import json
 import re
-try:
-    from BytesIO import BytesIO
-except ImportError:
-    from io import BytesIO
+
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.template import RequestContext
-from django.core.serializers.json import DjangoJSONEncoder, Serializer
+from django.core.serializers.json import DjangoJSONEncoder
 
 
 def html_response(template_name, context, request, processors = []):
@@ -44,6 +41,8 @@ def get_object_or_none(model, *args, **kwargs):
 
 
 IPAddrRE = re.compile(r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$')
+
+
 def ipaddr_str_to_long(ipaddr_str):
     m = IPAddrRE.match(ipaddr_str)
     if not m: return 0
