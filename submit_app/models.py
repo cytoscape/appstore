@@ -56,7 +56,7 @@ class AppPending(models.Model):
         app.save()
 
         if self.pom_xml_file and self.javadocs_jar_file:
-            api, _ = ReleaseAPI.objects.get_or_create(release = release)
+            api, _ = ReleaseAPI.objects.get_or_create(release=release)
             api.javadocs_jar_file.save(basename(self.javadocs_jar_file.name), self.javadocs_jar_file)
             api.pom_xml_file.save(basename(self.pom_xml_file.name), self.pom_xml_file)
             api.save()
