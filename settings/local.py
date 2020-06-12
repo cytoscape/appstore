@@ -18,7 +18,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 SITE_DIR = os.path.dirname(os.path.dirname(settings.__file__))
 BUILD_DIR = os.path.join(SITE_DIR, 'build')
 XAPIAN_INDICES_DIR = os.path.join(SITE_DIR, 'xapian_indices')
-SITE_URL = "http://localhost:8000"
+SITE_URL = "/"
 SECRET_KEY = "12345"
 
 # Absolute filesystem path to the directory that will hold user-uploaded files.
