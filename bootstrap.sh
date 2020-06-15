@@ -118,6 +118,10 @@ find /var/www -type f -exec chmod 640 {} \+
 mkdir /etc/apache2/includes
 cp /vagrant/appstore.include.conf /etc/apache2/includes/.
 cp /vagrant/appstore.http.conf /etc/apache2/sites-available/appstore.conf
+
+# update port to 8080 which needs to match forwarded port in Vagrantfile
+sed -i "s/@@PORT@@/8080/g" /etc/apache2/sites-available/appstore.conf
+
 echo "Listen 8080" >> /etc/apache2/ports.conf
 a2dissite 000-default.conf
 a2ensite appstore.conf
