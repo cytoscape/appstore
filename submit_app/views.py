@@ -28,7 +28,8 @@ def submit_app(request):
             try:
                 fullname, version, works_with, app_dependencies, has_export_pkg = process_jar(f, expect_app_name)
                 pending = _create_pending(request.user, fullname, version, works_with, app_dependencies, f)
-                _send_email_for_pending(pending)
+                server_url = _get_server_url(request)
+                _send_email_for_pending(pending, server_url=server_url)
                 version_pattern1 ="^[0-9].[0-9].[0-9]+"
                 version_pattern1 = re.compile(version_pattern1)
                 version_pattern2 = "^[0-9].[0-9]+"
@@ -104,14 +105,18 @@ def _create_pending(submitter, fullname, version, cy_works_with, app_dependencie
     pending.save()
     return pending
 
-def _send_email_for_pending(pending):
+
+def _send_email_for_pending(pending, server_url='Unknown'):
     msg = u"""
 The following app has been submitted:
     ID: {id}
+    Server: {server_url}
     Name: {fullname}
     Version: {version}
     Submitter: {submitter_name} {submitter_email}
-""".format(id = pending.id, fullname = pending.fullname, version = pending.version, submitter_name = pending.submitter.username, submitter_email = pending.submitter.email)
+""".format(id=pending.id, server_url=server_url, fullname=pending.fullname,
+           version=pending.version, submitter_name=pending.submitter.username,
+           submitter_email=pending.submitter.email)
     send_mail('Cytoscape App Store - App Submitted', msg, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
 
 def _verify_javadocs_jar(file):
