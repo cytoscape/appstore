@@ -19,7 +19,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 SITE_DIR = "/var/www/appstore/"
 STATIC_BASE_DIR = "/var/www/html/"
 XAPIAN_INDICES_DIR = os.path.join(SITE_DIR, 'xapian_indices')
-SITE_URL = "http://localhost:8080"
+SITE_URL = "/"
 SECRET_KEY = "12345"
 
 SOCIAL_AUTH_COMPLETE_URL_NAME = 'login_done'
