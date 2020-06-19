@@ -1,3 +1,5 @@
+import io
+import logging
 from zipfile import ZipFile, BadZipfile
 from .mfparse import max_of_lower_cytoscape_pkg_versions, parse_app_dependencies
 from apps.models import App, Release, VersionRE
@@ -7,16 +9,34 @@ from util.view_util import get_object_or_none
 _MANIFEST_FILE_NAME = 'META-INF/MANIFEST.MF'
 _MAX_MANIFEST_FILE_SIZE_B = 1024 * 1024
 
+LOGGER = logging.getLogger(__name__)
+
+
+class InvalidJarError(Exception):
+    """
+    Exception for invalid Jar
+    """
+    pass
+
 
 def process_jar(jar_file, expect_app_name):
 
     try:
-        archive = ZipFile(jar_file.temporary_file_path())
-    except BadZipfile as IOError:
+        try:
+            jar_file_path = jar_file.temporary_file_path()
+            archive = ZipFile(jar_file_path)
+        except AttributeError as ae:
+            LOGGER.debug('Caught attribute error: ' + str(ae) +
+                         ' going to try using read() function')
+            # This must be an InMemoryUploadedFile so lets read
+            # its contents and pass that to ZipFile
+            archive = ZipFile(io.BytesIO(jar_file.read()))
+    except BadZipfile as bzf:
+        LOGGER.info('User uploaded invalid jar file: ' + str(bzf))
         raise ValueError('is not a valid zip file')
 
     manifest_file = archive.read(_MANIFEST_FILE_NAME)
-    manifest = ParseManifest(manifest_file)
+    manifest = parse_manifest(manifest_file)
     archive.close()
 
     is_osgi_bundle = True if manifest.main_section[b'Bundle-SymbolicName'] else False
@@ -45,10 +65,10 @@ class Manifest(object):
         self.sections = sections
 
 
-def ParseManifest(manifest_string):
+def parse_manifest(manifest_string):
     manifest_string = b'\n'.join(manifest_string.splitlines()).rstrip(b'\n')
     section_strings = manifest_string.split(b'\n\n')
-    parsed_sections = [_ParseManifestSection(s) for s in section_strings]
+    parsed_sections = [_parse_manifest_section(s) for s in section_strings]
     main_section = parsed_sections[0]
     try:
         sections = dict((entry[b'Name'], entry) for entry in parsed_sections[1:])
@@ -57,7 +77,7 @@ def ParseManifest(manifest_string):
     return Manifest(main_section, sections)
 
 
-def _ParseManifestSection(section):
+def _parse_manifest_section(section):
     section = section.replace(b'\n ', b'')
     try:
         return dict(line.split(b': ', 1) for line in section.split(b'\n'))
