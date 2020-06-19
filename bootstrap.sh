@@ -4,7 +4,7 @@
 apt-get update
 
 # install base packages
-apt-get -y install apache2 apache2-dev apache2-utils ssl-cert wget
+apt-get -y install apache2 apache2-dev apache2-utils ssl-cert wget unzip
 apt-get -y install libapache2-mod-wsgi-py3 gcc g++
 apt-get -y install mysql-server
 apt-get -y install libjpeg8-dev
