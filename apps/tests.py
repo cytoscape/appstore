@@ -25,6 +25,7 @@ from apps.models import Tag
 from apps import models as apps_models
 from apps.models import Release
 from apps.views import _AppPageEditConfig
+from apps.templatetags import app_buttons
 
 SMALL_GIF = (
     b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x00\x00\x00\x21\xf9\x04'
@@ -650,3 +651,27 @@ class ViewsAppPageEditTestCase(TestCase):
 
         self.assertEqual(200, response.status_code)
         self.assertEqual('yyy', response.json())
+
+
+class AppButtonsTestCase(TestCase):
+
+    def setUp(self):
+        App.objects.all().delete()
+        User.objects.all().delete()
+        clear_media_root()
+
+    def tearDown(self):
+        App.objects.all().delete()
+        User.objects.all().delete()
+        clear_media_root()
+
+    def test_app_button_by_name_where_app_not_found(self):
+        res = app_buttons.app_button_by_name('noexist')
+        self.assertEqual({}, res)
+
+    def test_app_button_by_name_found_app(self):
+        appobj = App.objects.create(name='myapp', fullname='MyApp',
+                                    active=True)
+        appobj.save()
+        res = app_buttons.app_button_by_name('myapp')
+        self.assertEqual('myapp', res['app'].name)
