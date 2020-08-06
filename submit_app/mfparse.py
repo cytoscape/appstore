@@ -158,6 +158,7 @@ def _lower_version(s):
     else:
         return _parse_version(s)
 
+
 # Parses a version range.
 # Arguments:
 #  s: a version range string
@@ -176,7 +177,7 @@ def _parse_version_range(s):
         start_range = '['
         start_ver = _parse_version(start)
 
-    if end[-1] == ']' or end[-1] ==')':
+    if end[-1] == ']' or end[-1] == ')':
         end_range = end[-1]
         end_ver = _parse_version(end[:-1])
     else:
