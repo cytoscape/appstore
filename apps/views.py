@@ -337,11 +337,35 @@ def _delete_screenshot(app, request):
     screenshot.delete()
 
 def _check_editor(app, request):
+    """
+    Takes email address 'editor_email' in POST request
+    and finds the `User` with highest primary key
+    that matches the email. This search is because
+    there can be multiple users with the same email
+    so we will just take the latest user.
+
+    .. note::
+
+        This assumes that only users that actually have access to the
+        email address in question have been added to the
+        app store
+
+    :param app: The app in question (not used)
+    :param request: the POST call
+    :return: username of user
+    """
     editor_email = request.POST.get('editor_email')
     if not editor_email:
         raise ValueError('no editor_email specified')
-    user = get_object_or_none(User, email=editor_email).last()
-    return user.username if user else False
+    try:
+        user = User.objects.filter(email=editor_email).order_by('id').last()
+        if user is None:
+            return False
+        return user.username
+    except Exception as e:
+        raise ValueError('Got an exception: ' + str(e))
+    return False
+
 
 def _save_editors(app, request):
     editors_count = request.POST.get('editors_count')

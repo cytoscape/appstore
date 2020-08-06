@@ -583,3 +583,70 @@ class ViewsAppPageEditTestCase(TestCase):
                             str(response.content, 'utf-8'))
         finally:
             _AppPageEditConfig.max_img_size_b = orig_max_size
+
+    def test_check_editor_no_editor_email_specified(self):
+        appobj = App.objects.create(name='myapp', fullname='MyApp',
+                                    active=True)
+        appobj.save()
+        User.objects.create_user(username='bob', password='secret',
+                                 is_superuser=True, email='bob@bob.com')
+        res = self.client.login(username='bob', password='secret')
+        self.assertTrue(res)
+
+        header = {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'}
+        response = self.client.post('/apps/myapp/edit',
+                                    {'action': 'check_editor'},
+                                    follow=True, **header)
+
+        self.assertEqual(400, response.status_code)
+        self.assertEqual('no editor_email specified',
+                         str(response.content, 'utf-8'))
+
+    def test_check_editor_no_matching_editor(self):
+        appobj = App.objects.create(name='myapp', fullname='MyApp',
+                                    active=True)
+        appobj.save()
+        User.objects.create_user(username='bob', password='secret',
+                                 is_superuser=True, email='bob@bob.com')
+
+        res = self.client.login(username='bob', password='secret')
+        self.assertTrue(res)
+
+        header = {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'}
+        response = self.client.post('/apps/myapp/edit',
+                                    {'action': 'check_editor',
+                                     'editor_email': 'asdf@joe.com'},
+                                    follow=True, **header)
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(False, response.json())
+
+    def test_check_editor_multiple_matching_editors(self):
+        appobj = App.objects.create(name='myapp', fullname='MyApp',
+                                    active=True)
+        appobj.save()
+        User.objects.create_user(username='bob', password='secret',
+                                 is_superuser=True, email='bob@bob.com')
+
+        res = self.client.login(username='bob', password='secret')
+        self.assertTrue(res)
+
+        User.objects.create_user(username='xxx', password='secret',
+                                 is_superuser=False, email='new@new.com')
+        User.objects.create_user(username='yyy', password='secret',
+                                 is_superuser=False, email='new@new.com')
+
+        # this header lines tells the app the request is
+        # an ajax request cause the code makes the call
+        # request.is_ajax()
+        # see:
+        # https://docs.djangoproject.com/en/3.0/ref/
+        #        request-response/#django.http.HttpRequest.is_ajax
+        header = {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'}
+        response = self.client.post('/apps/myapp/edit',
+                                    {'action': 'check_editor',
+                                     'editor_email': 'new@new.com'},
+                                    follow=True, **header)
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('yyy', response.json())
