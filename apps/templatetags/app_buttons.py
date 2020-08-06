@@ -21,15 +21,13 @@ def app_button(app, order_index):
 @register.inclusion_tag('app_button.html')
 def app_button_by_name(app_name):
     try:
-        app = App.object.get(name = app_name)
-        c = {}
+        app = App.objects.get(name=app_name)
+        c = dict()
         c['app'] = app
         return c
     except:
-        app = App.get(name = app_name)
-        c = {}
-        c['app'] = app
-        return c 
+        return {}
+
 @register.inclusion_tag('app_buttons.html')
 def app_buttons(apps):
     return {'apps': list(apps)}
