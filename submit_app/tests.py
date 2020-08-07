@@ -7,6 +7,7 @@ Replace this with more appropriate tests for your application.
 import zipfile
 import io
 import tempfile
+from unittest.mock import MagicMock
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.uploadedfile import TemporaryUploadedFile
@@ -22,25 +23,36 @@ TEST_VALID_MANIFEST_ONE = b'Manifest-Version: 1.0\r\nBnd-LastModified: 159223952
 class ViewsTest(TestCase):
 
     def test_get_server_url_with_basic_http_req(self):
-        req = HttpRequest()
-        req.META['SERVER_NAME'] = 'foo.com'
-        req.META['SERVER_PORT'] = '80'
+        req = MagicMock()
+        req.META = {'SERVER_NAME': 'foo.com',
+                    'SERVER_PORT': '80'}
+        req.is_secure = MagicMock(return_value=False)
         res = views._get_server_url(req)
         self.assertEqual('http://foo.com', res)
 
     def test_get_server_url_with_http_alt_port(self):
-        req = HttpRequest()
-        req.META['SERVER_NAME'] = 'foo.com'
-        req.META['SERVER_PORT'] = '8000'
+        req = MagicMock()
+        req.META = {'SERVER_NAME': 'foo.com',
+                    'SERVER_PORT': '8000'}
+        req.is_secure = MagicMock(return_value=False)
         res = views._get_server_url(req)
         self.assertEqual('http://foo.com:8000', res)
 
     def test_get_server_url_with_https(self):
-        req = HttpRequest()
-        req.META['SERVER_NAME'] = 'foo.com'
-        req.META['SERVER_PORT'] = '443'
+        req = MagicMock()
+        req.META = {'SERVER_NAME': 'foo.com',
+                    'SERVER_PORT': '443'}
+        req.is_secure = MagicMock(return_value=True)
         res = views._get_server_url(req)
         self.assertEqual('https://foo.com', res)
+
+    def test_get_server_url_with_https_and_port(self):
+        req = MagicMock()
+        req.META = {'SERVER_NAME': 'foo.com',
+                    'SERVER_PORT': '8443'}
+        req.is_secure = MagicMock(return_value=True)
+        res = views._get_server_url(req)
+        self.assertEqual('https://foo.com:8443', res)
 
 
 class ProcessJarTest(TestCase):

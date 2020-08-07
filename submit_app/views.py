@@ -193,17 +193,16 @@ def _get_server_url(request):
     port = request.META['SERVER_PORT']
     if port == '80':
         return 'http://%s' % name
-    else:
-        # TODO investigate usage of
-        #      request.is_secure() to
-        #      determine whether https:// prefix
-        #      should be added. This is to handle
-        #      case where SSL is setup over port
-        #      other then 443
+
+    if request.is_secure():
         if port == '443':
             return 'https://' + name
         else:
-            return 'http://%s:%s' % (name, port)
+            prefix = 'https'
+    else:
+        prefix = 'http'
+
+    return '%s://%s:%s' % (prefix, name, port)
 
 def _pending_app_accept(pending, request):
     name = fullname_to_name(pending.fullname)
