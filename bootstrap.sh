@@ -122,7 +122,21 @@ cp /vagrant/appstore.http.conf /etc/apache2/sites-available/appstore.conf
 # update port to 8080 which needs to match forwarded port in Vagrantfile
 sed -i "s/@@PORT@@/8080/g" /etc/apache2/sites-available/appstore.conf
 
+# update ssl protocol
+sed -i "s/@@SSLPROTOCOL@@/All -SSLv2 -SSLv3/g" /etc/apache2/sites-available/appstore.conf
+
+# update ciphersuite
+sed -i "s/@@SSLCIPHERSUITE@@/ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK/g" /etc/apache2/sites-available/appstore.conf
+
+#
+sed -i "s/^.*SSLCertificateFile.*$/SSLCertificateFile      \/etc\/ssl\/certs\/ssl-cert-snakeoil.pem/g" /etc/apache2/sites-available/appstore.conf
+
+sed -i "s/^.*SSLCertificateKeyFile.*$/SSLCertificateKeyFile \/etc\/ssl\/private\/ssl-cert-snakeoil.key/g" /etc/apache2/sites-available/appstore.conf
+
+sed -i "s/^.*SSLCertificateChainFile.*$//g" /etc/apache2/sites-available/appstore.conf
+
 echo "Listen 8080" >> /etc/apache2/ports.conf
+a2enmod ssl
 a2dissite 000-default.conf
 a2ensite appstore.conf
 
@@ -131,7 +145,7 @@ a2ensite appstore.conf
 systemctl reload apache2
 
 echo ""
-echo "Visit http://localhost:8080"
+echo "Visit http://localhost:8080 or https://localhost:8443"
 echo ""
 echo "or to test vagrant ssh ; cd /var/www/$APPSTORE ; coverage run --source '.' manage.py test"
 echo ""
