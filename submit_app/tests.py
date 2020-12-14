@@ -164,11 +164,9 @@ class MFParseTestCase(TestCase):
         res = mfparse.max_of_lower_cytoscape_pkg_versions(the_str)
         self.assertEqual(('3', '7', None, None), res)
 
-        # TODO BUG TO FIX #88
-        # Uncomment this to see expose issue #88
-        # https://github.com/cytoscape/appstore/issues/88
-        # the_str = 'org.cytoscape.model.subnetwork;resolution:=optional;' \
-        #           'version="[3.7,4)",org.cytoscape.property;resolution:' \
-        #           '=optional;version="[3.16,4)"'
-        # res = mfparse.max_of_lower_cytoscape_pkg_versions(the_str)
-        # self.assertEqual(('3', '16', None, None), res)
+
+        the_str = 'org.cytoscape.model.subnetwork;resolution:=optional;' \
+                  'version="[3.27,4)",org.cytoscape.property;resolution:' \
+                  '=optional;version="[3.16,4)"'
+        res = mfparse.max_of_lower_cytoscape_pkg_versions(the_str)
+        self.assertEqual(('3', '27', None, None), res)

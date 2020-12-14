@@ -58,7 +58,7 @@ def _multival_dict(keysAndVals):
 # could take the form of a version range, which has this syntax:
 #   "("|"[" + lower-version + "," + upper-version + ")"|"]"
 # The problem with parsing Import-Package is that we can't just split the string by ",".
-# This is because the version attribute could have a "," if it's a version range. The 
+# This is because the version attribute could have a "," if it's a version range. The
 # function _index_of_char is used to split the string by "," while ignoring any commas
 # surrounded by quotes.
 
@@ -148,7 +148,16 @@ def _parse_version(s):
     matched = VersionRE.match(s)
     if not matched:
         return None
-    return matched.groups()
+    group = matched.group()
+    group = group.split('.')
+    n = 4
+    res = group[:n]
+    res = res + [None] * (n - len(res))
+    (major, minor, patch, tag) = res
+    major = str(major)
+    minor = str(minor) if minor else None
+    patch = str(patch) if patch else None
+    return major, minor, patch, tag
 
 # Given a string representing either a version ('3.0') or a version range ('(3.0,4]'),
 # returns lower version of the range, or just the parsed version itself.
@@ -201,7 +210,7 @@ def _lower_cytoscape_pkg_versions(s):
 # Returns None if there are no Cytoscape packages.
 def max_of_lower_cytoscape_pkg_versions(s):
     try:
-        return max(_lower_cytoscape_pkg_versions(s))
+        return max(_lower_cytoscape_pkg_versions(s), key = lambda x: [int(num) if num else 0 for num in x])
     except ValueError:
         return None
 
