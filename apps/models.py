@@ -166,7 +166,7 @@ class App(models.Model):
         :return:
         :rtype: str
         """
-        return ' '.join([c for c in self._camel_case_split(self.fullname)])
+        return ' '.join(list(self._camel_case_split(self.fullname)))
 
     @property
     def stars_percentage(self):
