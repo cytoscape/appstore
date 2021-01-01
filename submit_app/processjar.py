@@ -58,7 +58,7 @@ def process_jar(jar_file, expect_app_name):
     return app_name, app_ver, app_works_with, app_dependencies, has_export_pkg
 
 
-class Manifest(object):
+class Manifest:
 
     def __init__(self, main_section, sections):
         self.main_section = main_section
