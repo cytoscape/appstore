@@ -7,7 +7,9 @@ from django.template import RequestContext
 from django.core.serializers.json import DjangoJSONEncoder
 
 
-def html_response(template_name, context, request, processors=[]):
+def html_response(template_name, context, request, processors=None):
+    if processors is None:
+        processors = []
     rc = RequestContext(request, processors=processors)
     rc.update(context)
 
