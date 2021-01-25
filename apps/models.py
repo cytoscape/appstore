@@ -3,6 +3,7 @@ import hashlib
 import shutil
 import subprocess
 from os import mkdir, devnull
+import logging
 import os.path
 from os.path import join as pathjoin
 from urllib.parse import urljoin
@@ -10,6 +11,9 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.urls import reverse
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Author(models.Model):
@@ -364,9 +368,29 @@ class ReleaseAPI(models.Model):
         dirpath = file.path + '-extracted'
         if not os.path.exists(dirpath):
             mkdir(dirpath)
-        with open(devnull, 'w') as nullfile:
-            subprocess.call(['unzip', file.path, '-d', dirpath],
-                            stdout=nullfile, stderr=nullfile)
+
+        unzip_err = os.path.join(file.path + '.unzip.err')
+
+        ecode = 0
+        try:
+            with open(devnull, 'w') as devnull_stream:
+                with open(unzip_err, 'w') as unzip_err_stream:
+                    ecode = subprocess.call(['unzip', file.path, '-d', dirpath],
+                                            stdout=devnull_stream,
+                                            stderr=unzip_err_stream)
+            if ecode != 0:
+                e_msg = ''
+                if os.path.isfile(unzip_err):
+                    with open(unzip_err, 'r') as f:
+                        e_msg = f.read(250)
+
+                LOGGER.error('Received non zero exit code ' +
+                             str(ecode) + ' attempting to ' +
+                             'unzip file  : ' + str(file.path) +
+                             ' : ' + str(e_msg))
+        finally:
+            if os.path.exists(unzip_err):
+                os.remove(unzip_err)
 
     def delete_files(self):
         dirpath = self.javadocs_jar_file.path + '-extracted'
