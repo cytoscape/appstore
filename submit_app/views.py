@@ -2,6 +2,7 @@ from zipfile import ZipFile
 from os.path import basename
 from urllib.request import urlopen
 import re
+import logging
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
@@ -16,6 +17,10 @@ from apps.views import _parse_iso_date
 from .models import AppPending
 from .pomparse import PomAttrNames, parse_pom
 from .processjar import process_jar
+
+
+LOGGER = logging.getLogger(__name__)
+
 
 # Presents an app submission form and accepts app submissions.
 @login_required
@@ -68,8 +73,19 @@ def _user_accepted(request, pending):
     else:
         return html_response('submit_done.html', {'app_name': pending.fullname}, request)
 
+
 def confirm_submission(request, id):
-    pending = get_object_or_404(AppPending, id = int(id))
+    """
+    Loads AppPending object corresponding to 'id' passed in and
+    verifies user is allowed to view this page and if
+    the pom.xml file is found it is examined and key attributes
+    are returned
+
+    :param request:
+    :param id: id of AppPending entry in database
+    :return: html response
+    """
+    pending = get_object_or_404(AppPending, id=int(id))
     if not pending.can_confirm(request.user):
         return HttpResponseForbidden('You are not authorized to view this page')
     action = request.POST.get('action')
@@ -80,25 +96,56 @@ def confirm_submission(request, id):
             return _user_accepted(request, pending)
     pom_attrs = None
     if pending.pom_xml_file:
-        pending.pom_xml_file.open(mode = 'r')
+        pending.pom_xml_file.open(mode='r')
         pom_attrs = parse_pom(pending.pom_xml_file)
         pending.pom_xml_file.close()
-    return html_response('confirm.html', {'pending': pending, 'pom_attrs': pom_attrs}, request)
+    return html_response('confirm.html',
+                         {'pending': pending,
+                          'pom_attrs': pom_attrs},
+                         request)
 
-def _create_pending(submitter, fullname, version, cy_works_with, app_dependencies, release_file):
+
+def _create_pending(submitter, fullname, version, cy_works_with,
+                    app_dependencies, release_file):
+    """
+    Creates an AppPending object with information passed in and
+    saves it to the database
+
+    :param submitter: User that made request.
+    :param fullname: Full name of app
+    :type fullname: str
+    :param version:
+    :type version: str
+    :param cy_works_with:
+    :type cy_works_with: str
+    :param app_dependencies: Release objects
+    :type app_dependencies: list
+    :param release_file: release jar file
+    :type :py:class:`django.core.files.base.File`
+    :return: Pending App object
+    :rtype :py:class:`submit_app.models.AppPending`
+    :raises ValueError: If App already exists and 'submitter' is not allowed
+                        to edit. Will also be raised if Release matching name
+                        exists that is active.
+    """
     name = fullname_to_name(fullname)
-    app = get_object_or_none(App, name = name)
+    app = get_object_or_none(App, name=name)
     if app:
         if not app.is_editor(submitter):
-            raise ValueError('cannot be accepted because you are not an editor')
-        release = get_object_or_none(Release, app = app, version = version)
+            raise ValueError('cannot be accepted because you are not '
+                             'an editor')
+        release = get_object_or_none(Release, app=app, version=version)
         if release and release.active:
-            raise ValueError('cannot be accepted because the app %s already has a release with version %s. You can delete this version by going to the Release History tab in the app edit page' % (app.fullname, version))
+            raise ValueError('cannot be accepted because the app %s already'
+                             ' has a release with version %s. You can delete '
+                             'this version by going to the Release History '
+                             'tab in the app edit page' % (app.fullname,
+                                                           version))
 
-    pending = AppPending.objects.create(submitter      = submitter,
-                                        fullname       = fullname,
-                                        version        = version,
-                                        cy_works_with  = cy_works_with)
+    pending = AppPending.objects.create(submitter=submitter,
+                                        fullname=fullname,
+                                        version=version,
+                                        cy_works_with=cy_works_with)
     for dependency in app_dependencies:
         pending.dependencies.add(dependency)
     pending.release_file.save(basename(release_file.name), release_file)
@@ -119,50 +166,96 @@ The following app has been submitted:
            submitter_email=pending.submitter.email)
     send_mail('Cytoscape App Store - App Submitted', msg, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
 
+
 def _verify_javadocs_jar(file):
+    """
+    Checks if 'file' passed in is a valid zip file by attempting to load
+    it via ZipFile and verify there are no paths that start with / or
+    have .. anywhere in the path
+
+    :param file: file like object
+    :return: None if 'file' is valid zip file otherwise str with error
+    :rtype str
+    """
     error_msg = None
-    file.open(mode = 'rb')
     try:
         zip = ZipFile(file, 'r')
         for name in zip.namelist():
             pathpieces = name.split('/')
             if name.startswith('/') or '..' in pathpieces:
-                error_msg = 'The zip archive has a file path that is illegal: %s' % name
+                error_msg = 'The zip archive has a file ' \
+                            'path that is illegal: %s' % name
                 break
         zip.close()
-    except:
-        error_msg = 'The Javadocs Jar file you submitted is not a valid jar/zip file'
-    file.close()
+    except Exception:
+        error_msg = 'The Javadocs Jar file you submitted is ' \
+                    'not a valid jar/zip file'
     return error_msg
 
+
 def submit_api(request, id):
-    pending = get_object_or_404(AppPending, id = int(id))
+    pending = get_object_or_404(AppPending, id=int(id))
     if not pending.can_confirm(request.user):
         return HttpResponseForbidden('You are not authorized to view this page')
 
     error_msg = None
-    if request.POST.get('dont_submit') != None:
-        return HttpResponseRedirect(reverse('confirm-submission', args=[pending.id]))
-    elif request.POST.get('submit') != None:
+
+    if request.POST.get('dont_submit') is not None:
+        return HttpResponseRedirect(reverse('confirm-submission',
+                                            args=[pending.id]))
+    if request.POST.get('submit') is not None:
         pom_xml_f = request.FILES.get('pom_xml')
         javadocs_jar_f = request.FILES.get('javadocs_jar')
         if pom_xml_f and javadocs_jar_f:
-            if not error_msg:
-                pom_xml_f.open(mode = 'r')
+            try:
+                # verify pom.xml file has appropriate attributes
+                pom_xml_f.open(mode='r')
                 pom_attrs = parse_pom(pom_xml_f)
                 if len(pom_attrs) != len(PomAttrNames):
-                    error_msg = 'pom.xml is not valid; it must have these tags under &lt;project&gt;: ' + ', '.join(PomAttrNames)
-                pom_xml_f.close()
+                    error_msg = str(pom_xml_f.name) +\
+                                ' is not valid; it must have these ' \
+                                'tags under &lt;project&gt;: ' +\
+                                ', '.join(PomAttrNames)
 
-            if not error_msg:
-                error_msg = _verify_javadocs_jar(javadocs_jar_f)
+                if not error_msg:
+                    # no error earlier so check the javadoc jar file
+                    javadocs_jar_f.open(mode='r')
+                    error_msg = _verify_javadocs_jar(javadocs_jar_f)
 
-            if not error_msg:
-                pending.pom_xml_file.save(basename(pom_xml_f.name), pom_xml_f)
-                pending.javadocs_jar_file.save(basename(javadocs_jar_f.name), javadocs_jar_f)
-                return HttpResponseRedirect(reverse('confirm-submission', args=[pending.id]))
+                if not error_msg:
+                    # success cause we did not get any errors
+                    # save the pom.xml and javadoc jar file and
+                    # redirect to confirm submission
+                    pom_xml_f.open(mode='r')
+                    javadocs_jar_f.open(mode='r')
+                    pending.pom_xml_file.save(basename(pom_xml_f.name),
+                                              pom_xml_f)
+                    pending.javadocs_jar_file.save(basename(javadocs_jar_f.name),
+                                                   javadocs_jar_f)
+                    return HttpResponseRedirect(reverse('confirm-submission',
+                                                        args=[pending.id]))
+            finally:
+                # attempt to close the pom.xml and javadocjar files
+                try:
+                    pom_xml_f.close()
+                except Exception as e:
+                    LOGGER.info('Not critical, but caught exception '
+                                'attempting to close pom.xml file : ' +
+                                str(e))
+                try:
+                    javadocs_jar_f.close()
+                except Exception as e:
+                    LOGGER.info('Not critical, but caught exception '
+                                'attempting to close javadoc jar file : ' +
+                                str(e))
 
-    return html_response('submit_api.html', {'pending': pending, 'error_msg': error_msg}, request)
+    # If something went wrong, the error is in error_msg
+    # otherwise 'submit' was not in POST so nothing changed
+    return html_response('submit_api.html',
+                         {'pending': pending,
+                          'error_msg': error_msg},
+                         request)
+
 
 def _send_email_for_accepted_app(to_email, from_email, app_fullname, app_name, server_url):
     subject = u'Cytoscape App Store - {app_fullname} Has Been Approved'.format(app_fullname = app_fullname)
