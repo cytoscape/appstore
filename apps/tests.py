@@ -410,6 +410,7 @@ class ReleaseAPITestCase(TestCase):
                                                javadocs_jar_file=javadocjar)
             repapi.save()
             repapi.extract_javadocs_jar()
+
             extract_dir = os.path.join(settings.MEDIA_ROOT, 'myapp',
                                        'releases', '1.0', 'foo.jar-extracted')
             jfile = os.path.join(settings.MEDIA_ROOT, 'myapp',
@@ -441,6 +442,7 @@ class ReleaseAPITestCase(TestCase):
                                            javadocs_jar_file=javadocjar)
         repapi.save()
         repapi.extract_javadocs_jar()
+
         extract_dir = os.path.join(settings.MEDIA_ROOT, 'myapp',
                                    'releases', '1.0', 'foo.jar-extracted')
         self.assertTrue(os.path.isdir(extract_dir))
