@@ -158,7 +158,7 @@ class Command(BaseCommand):
             app_set.add(cur_app.name)
         return len(app_set)
 
-    def get_count_of_new_apps(self, start_date=None, end_date=None):
+    def get_new_apps(self, start_date=None, end_date=None):
         """
         Gets count of new apps by looking at created timestamp on
         releases. An App is considered new in the date range when its
@@ -180,7 +180,7 @@ class Command(BaseCommand):
                                       created__lt=end_date).count() == 0:
                 continue
             app_set.add(a_app.name)
-        return len(app_set)
+        return app_set
 
     def add_arguments(self, parser):
         """
@@ -201,6 +201,9 @@ class Command(BaseCommand):
         parser.add_argument('--emailreport', default=None,
                             help='If set, sends report via email to comma delimited '
                                  'recipients using Django configuration')
+        parser.add_argument('--newappcontacts', action='store_true',
+                            help='If set, includes a list of new apps and'
+                                 'their authors with contact info')
 
     def get_start_and_end_date(self, window=None,
                                end_date=None):
@@ -216,7 +219,8 @@ class Command(BaseCommand):
 
     def get_report_as_str(self, start_date=None,
                           end_date=None, num_days=None,
-                          time_str=datetime.today().strftime('%Y-%m-%d %H:%M:%S')):
+                          time_str=datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
+                          new_app_contacts=False):
         """
 
         :param start_date:
@@ -246,8 +250,11 @@ class Command(BaseCommand):
                                                               end_date)
         res += '\t' + str(update_app_cnt) + ' Apps were updated\n'
 
-        new_app_cnt = self.get_count_of_new_apps(start_date=start_date,
-                                                 end_date=end_date)
+        new_app_cnt = 0
+        new_apps = self.get_new_apps(start_date=start_date,
+                                     end_date=end_date)
+        if new_apps is not None:
+            new_app_cnt = len(new_apps)
         res += '\t' + str(new_app_cnt) + ' new Apps\n'
 
         total_downloads = self.get_downloads_for_apps(start_date,
@@ -255,6 +262,39 @@ class Command(BaseCommand):
         res += '\t' + str(total_downloads) + ' (' +\
                str(round((float(total_downloads) / float(num_days)))) +\
                ' per day) App downloads\n'
+
+        if new_app_contacts is not None and new_app_contacts is True:
+            # iterate through apps and get authors and their email
+            # addresses
+            res += self.get_new_app_contacts(new_apps)
+
+        return res
+
+    def get_new_app_contacts(self, new_apps):
+        """
+
+        :param new_apps: name of apps that are new
+        :type new_apps: list
+        :return:
+        """
+        res = '\n'
+
+        for app_name in new_apps:
+            app = App.objects.filter(name=app_name)[0]
+            res += 'App:'
+            res += '\t' + str(app.fullname) + ' (' + str(app_name) + ')'
+            if app.citation is not None:
+                res += ' citation: ' + app.citation + '\n'
+            else:
+                res += '\n'
+
+            res += 'Authors:\n'
+            for auth in app.authors.all():
+                # auth = Author.objects.filter(id=o_a.author.id)[0]
+                res += '\t' + str(auth.name) + '\n'
+            res += 'Editors:\n'
+            for u in app.editors.all():
+                res += '\t<' + str(u.first_name) + ' ' + str(u.last_name) + '> ' + str(u.email) + '\n'
         return res
 
     def handle(self, *args, **options):
@@ -272,7 +312,8 @@ class Command(BaseCommand):
 
         time_str = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
         report_str = self.get_report_as_str(start_date=start_date, end_date=end_date,
-                                            num_days=num_days, time_str=time_str)
+                                            num_days=num_days, time_str=time_str,
+                                            new_app_contacts=options['newappcontacts'])
         self.stdout.write(report_str)
 
         if options['emailreport'] is None:
