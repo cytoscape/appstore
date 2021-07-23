@@ -54,6 +54,27 @@ ldconfig
 
 pip install -r /vagrant/requirements.txt
 
+
+# Ran into error when trying to call python manage.py scripts on 7-23-2021
+#
+#   File "/opt/miniconda3/lib/python3.9/site-packages/social_django/models.py", line 11, in <module>
+#    from .storage import DjangoUserMixin, DjangoAssociationMixin, \
+#  File "/opt/miniconda3/lib/python3.9/site-packages/social_django/storage.py", line 9, in <module>
+#    from social_core.storage import UserMixin, AssociationMixin, NonceMixin, \
+#  File "/opt/miniconda3/lib/python3.9/site-packages/social_core/storage.py", line 9, in <module>
+#    from openid.association import Association as OpenIdAssociation
+#  File "/opt/miniconda3/lib/python3.9/site-packages/openid/__init__.py", line 52, in <module>
+#    if len(version_info) != 3:
+# TypeError: object of type 'map' has no len()
+#
+# Found fix was to remove python-openid and python3-openid and install python3-openid again
+#
+pip uninstall python-openid -y
+pip uninstall python3-openid -y
+
+pip install python3-openid
+
+
 # for code coverage
 pip install coverage
 
