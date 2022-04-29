@@ -67,7 +67,7 @@ class Command(BaseCommand):
         :return:
         :rtype: int
         """
-        return App.objects.filter(active=1).count()
+        return App.objects.filter(active=1, has_releases=True).count()
 
     def get_number_of_users(self):
         """
