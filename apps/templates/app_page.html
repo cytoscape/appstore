@@ -5,11 +5,13 @@
 {% block more_head %}
 <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_page.css" />
 <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_stars.css" />
+<link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/js4cytoscape-style.css" />
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/jquery.timeago.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/Markdown.Converter.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/Markdown.Sanitizer.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/js/setup_ajax_for_csrf.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/js/markdown_util.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}apps/js/js4cytoscape-dev.js"></script>
 {% endblock %}
 
 {% block title %}- {{ app.fullname }}{% endblock %}
@@ -281,7 +283,8 @@
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
 			<p><strong>Released</strong> {{ cy3_latest_release.created|date:'j M Y' }}</p>
 			<p><strong>Works with</strong> <a href="http://www.cytoscape.org" target="_blank">Cytoscape {{ cy3_latest_release.works_with }}</a></p>
-			<p><strong>Download Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a>
+			<p><strong>Download Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
+			<span class="cytoscape-badge"></span>
 		</div>
 		{% endif %}
 		{# end 3.0 download panel #}
@@ -427,6 +430,7 @@
 <script type="text/javascript" src="{% get_static_prefix %}apps/js/app_page.js"></script>
 	
 <script type="text/javascript">
+window.onload = cyBadge();
 $('.has-tooltip').tooltip();
 {% if app.has_releases %}
 AppPage.setup_install("{{ app.name|escapejs }}",
