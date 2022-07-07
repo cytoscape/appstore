@@ -164,7 +164,10 @@ The following app has been submitted:
 """.format(id=pending.id, server_url=server_url, fullname=pending.fullname,
            version=pending.version, submitter_name=pending.submitter.username,
            submitter_email=pending.submitter.email)
-    send_mail('Cytoscape App Store - App Submitted', msg, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
+    try:
+        send_mail('Cytoscape App Store - App Submitted', msg, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
+    except Exception as e:
+        LOGGER.exception('Error sending email for pending App')
 
 
 def _verify_javadocs_jar(file):
