@@ -69,6 +69,10 @@ coverage: build ## check code coverage
 build: ## Build app database and static content in build directory
 	mkdir -p build/whoosh_index
 	mkdir -p build/media
+	# should fix errors upon calling python manage.py commands
+	pip uninstall python-openid -y
+	pip uninstall python3-openid -y
+	pip install python3-openid
 	python manage.py makemigrations apps --noinput
 	python manage.py makemigrations backend --noinput
 	python manage.py makemigrations download --noinput
