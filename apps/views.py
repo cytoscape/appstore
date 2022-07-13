@@ -505,10 +505,6 @@ def app_page_edit(request, app_name):
             result = _AppEditActions[action](app, request)
         except ValueError as e:
             return HttpResponseBadRequest(str(e))
-        # check for license_text being an ssl url if requested license confirmation
-        if app.license_confirm == True:
-            if not str(app.license_text).startswith("https://"):
-                return HttpResponseBadRequest('"%s" must start with "https://", since license_confirm is true' % (app.license_text))
         app.save()
         if request.is_ajax():
             return json_response(result)
