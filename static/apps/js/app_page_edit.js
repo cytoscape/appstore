@@ -709,7 +709,7 @@ var AppPageEdit = (function($)
         'delete_screenshots': function(delete_screenshots) {
             return delete_screenshots.map(function(screenshot_id) {
                 return {
-                    'msg': 'Deleteing screenshot ' + screenshot_id,
+                    'msg': 'Deleting screenshot ' + screenshot_id,
                     'data': {
                         'action': 'delete_screenshot',
                         'screenshot_id': screenshot_id
@@ -857,6 +857,33 @@ var AppPageEdit = (function($)
             }
             all_valid &= valid;
         });
+
+        // Get the license fieldset
+        var license_fieldset = $('#cy-app-license-text');
+        // is Require confirmation checked?
+        var isconfirmed = $(license_fieldset).find('input[type=checkbox]').is(':checked');
+
+        if (isconfirmed === true){
+            // get the license field value
+            var license_val = $(license_fieldset).find('input[type=text]').val();
+            var valid = true;
+            if (license_val === null || license_val.trim().length == 0){
+               valid = false;
+            }else {
+               var regexp = new RegExp('^\\s*http:\/\/.*$');
+               if (regexp.test(license_val) == true){
+                   valid = false;
+               }
+            }
+            if (valid === false){
+                $(license_fieldset).addClass('error');
+            } else {
+                $(license_fieldset).removeClass('error');
+            }
+            all_valid &= valid;
+        } else {
+            $(license_fieldset).removeClass('error')
+        }
         
         if (!all_valid)
             CyMsgs.add_msg('Whoops! Please fix the fields in red. Once you\'re done, click Save again.', 'error', 'save');
