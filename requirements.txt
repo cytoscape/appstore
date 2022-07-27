@@ -1,5 +1,4 @@
 django==3.2.14  # requires django.utils.importlib
-python-geoip
 django-social-auth==0.7.28
 social-auth-app-django==4.0.0
 sphinx
@@ -8,6 +7,10 @@ Whoosh==2.7.4
 django-haystack==3.2.1
 Pillow
 gevent
+
+# This does not appear to be used anymore and it is
+# causing travis builds to fail
+# python-geoip
 
 # With Django 2.2.12 PyMySQL is no longer an option
 # since it doesn't meet the 1.3.12 version requirement
