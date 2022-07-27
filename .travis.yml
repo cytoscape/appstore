@@ -4,6 +4,7 @@ python:
 install:
   - pip install -U pip
   - pip install -U setuptools
+  - pip install -U importlib-metadata
   - pip install -r requirements.txt
 script:
   - make test
