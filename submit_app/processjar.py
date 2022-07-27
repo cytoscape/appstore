@@ -3,7 +3,7 @@ import logging
 from zipfile import ZipFile, BadZipfile
 from .mfparse import max_of_lower_cytoscape_pkg_versions, parse_app_dependencies
 from apps.models import App, Release, VersionRE
-from django.utils.encoding import smart_text
+from django.utils.encoding import smart_str
 from util.view_util import get_object_or_none
 
 _MANIFEST_FILE_NAME = 'META-INF/MANIFEST.MF'
@@ -43,11 +43,11 @@ def process_jar(jar_file, expect_app_name):
     parser_func = _parse_osgi_bundle # if is_osgi_bundle else _parse_simple_app
     app_name, app_ver, app_works_with, app_dependencies, has_export_pkg = parser_func(manifest)
 
-    app_name = smart_text(app_name, errors='replace')
+    app_name = smart_str(app_name, errors='replace')
     if expect_app_name and (not app_name == expect_app_name):
         raise ValueError('has app name as <tt>%s</tt> but must be <tt>%s</tt>' % (app_name, expect_app_name))
-    app_ver = smart_text(app_ver, errors='replace')
-    app_works_with = smart_text(app_works_with, errors='replace')
+    app_ver = smart_str(app_ver, errors='replace')
+    app_works_with = smart_str(app_works_with, errors='replace')
 
     try:
         app_dependencies = list(_app_dependencies_to_releases(app_dependencies))
