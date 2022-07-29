@@ -12,12 +12,11 @@ apt-get -y install libjpeg8-dev
 # not sure if this is needed anymore
 apt-get -y install geoip-database
 
-# install miniconda3
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-chmod a+x Miniconda3-latest-Linux-x86_64.sh
-
-./Miniconda3-latest-Linux-x86_64.sh -p /opt/miniconda3 -b
-rm ./Miniconda3-latest-Linux-x86_64.sh
+# install miniconda 3 with python 3.7
+# to try newer versions just pick newer version of miniconda
+wget https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.3-Linux-x86_64.sh
+chmod a+x Miniconda*sh
+./Miniconda*.sh -p /opt/miniconda3 -b
 
 # set path to miniconda -- should really add to /etc/profile.d so everyone gets it
 export PATH=/opt/miniconda3/bin:$PATH
