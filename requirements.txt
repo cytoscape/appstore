@@ -1,4 +1,4 @@
-django==3.2.14  # requires django.utils.importlib
+django==3.2.15  # requires django.utils.importlib
 django-social-auth==0.7.28
 social-auth-app-django==4.0.0
 sphinx
