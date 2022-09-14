@@ -123,10 +123,10 @@ var AppPage = (function($) {
                 set_install_btn_to_installing();
                 install_app(app_name, latest_release_version, function(result) {
                     if (result) {
-                        CyMsgs.add_msg(result['name'] + ' has been installed! Go to Cytoscape to use it.', 'success');
+                        CyMsgs.add_msg(app_name + ' has been installed! Go to Cytoscape to use it.', 'success');
                         set_install_btn_to_installed();
                     } else {
-                        CyMsgs.add_msg('Could not install &ldquo;' + result['name'] + '&rdquo; app: <tt>' + result['install_status'] + '</tt>', 'error');
+                        CyMsgs.add_msg('Could not install &ldquo;' + app_name + '&rdquo; app: <tt>' + result['install_status'] + '</tt>', 'error');
                         set_install_btn_to_install(app_name, latest_release_version);
                     }
                 });
@@ -143,10 +143,10 @@ var AppPage = (function($) {
                 set_install_btn_to_upgrading();
                 install_app(app_name, latest_release_version, function(result) {
                     if (result) {
-                        CyMsgs.add_msg(result['name'] + ' has been updated! Go to Cytoscape to use it.', 'success');
+                        CyMsgs.add_msg(app_name + ' has been updated! Go to Cytoscape to use it.', 'success');
                         set_install_btn_to_installed();
                     } else {
-                        CyMsgs.add_msg('Could not update &ldquo;' + result['name'] + '&rdquo; app: <tt>' + result['install_status'] + '</tt>', 'error');
+                        CyMsgs.add_msg('Could not update &ldquo;' + app_name + '&rdquo; app: <tt>' + result['install_status'] + '</tt>', 'error');
                         set_install_btn_to_install(app_name, latest_release_version);
                     }
                 });
