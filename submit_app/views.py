@@ -282,7 +282,11 @@ the top-right.
 
 - Cytoscape App Store Team
 """.format(app_url = app_url, author_email = to_email, server_url = server_url)
-    send_mail(subject, msg, from_email, (to_email,))
+    try:
+        send_mail(subject, msg, from_email, (to_email,))
+    except Exception as e:
+        LOGGER.exception('Error sending email for pending App')
+
 
 def _get_server_url(request):
     name = request.META['SERVER_NAME']
