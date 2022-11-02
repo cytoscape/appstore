@@ -7,6 +7,13 @@ var AppPage = (function($) {
 
     var AppManagerURL = 'http://127.0.0.1:1234/v1';
 
+    var inCybrowser;
+       if(!window.navigator.userAgent.includes('CyBrowser')){
+           inCybrowser = false;
+       } else {
+           inCybrowser = true;
+       }
+
     function is_manager_running(callback) {
         $.ajax(AppManagerURL, {
             'type': 'GET',
@@ -63,8 +70,12 @@ var AppPage = (function($) {
                         callback(false);
                     }
                 },
-                'error': function() {
+                'error': function() { if (inCybrowser) {
+                    cybrowser.executeCyCommand('apps install app=' + app_name);
+                    callback(true);
+                } else {
                     callback(false);
+                  }
                 }
             },
             callback);
@@ -121,6 +132,7 @@ var AppPage = (function($) {
         setup_install_btn('btn-info', 'icon-cy-install-install', 'Install',
             function() {
                 set_install_btn_to_installing();
+                //cybrowser.executeCyCommand('apps install app=stringApp');
                 install_app(app_name, latest_release_version, function(result) {
                     if (result) {
                         CyMsgs.add_msg(app_name + ' has been installed! Go to Cytoscape to use it.', 'success');
@@ -161,7 +173,7 @@ var AppPage = (function($) {
         set_install_btn_to_download(latest_release_url);
 
         is_manager_running(function(is_running) {
-            if (is_running) {
+            if (is_running || inCybrowser) {
                 get_app_status(app_fullname, function(app_status) {
                     if (!app_status) {
                         set_install_btn_to_install(app_fullname, latest_release_version);
