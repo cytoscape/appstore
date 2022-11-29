@@ -10,6 +10,7 @@ from util.view_util import json_response, html_response, obj_to_dict, get_object
 from util.img_util import scale_img
 from util.id_util import fullname_to_name
 from apps.models import Tag, App, Author, OrderedAuthor, Screenshot, Release
+from django.views.decorators.csrf import csrf_exempt
 
 # Returns a unicode string encoded in a cookie
 def _unescape_and_unquote(s):
@@ -210,7 +211,7 @@ _AppActions = {
     'ratings_delete_all':  _app_ratings_delete_all,
 }
 
-
+@csrf_exempt
 def app_page(request, app_name):
     app = get_object_or_404(App, active=True, name=app_name)
     user = request.user if request.user.is_authenticated else None
