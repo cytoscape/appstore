@@ -491,6 +491,7 @@ _AppEditActions = {
 }
 
 @login_required
+@csrf_exempt
 def app_page_edit(request, app_name):
     app = get_object_or_404(App, active = True, name = app_name)
     if not app.is_editor(request.user):
