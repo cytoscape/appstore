@@ -18,6 +18,7 @@ from .models import AppPending
 from .pomparse import PomAttrNames, parse_pom
 from .processjar import process_jar
 
+from django.views.decorators.csrf import csrf_exempt
 
 LOGGER = logging.getLogger(__name__)
 
@@ -304,6 +305,7 @@ def _get_server_url(request):
 
     return '%s://%s:%s' % (prefix, name, port)
 
+@csrf_exempt
 def _pending_app_accept(pending, request):
     name = fullname_to_name(pending.fullname)
     # we always create a new app, because only new apps require accepting
@@ -329,6 +331,7 @@ _PendingAppsActions = {
 }
 
 @login_required
+@csrf_exempt
 def pending_apps(request):
     if not request.user.is_staff:
         return HttpResponseForbidden()
