@@ -183,7 +183,7 @@ $.get('{% get_static_prefix %}submit_app/html/cy2x_plugins.tmpl.html', function(
       var plugin = plugins[fullname];
       $.post('', {'action': 'app_info', 'app_fullname': fullname}, function(app_info) {
         var tmpl = app_info.exists ? $('#existing-app-tmpl') : $('#new-app-tmpl');
-        plugin['app_page_url'] = 'http://apps.cytoscape.org' + app_info['url'];
+        plugin['app_page_url'] = 'https://apps.cytoscape.org' + app_info['url'];
         $('#app-info').empty().append(tmpl.tmpl(plugin));
         $('#accept-btn').click(function() {
           var btn = $(this);
