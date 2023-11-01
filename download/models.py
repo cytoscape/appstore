@@ -1,5 +1,5 @@
 from django.db.models import Model, CharField, PositiveIntegerField
-from django.db.models import ForeignKey, DateField
+from django.db.models import ForeignKey, DateField, UniqueConstraint
 from apps.models import App, Release
 from django.db import models
 from util.view_util import ipaddr_long_to_str
@@ -22,6 +22,11 @@ class ReleaseDownloadsByDate(Model):
     when = DateField()
     count = PositiveIntegerField(default=0)
 
+    class Meta:
+        constraints = [
+            UniqueConstraint(fields=['release', 'when'], name='unique_by_date')
+        ]
+
     def __unicode__(self):
         return unicode(self.release) + u' ' + unicode(self.when) + u': ' +\
                unicode(self.count)
@@ -40,6 +45,11 @@ class AppDownloadsByGeoLoc(Model):
     app = ForeignKey(App, null=True, on_delete=models.CASCADE)  # null app has total count across a given geoloc
     geoloc = ForeignKey(GeoLoc, on_delete=models.CASCADE)
     count = PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(fields=['app', 'geoloc'], name='unique_by_geoloc')
+        ]
 
     def __unicode__(self):
         return unicode(self.app) + u' ' + unicode(self.geoloc) + u': ' +\
