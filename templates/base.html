@@ -19,16 +19,14 @@
   <title>Cytoscape App Store {% block title %}{% endblock %}</title>
 
   {# Google Analytics Snippet #}
-  <script type="text/javascript">
-    var _gaq = _gaq || [];
-    _gaq.push(['_setAccount', 'UA-155159-10']);
-    _gaq.push(['_trackPageview']);
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-P4QLZB5B8W"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
 
-    (function() {
-      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-    })();
+    gtag('config', 'G-P4QLZB5B8W');
   </script>
   {# End of Google Analytics Snippet #}
 </head>
