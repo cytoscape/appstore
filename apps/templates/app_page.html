@@ -278,6 +278,7 @@
 				<i></i> {# <-- download button icon will go here #}
 				<h4></h4> {# <-- download button text will go here #}
 			</button>
+			<p id="downloadLink" style="display: none; font-size: 9px;">Or, for JAR file, click <a href= "{% url 'release_download' app.name cy3_latest_release.version %}">here</a> to download</p>
 			<p><strong>Version</strong> {{ cy3_latest_release.version }}</p>
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
 			<p><strong>Released</strong> {{ cy3_latest_release.created|date:'j M Y' }}</p>
@@ -430,6 +431,7 @@
 	
 <script type="text/javascript">
 window.onload = cyBadge();
+window.onload = cyDownload();
 $('.has-tooltip').tooltip();
 {% if app.has_releases %}
 AppPage.setup_install("{{ app.name|escapejs }}",
