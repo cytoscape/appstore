@@ -53,3 +53,23 @@ async function cyrestGET(operation = '', parameters = '', baseUrl = defaultBaseU
       const json = await res.json();
       return json;
 }
+
+
+async function cyDownload() {
+  cyrunning = false;
+  try {
+    cyversion = await cyrestGET('version');
+    cyrunning = true;
+    console.log('cytoscape v' + cyversion["cytoscapeVersion"] + ' is running');
+  } catch(err){
+    cyrunning = false;
+    console.log('cytoscape is not running');
+  }
+
+  if(cyrunning) {
+    document.getElementById('downloadLink').style.display = 'block'; // Adjust display style as needed
+} else {
+    document.getElementById('downloadLink').style.display = 'none';
+  }
+}
+
