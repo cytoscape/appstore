@@ -11,7 +11,9 @@ from util.img_util import scale_img
 from util.id_util import fullname_to_name
 from apps.models import Tag, App, Author, OrderedAuthor, Screenshot, Release
 from django.views.decorators.csrf import csrf_exempt
-
+from datetime import datetime, timedelta
+from django.shortcuts import render
+from .models import App
 # Returns a unicode string encoded in a cookie
 def _unescape_and_unquote(s):
     if not s: return s
@@ -116,13 +118,24 @@ def all_apps_newest(request):
 
 
 def all_apps_downloads(request):
-    apps = App.objects.filter(active=True).order_by('downloads').reverse()
-    c = {
+    # Calculate the date 24 months ago from today
+    last_24_months_date = datetime.now() - timedelta(days=24*30)  # Assuming a month is 30 days for simplicity
+
+    # Filter App objects by active status and downloads within the last 24 months
+    apps = App.objects.filter(
+        active=True,
+        downloaded_at__gte=last_24_months_date
+    ).order_by('-downloads')[:_DefaultConfig.num_of_top_apps]
+
+    # Prepare context dictionary to pass data to the template
+    context = {
         'apps': apps,
         'navbar_selected_link': 'all',
-        'go_back_to': 'All Apps',
+        'go_back_to': 'All Apps'
     }
-    return html_response('all_apps.html', c, request, processors = (_nav_panel_context, ))
+
+    # Render the 'all_apps.html' template with the context data
+    return render(request, 'all_apps.html', context)
 
 def wall_of_apps(request):
     nav_panel_context = _nav_panel_context(request)
