@@ -100,7 +100,7 @@ class Command(BaseCommand):
             app_authors_all = app.authors.all()
             if len(app_authors_all) == 0:
                 continue
-            report_str += '\n' + str(app.name) + '\n' + '=' * len(str(app.name)) + '\n'
+            report_str += '\n' + str(app.name) + '(' + str(app.downloads) + ')' + '\n' + '=' * len(str(app.name)) + '\n'
             for auth_item in app_authors_all:
                 report_str += '\t' + str(auth_item.name)
                 unique_authors.add(auth_item.name)
