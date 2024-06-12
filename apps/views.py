@@ -40,13 +40,7 @@ def _nav_panel_context(request):
     all_tags = _all_tags_of_count(_NavPanelConfig.min_tag_count)
     sorted_tags = sorted(all_tags, key=lambda tag: tag.count)
     sorted_tags.reverse()
-    try:
-        tag = get_object_or_404(Tag, name = 'collections')
-        idx = sorted_tags.index(tag)
-        sorted_tags.pop(idx)
-        sorted_tags.insert(0, tag)
-    except Http404:
-        idx = 0
+
     if len(sorted_tags) > 0:
         max_count = sorted_tags[0].count
         min_count = sorted_tags[-1].count
