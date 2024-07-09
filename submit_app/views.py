@@ -369,6 +369,7 @@ def _url_exists(url):
         pass
     return False
 
+@csrf_exempt
 def artifact_exists(request):
     if request.method != 'POST':
         return HttpResponseBadRequest('no data')
