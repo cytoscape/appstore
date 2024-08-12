@@ -1,20 +1,16 @@
 #!/usr/bin/env bash
 
 # update apt database
-apt-get update
+dnf update
 
 # install base packages
-apt-get -y install apache2 apache2-dev apache2-utils ssl-cert wget unzip
-apt-get -y install libapache2-mod-wsgi-py3 gcc g++
-apt-get -y install mysql-server
-apt-get -y install libjpeg8-dev
+dnf install -y epel-release setroubleshoot wget httpd httpd-devel lsof unzip mysql-server mod_ssl python3-mod_wsgi openssl-devel bzip2-devel libffi-devel zlib-devel make libjpeg-turbo-devel gcc
+dnf install -y certbot python3-certbot-apache
 
-# not sure if this is needed anymore
-apt-get -y install geoip-database
 
-# install miniconda 3 with python 3.7
+# install miniconda 3 with python 3.11
 # to try newer versions just pick newer version of miniconda
-wget https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.3-Linux-x86_64.sh
+wget https://repo.anaconda.com/miniconda/Miniconda3-py311_24.5.0-0-Linux-x86_64.sh
 chmod a+x Miniconda*sh
 ./Miniconda*.sh -p /opt/miniconda3 -b
 
@@ -34,19 +30,20 @@ pip install mod_wsgi
 # https://ostrokach.gitlab.io/post/apache-django-anaconda/
 #
 
+
 # update wsgi.conf configuration
-WSGI_CONF="/etc/apache2/mods-available/wsgi.conf"
+WSGI_CONF="/etc/httpd/conf.d/wsgi.conf"
 SITE_PKG=`find /opt/miniconda3 -regex "/opt/miniconda3/lib/python.*/site-packages$" -type d 2> /dev/null`
-echo "<IfModule mod_wsgi.c>" > $WSGI_CONF
+
+echo "<IfModule !wsgi_module>" > $WSGI_CONF
 echo "   WSGIPythonHome /opt/miniconda3" >> $WSGI_CONF
 echo "   WSGIPythonPath $SITE_PKG" >> $WSGI_CONF
 echo "</IfModule>" >> $WSGI_CONF
 
-# update wsgi.load file
-mod_wsgi-express install-module | egrep "^LoadModule" > /etc/apache2/mods-available/wsgi.load
 
-# enable wsgi
-a2enmod wsgi
+# update wsgi.load file
+mod_wsgi-express install-module | egrep "^LoadModule" > /etc/httpd/conf.modules.d/10-wsgi-python3.conf
+
 
 # updates shared library cache
 ldconfig
@@ -73,9 +70,12 @@ pip uninstall python3-openid -y
 
 pip install python3-openid
 
-
 # for code coverage
 pip install coverage
+
+# Enable and start mysql database
+systemctl enable mysqld
+systemctl start mysqld
 
 # create database
 mysqladmin create AppStore
@@ -130,42 +130,52 @@ python manage.py rebuild_index --noinput
 python manage.py collectstatic --noinput
 
 # fix permissions
-chown -R www-data:www-data /var/www
+chown -R apache:apache /var/www
 find /var/www -type d -exec chmod 2750 {} \+
 find /var/www -type f -exec chmod 640 {} \+
 
 # Replace default site configuration
-mkdir /etc/apache2/includes
-cp /vagrant/appstore.include.conf /etc/apache2/includes/.
-cp /vagrant/appstore.http.conf /etc/apache2/sites-available/appstore.conf
+mkdir /etc/httpd/includes
+cp /vagrant/appstore.include.conf /etc/httpd/includes/.
+cp /vagrant/appstore.http.conf /etc/httpd/conf.d/appstore.conf
 
 # update port to 8080 which needs to match forwarded port in Vagrantfile
-sed -i "s/@@PORT@@/8080/g" /etc/apache2/sites-available/appstore.conf
+sed -i "s/@@PORT@@/8080/g" /etc/httpd/conf.d/appstore.conf
 
 # update ssl protocol
-sed -i "s/@@SSLPROTOCOL@@/All -SSLv2 -SSLv3/g" /etc/apache2/sites-available/appstore.conf
+sed -i "s/@@SSLPROTOCOL@@/All -SSLv2 -SSLv3/g" /etc/httpd/conf.d/appstore.conf
 
 # update ciphersuite
-sed -i "s/@@SSLCIPHERSUITE@@/ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK/g" /etc/apache2/sites-available/appstore.conf
+sed -i "s/@@SSLCIPHERSUITE@@/ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK/g" /etc/httpd/conf.d/appstore.conf
 
 #
-sed -i "s/^.*SSLCertificateFile.*$/SSLCertificateFile      \/etc\/ssl\/certs\/ssl-cert-snakeoil.pem/g" /etc/apache2/sites-available/appstore.conf
+#sed -i "s/^.*SSLCertificateFile.*$/SSLCertificateFile      \/etc\/ssl\/certs\/ssl-cert-snakeoil.pem/g" /etc/httpd/conf.d/appstore.conf
 
-sed -i "s/^.*SSLCertificateKeyFile.*$/SSLCertificateKeyFile \/etc\/ssl\/private\/ssl-cert-snakeoil.key/g" /etc/apache2/sites-available/appstore.conf
+#sed -i "s/^.*SSLCertificateKeyFile.*$/SSLCertificateKeyFile \/etc\/ssl\/private\/ssl-cert-snakeoil.key/g" /etc/httpd/conf.d/appstore.conf
 
-sed -i "s/^.*SSLCertificateChainFile.*$//g" /etc/apache2/sites-available/appstore.conf
+#sed -i "s/^.*SSLCertificateChainFile.*$//g" /etc/httpd/conf.d/appstore.conf
 
-echo "Listen 8080" >> /etc/apache2/ports.conf
-a2enmod ssl
-a2dissite 000-default.conf
-a2ensite appstore.conf
 
+echo "Listen 8080" > /etc/httpd/conf.d/ports.conf
+
+setsebool -P httpd_can_network_connect 1
+semanage fcontext -a -t httpd_sys_content_t '/var/www/appstore/wsgi.py'
+semanage fcontext -a -t httpd_sys_content_t '/var/www/appstore/'
+restorecon -Rv /var/www/appstore/
+
+semanage fcontext -a -t httpd_sys_rw_content_t '/var/www/appstore/logs'
+restorecon -v /var/www/appstore/logs
+setsebool -P httpd_unified 1
+
+# need to set a name for the server
+echo "ServerName 127.0.0.1" >> /etc/httpd/conf/httpd.conf
 
 # Reload apache
-systemctl reload apache2
+systemctl stop httpd
+systemctl start httpd
 
 echo ""
-echo "Visit http://localhost:8080 or https://localhost:8443"
+echo "Visit http://localhost:8080"
 echo ""
 echo "or to test vagrant ssh ; cd /var/www/$APPSTORE ; coverage run --source '.' manage.py test"
 echo ""
