@@ -6,7 +6,7 @@
 # backwards compatibility). Please don't change it unless you know what
 # you're doing.
 Vagrant.configure(2) do |config|
-  config.vm.box = "bento/ubuntu-18.04"
+  config.vm.box = "rockylinux/9"
   config.vm.provision :shell, path: "bootstrap.sh"
   config.ssh.forward_x11 = true  
   config.vm.network "forwarded_port", guest: 8080, host: 8080, host_ip: "127.0.0.1"
