@@ -96,6 +96,11 @@ cd $APPSTORE
 cp -a /vagrant/* .
 mkdir logs
 mkdir /var/www/html/media
+mkdir /var/www/html/media/pending_releases
+semanage fcontext -a -t httpd_sys_rw_content_t "/var/www/html/media(/.*)?"
+restorecon -rv /var/www/html/media
+
+
 mkdir /var/www/html/misc
 
 cp /vagrant/favicon.ico /var/www/html/misc/.
