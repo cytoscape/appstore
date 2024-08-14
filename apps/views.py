@@ -1,11 +1,11 @@
 import re
 import datetime
+import html
 from urllib.parse import unquote
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
-from django.utils.text import unescape_entities
 from util.view_util import json_response, html_response, obj_to_dict, get_object_or_none
 from util.img_util import scale_img
 from util.id_util import fullname_to_name
@@ -15,7 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 # Returns a unicode string encoded in a cookie
 def _unescape_and_unquote(s):
     if not s: return s
-    return unescape_entities(unquote(s))
+    return html.unescape(unquote(s))
 
 # ============================================
 #      Nav Panel

@@ -1,10 +1,9 @@
-django==3.2.14  # requires django.utils.importlib
-django-social-auth==0.7.28
-social-auth-app-django==4.0.0
+django==4.0  # requires django.utils.importlib
+social-auth-app-django==5.4.2
 sphinx
 urllib3
 Whoosh==2.7.4
-django-haystack==3.2.1
+django-haystack==3.3.0
 Pillow
 gevent
 
