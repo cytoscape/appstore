@@ -4,7 +4,7 @@
 dnf update
 
 # install base packages
-dnf install -y epel-release setroubleshoot wget httpd httpd-devel lsof unzip mysql-server mod_ssl python3-mod_wsgi openssl-devel bzip2-devel libffi-devel zlib-devel make libjpeg-turbo-devel gcc
+dnf install -y epel-release setroubleshoot wget httpd httpd-devel lsof unzip mariadb-server mod_ssl python3-mod_wsgi openssl-devel bzip2-devel libffi-devel zlib-devel make libjpeg-turbo-devel gcc
 dnf install -y certbot python3-certbot-apache
 
 
@@ -74,8 +74,8 @@ pip install python3-openid
 pip install coverage
 
 # Enable and start mysql database
-systemctl enable mysqld
-systemctl start mysqld
+systemctl enable mariadb
+systemctl start mariadb
 
 # create database
 mysqladmin create AppStore
