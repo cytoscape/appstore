@@ -348,8 +348,7 @@ def pending_apps(request):
         try:
             pending_app = AppPending.objects.get(id = int(pending_id))
         except AppPending.DoesNotExist as ValueError:
-            return HttpResponseBadReq status
-            uest('invalid pending_id')
+            return HttpResponseBadRequest('invalid pending_id')
         _PendingAppsActions[action](pending_app, request)
         if is_ajax(request):
             return json_response(True)
