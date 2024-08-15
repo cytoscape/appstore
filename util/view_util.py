@@ -67,3 +67,6 @@ def ipaddr_long_to_str(ipaddr_long):
     ipaddr_long >>= 8
     oct1 = ipaddr_long & 255
     return '%d.%d.%d.%d' % (oct1, oct2, oct3, oct4)
+
+def is_ajax(request):
+    return request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'

@@ -11,7 +11,7 @@ from util.img_util import scale_img
 from util.id_util import fullname_to_name
 from apps.models import Tag, App, Author, OrderedAuthor, Screenshot, Release
 from django.views.decorators.csrf import csrf_exempt
-
+from util.view_util import is_ajax
 # Returns a unicode string encoded in a cookie
 def _unescape_and_unquote(s):
     if not s: return s
@@ -222,7 +222,7 @@ def app_page(request, app_name):
             return HttpResponseBadRequest(str(e))
         if isinstance(result, HttpResponse):
             return result
-        if request.is_ajax():
+        if is_ajax(request):
             return json_response(result)
     return _mk_app_page(app, user, request)
 
@@ -502,7 +502,7 @@ def app_page_edit(request, app_name):
         except ValueError as e:
             return HttpResponseBadRequest(str(e))
         app.save()
-        if request.is_ajax():
+        if is_ajax(request):
             return json_response(result)
 
     all_tags = [tag.fullname for tag in Tag.objects.all()]

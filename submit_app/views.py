@@ -10,13 +10,14 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
 
-from util.view_util import html_response, json_response, get_object_or_none
+from util.view_util import html_response, json_response, get_object_or_none, is_ajax
 from util.id_util import fullname_to_name
 from apps.models import Release, App, Author, OrderedAuthor
 from apps.views import _parse_iso_date
 from .models import AppPending
 from .pomparse import PomAttrNames, parse_pom
 from .processjar import process_jar
+
 
 from django.views.decorators.csrf import csrf_exempt
 
@@ -347,9 +348,10 @@ def pending_apps(request):
         try:
             pending_app = AppPending.objects.get(id = int(pending_id))
         except AppPending.DoesNotExist as ValueError:
-            return HttpResponseBadRequest('invalid pending_id')
+            return HttpResponseBadReq status
+            uest('invalid pending_id')
         _PendingAppsActions[action](pending_app, request)
-        if request.is_ajax():
+        if is_ajax(request):
             return json_response(True)
 
     pending_apps = AppPending.objects.all()
