@@ -77,34 +77,40 @@ var AppPage = (function($) {
             install_btn.removeClass(install_btn_last_class.pop());
         install_btn.addClass(btn_class);
         install_btn_last_class.push(btn_class);
-
+    
         install_btn.find('i').attr('class', '');
         install_btn.find('i').addClass(icon_class);
-
+    
         install_btn.find('h4').html(btn_text);
-
+    
         install_btn.off('click');
         install_btn.removeClass('disabled');
+    
         if (func) {
             var license_modal = $('#license_modal');
-            if (license_modal.size() !== 0) {
+            if (license_modal.length !== 0) {
+                // Unbind previous click handlers to prevent double binding
+                license_modal.find('.btn-primary').off('click');
+    
                 license_modal.find('.btn-primary').click(function() {
                     license_modal.modal('hide');
                     func();
                 });
+    
                 install_btn.click(function() {
                     var license_iframe = license_modal.find('iframe');
                     license_iframe.attr('src', license_iframe.attr('data-src'));
                     license_modal.modal('show');
                 });
             } else {
-                /* license modal doesn't exist in DOM */
+                // If license modal doesn't exist in DOM
                 install_btn.click(func);
             }
         } else {
             install_btn.addClass('disabled');
         }
     }
+    
 
     function set_install_btn_to_download(release_url) {
         setup_install_btn('btn-primary', 'icon-cy-install-download', 'Download',
