@@ -1,21 +1,21 @@
 import re
 import datetime
+import html
 from urllib.parse import unquote
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
-from django.utils.text import unescape_entities
 from util.view_util import json_response, html_response, obj_to_dict, get_object_or_none
 from util.img_util import scale_img
 from util.id_util import fullname_to_name
 from apps.models import Tag, App, Author, OrderedAuthor, Screenshot, Release
 from django.views.decorators.csrf import csrf_exempt
-
+from util.view_util import is_ajax
 # Returns a unicode string encoded in a cookie
 def _unescape_and_unquote(s):
     if not s: return s
-    return unescape_entities(unquote(s))
+    return html.unescape(unquote(s))
 
 # ============================================
 #      Nav Panel
@@ -222,7 +222,7 @@ def app_page(request, app_name):
             return HttpResponseBadRequest(str(e))
         if isinstance(result, HttpResponse):
             return result
-        if request.is_ajax():
+        if is_ajax(request):
             return json_response(result)
     return _mk_app_page(app, user, request)
 
@@ -502,7 +502,7 @@ def app_page_edit(request, app_name):
         except ValueError as e:
             return HttpResponseBadRequest(str(e))
         app.save()
-        if request.is_ajax():
+        if is_ajax(request):
             return json_response(result)
 
     all_tags = [tag.fullname for tag in Tag.objects.all()]

@@ -69,7 +69,7 @@
               </ul>
             </li>
           {% else %}
-            <li {% ifequal navbar_selected 'signin' %}class="active"{% endifequal %}><a href="{% url 'login' %}?next={{ request.get_full_path|escape }}">Sign In</a></li>
+            <li {% if navbar_selected == 'signin' %}class="active"{% endif %}><a href="{% url 'login' %}?next={{ request.get_full_path|escape }}">Sign In</a></li>
           {% endif %}
         </ul>
       </div>
@@ -87,9 +87,9 @@
     {# Footer #}
     <hr style="margin-top: 6em;">
     <footer style="text-align: center;">
-      {% ifnotequal footer_selected 'about' %}<a href="{% url 'about' %}">{% endifnotequal %}About{% ifnotequal footer_selected 'about' %}</a>{% endifnotequal %}
+      {% if footer_selected != 'about' %}<a href="{% url 'about' %}">{% endif %}About{% if footer_selected != 'about' %}</a>{% endif %}
       &bull;
-      {% ifnotequal footer_selected 'contact' %}<a href="{% url 'contact' %}">{% endifnotequal %}Contact Us{% ifnotequal footer_selected 'contact' %}</a>{% endifnotequal %}
+      {% if footer_selected != 'contact' %}<a href="{% url 'contact' %}">{% endif %}Contact Us{% if footer_selected != 'contact' %}</a>{% endif %}
 
       <span class="footer-divider"></span>
 

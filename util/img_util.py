@@ -98,7 +98,7 @@ def _scale_img_to_new_sizes(name, img, w, h):
     :return: image as file object
     :rtype: :py:class:`django.core.files.File`
     """
-    scaled_img = img.resize((int(w), int(h)), Image.ANTIALIAS)
+    scaled_img = img.resize((int(w), int(h)), Image.Resampling.LANCZOS)
     scaled_buffer = BytesIO()
     scaled_img.save(scaled_buffer, 'PNG')
     return File(scaled_buffer, name=name + '.png')

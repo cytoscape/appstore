@@ -1,7 +1,7 @@
-from django.conf.urls import url
+from django.urls import re_path
 
 from backend.views import all_apps_func
 
 urlpatterns = [
-    url(r'^all_apps$', all_apps_func),
+    re_path(r'^all_apps$', all_apps_func),
 ]

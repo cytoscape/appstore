@@ -1,6 +1,6 @@
 import logging
 
-from django.conf.urls import include, url
+from django.urls import include, re_path
 from django.conf.urls.static import static
 from django.conf import settings
 
@@ -13,16 +13,16 @@ logger = logging.getLogger(__name__)
 
 urlpatterns = [
     # Uncomment the next line to enable the admin:
-    url(r'^admin/', admin.site.urls),
-    url(r'^accounts/', include('users.urls')),
-    url(r'^$', apps_default, name='default-page'),
-    url(r'^apps/', include('apps.urls')),
-    url(r'^search', include('haystack.urls')),
-    url(r'^download/', include('download.urls')),
-    url(r'^submit_app/', include('submit_app.urls')),
-    url(r'^users/', include('users.urls')),
-    url(r'^help/',  include('help.urls')),
-    url(r'^backend/', include('backend.urls')),
+    re_path(r'^admin/', admin.site.urls),
+    re_path(r'^accounts/', include('users.urls')),
+    re_path(r'^$', apps_default, name='default-page'),
+    re_path(r'^apps/', include('apps.urls')),
+    re_path(r'^search', include('haystack.urls')),
+    re_path(r'^download/', include('download.urls')),
+    re_path(r'^submit_app/', include('submit_app.urls')),
+    re_path(r'^users/', include('users.urls')),
+    re_path(r'^help/',  include('help.urls')),
+    re_path(r'^backend/', include('backend.urls')),
 ]
 
 # If DJANGO_STATIC_AND_MEDIA then have Django serve
