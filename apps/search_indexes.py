@@ -34,7 +34,8 @@ class AppIndex(indexes.SearchIndex, indexes.Indexable):
 
     def index_queryset(self, using=None):
         return self.get_model().objects.filter(active=True)
-    
+
+
 class AuthorIndex(indexes.SearchIndex, indexes.Indexable):
     text = indexes.EdgeNgramField(document = True, use_template = True)
     name = indexes.CharField(model_attr = 'name')

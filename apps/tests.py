@@ -12,6 +12,7 @@ import tempfile
 import random
 from PIL import Image, ImageDraw
 
+from apps.search_indexes import AppIndex
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
@@ -677,3 +678,31 @@ class AppButtonsTestCase(TestCase):
         appobj.save()
         res = app_buttons.app_button_by_name('myapp')
         self.assertEqual('myapp', res['app'].name)
+
+
+class AppIndexQuerysetTestCase(TestCase):
+
+    def setUp(self):
+        App.objects.all().delete()
+
+        self.active_app = App.objects.create(
+            name='activeapp',
+            fullname='ActiveApp',
+            active=True
+        )
+
+        self.inactive_app = App.objects.create(
+            name='inactiveapp',
+            fullname='InactiveApp',
+            active=False
+        )
+
+    def tearDown(self):
+        App.objects.all().delete()
+
+    def test_index_queryset_returns_only_active_apps(self):
+        index = AppIndex()
+        queryset = index.index_queryset()
+
+        self.assertIn(self.active_app, queryset)
+        self.assertNotIn(self.inactive_app, queryset)
