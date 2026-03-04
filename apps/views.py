@@ -1,6 +1,10 @@
 import re
 import datetime
 import html
+from datetime import date, timedelta
+from django.db.models import Case, When, IntegerField
+from django.db.models import Sum
+from download.models import ReleaseDownloadsByDate
 from urllib.parse import unquote
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -79,10 +83,41 @@ def _flush_tag_caches():
 class _DefaultConfig:
     num_of_top_apps = 6
 
+def get_top_downloaded_apps(limit=None):
+    two_years_ago = date.today() - timedelta(days=730)
+
+    top_download_data = (
+        ReleaseDownloadsByDate.objects
+        .filter(
+            when__gte=two_years_ago,
+            release__app__active=True,
+            release__active=True
+        )
+        .values('release__app')
+        .annotate(total_downloads=Sum('count'))
+        .order_by('-total_downloads')
+    )
+
+    if limit is not None:
+        top_download_data = top_download_data[:limit]
+
+    app_ids = [item['release__app'] for item in top_download_data]
+
+    if not app_ids:
+        return App.objects.none()
+
+    preserved_order = Case(
+        *[When(id=pk, then=pos) for pos, pk in enumerate(app_ids)],
+        output_field=IntegerField()
+    )
+
+    return App.objects.filter(id__in=app_ids).order_by(preserved_order)
+
+
 def apps_default(request):
     latest_apps = App.objects.filter(active=True).order_by('-latest_release_date')[:_DefaultConfig.num_of_top_apps]
-    downloaded_apps = App.objects.filter(active=True).order_by('downloads').reverse()[:_DefaultConfig.num_of_top_apps]
-
+    # downloaded_apps = App.objects.filter(active=True).order_by('downloads').reverse()[:_DefaultConfig.num_of_top_apps]
+    downloaded_apps = get_top_downloaded_apps(_DefaultConfig.num_of_top_apps)
     c = {
         'latest_apps': latest_apps,
         'downloaded_apps': downloaded_apps,
@@ -110,7 +145,8 @@ def all_apps_newest(request):
 
 
 def all_apps_downloads(request):
-    apps = App.objects.filter(active=True).order_by('downloads').reverse()
+    # apps = App.objects.filter(active=True).order_by('downloads').reverse()
+    apps = get_top_downloaded_apps()
     c = {
         'apps': apps,
         'navbar_selected_link': 'all',

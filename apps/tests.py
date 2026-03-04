@@ -13,6 +13,9 @@ import random
 from PIL import Image, ImageDraw
 
 from django.conf import settings
+from datetime import date, timedelta
+from apps.views import get_top_downloaded_apps
+from download.models import ReleaseDownloadsByDate
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -677,3 +680,48 @@ class AppButtonsTestCase(TestCase):
         appobj.save()
         res = app_buttons.app_button_by_name('myapp')
         self.assertEqual('myapp', res['app'].name)
+
+
+class TopDownloadedAppsTestCase(TestCase):
+
+    def setUp(self):
+        self.app1 = App.objects.create(name="app1", fullname="App One", active=True)
+        self.app2 = App.objects.create(name="app2", fullname="App Two", active=True)
+
+        uploaded = SimpleUploadedFile("file.jar", b"hello", content_type="text/plain")
+
+        self.rel1 = Release.objects.create(
+            app=self.app1,
+            version="1.0",
+            release_file=uploaded,
+            active=True
+        )
+
+        self.rel2 = Release.objects.create(
+            app=self.app2,
+            version="1.0",
+            release_file=uploaded,
+            active=True
+        )
+
+        today = date.today()
+
+        # within 24 months
+        ReleaseDownloadsByDate.objects.create(
+            release=self.rel1,
+            when=today - timedelta(days=100),
+            count=100
+        )
+
+        # older than 24 months (ignored)
+        ReleaseDownloadsByDate.objects.create(
+            release=self.rel2,
+            when=today - timedelta(days=900),
+            count=500
+        )
+
+    def test_top_downloads_returns_apps(self):
+        apps = list(get_top_downloaded_apps())
+
+        self.assertIn(self.app1, apps)
+        self.assertNotIn(self.app2, apps)
