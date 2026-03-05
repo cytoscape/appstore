@@ -1,6 +1,10 @@
 import re
 import datetime
 import html
+from datetime import date, timedelta
+from django.db.models import Case, When, IntegerField
+from django.db.models import Sum
+from download.models import ReleaseDownloadsByDate
 from urllib.parse import unquote
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -29,7 +33,8 @@ class _NavPanelConfig:
     tag_cloud_delta_font_size_em = tag_cloud_max_font_size_em - tag_cloud_min_font_size_em
 
 def _all_tags_of_count(min_count):
-    return filter(lambda tag: tag.count >= min_count, Tag.objects.all())
+    return filter(lambda tag: tag.count >= min_count,
+    Tag.objects.filter(app__active=True).distinct())
 
 _NavPanelContextCache = None
 
@@ -37,7 +42,7 @@ def _nav_panel_context(request):
     global _NavPanelContextCache
     if _NavPanelContextCache:
         return _NavPanelContextCache
-    all_tags = _all_tags_of_count(_NavPanelConfig.min_tag_count)
+    all_tags = list(_all_tags_of_count(_NavPanelConfig.min_tag_count))
     sorted_tags = sorted(all_tags, key=lambda tag: tag.count)
     sorted_tags.reverse()
 
@@ -79,10 +84,41 @@ def _flush_tag_caches():
 class _DefaultConfig:
     num_of_top_apps = 6
 
+def get_top_downloaded_apps(limit=None):
+    two_years_ago = date.today() - timedelta(days=730)
+
+    top_download_data = (
+        ReleaseDownloadsByDate.objects
+        .filter(
+            when__gte=two_years_ago,
+            release__app__active=True,
+            release__active=True
+        )
+        .values('release__app')
+        .annotate(total_downloads=Sum('count'))
+        .order_by('-total_downloads')
+    )
+
+    if limit is not None:
+        top_download_data = top_download_data[:limit]
+
+    app_ids = [item['release__app'] for item in top_download_data]
+
+    if not app_ids:
+        return App.objects.none()
+
+    preserved_order = Case(
+        *[When(id=pk, then=pos) for pos, pk in enumerate(app_ids)],
+        output_field=IntegerField()
+    )
+
+    return App.objects.filter(id__in=app_ids).order_by(preserved_order)
+
+
 def apps_default(request):
     latest_apps = App.objects.filter(active=True).order_by('-latest_release_date')[:_DefaultConfig.num_of_top_apps]
-    downloaded_apps = App.objects.filter(active=True).order_by('downloads').reverse()[:_DefaultConfig.num_of_top_apps]
-
+    # downloaded_apps = App.objects.filter(active=True).order_by('downloads').reverse()[:_DefaultConfig.num_of_top_apps]
+    downloaded_apps = get_top_downloaded_apps(_DefaultConfig.num_of_top_apps)
     c = {
         'latest_apps': latest_apps,
         'downloaded_apps': downloaded_apps,
@@ -110,7 +146,8 @@ def all_apps_newest(request):
 
 
 def all_apps_downloads(request):
-    apps = App.objects.filter(active=True).order_by('downloads').reverse()
+    # apps = App.objects.filter(active=True).order_by('downloads').reverse()
+    apps = get_top_downloaded_apps()
     c = {
         'apps': apps,
         'navbar_selected_link': 'all',
@@ -120,10 +157,10 @@ def all_apps_downloads(request):
 
 def wall_of_apps(request):
     nav_panel_context = _nav_panel_context(request)
-    tags = [(tag.fullname, tag.app_set.all()) for tag in nav_panel_context['top_tags']]
+    tags = [(tag.fullname, tag.app_set.filter(active=True)) for tag in nav_panel_context['top_tags']]
     apps_in_not_top_tags = set()
     for not_top_tag in nav_panel_context['not_top_tags']:
-        apps_in_not_top_tags.update(not_top_tag.app_set.all())
+        apps_in_not_top_tags.update(not_top_tag.app_set.filter(active=True))
     tags.append(('other', apps_in_not_top_tags))
     c = {
         'total_apps_count': App.objects.filter(active=True).count,
@@ -505,7 +542,7 @@ def app_page_edit(request, app_name):
         if is_ajax(request):
             return json_response(result)
 
-    all_tags = [tag.fullname for tag in Tag.objects.all()]
+    all_tags = [tag.fullname for tag in Tag.objects.filter(app__active=True).distinct()]
     c = {
         'app': app,
         'all_tags': all_tags,
