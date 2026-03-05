@@ -69,6 +69,14 @@ coverage: build ## check code coverage
 build: ## Build app database and static content in build directory
 	mkdir -p build/whoosh_index
 	mkdir -p build/media
+	mkdir -p build/appstore/apps
+	mkdir -p build/appstore/download
+	mkdir -p build/appstore/submit_app
+	touch build/__init__.py
+	touch build/appstore/__init__.py
+	touch build/appstore/apps/__init__.py
+	touch build/appstore/download/__init__.py
+	touch build/appstore/submit_app/__init__.py
 	# should fix errors upon calling python manage.py commands
 	pip uninstall python-openid -y
 	pip uninstall python3-openid -y
