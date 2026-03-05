@@ -33,7 +33,8 @@ class _NavPanelConfig:
     tag_cloud_delta_font_size_em = tag_cloud_max_font_size_em - tag_cloud_min_font_size_em
 
 def _all_tags_of_count(min_count):
-    return filter(lambda tag: tag.count >= min_count, Tag.objects.all())
+    return filter(lambda tag: tag.count >= min_count,
+    Tag.objects.filter(app__active=True).distinct())
 
 _NavPanelContextCache = None
 
@@ -41,7 +42,7 @@ def _nav_panel_context(request):
     global _NavPanelContextCache
     if _NavPanelContextCache:
         return _NavPanelContextCache
-    all_tags = _all_tags_of_count(_NavPanelConfig.min_tag_count)
+    all_tags = list(_all_tags_of_count(_NavPanelConfig.min_tag_count))
     sorted_tags = sorted(all_tags, key=lambda tag: tag.count)
     sorted_tags.reverse()
 
@@ -156,10 +157,10 @@ def all_apps_downloads(request):
 
 def wall_of_apps(request):
     nav_panel_context = _nav_panel_context(request)
-    tags = [(tag.fullname, tag.app_set.all()) for tag in nav_panel_context['top_tags']]
+    tags = [(tag.fullname, tag.app_set.filter(active=True)) for tag in nav_panel_context['top_tags']]
     apps_in_not_top_tags = set()
     for not_top_tag in nav_panel_context['not_top_tags']:
-        apps_in_not_top_tags.update(not_top_tag.app_set.all())
+        apps_in_not_top_tags.update(not_top_tag.app_set.filter(active=True))
     tags.append(('other', apps_in_not_top_tags))
     c = {
         'total_apps_count': App.objects.filter(active=True).count,
@@ -541,7 +542,7 @@ def app_page_edit(request, app_name):
         if is_ajax(request):
             return json_response(result)
 
-    all_tags = [tag.fullname for tag in Tag.objects.all()]
+    all_tags = [tag.fullname for tag in Tag.objects.filter(app__active=True).distinct()]
     c = {
         'app': app,
         'all_tags': all_tags,

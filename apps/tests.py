@@ -13,6 +13,7 @@ import random
 from PIL import Image, ImageDraw
 
 from django.conf import settings
+from django.urls import reverse
 from datetime import date, timedelta
 from apps.views import get_top_downloaded_apps
 from download.models import ReleaseDownloadsByDate
@@ -725,3 +726,37 @@ class TopDownloadedAppsTestCase(TestCase):
 
         self.assertIn(self.app1, apps)
         self.assertNotIn(self.app2, apps)
+
+class TagNavigationTests(TestCase):
+
+    def setUp(self):
+        self.tag = Tag.objects.create(name="cluster", fullname="Cluster")
+
+        self.active_app = App.objects.create(
+            name="clusteractive",
+            fullname="Cluster Active",
+            active=True
+        )
+
+        self.inactive_app = App.objects.create(
+            name="clusterinactive",
+            fullname="Cluster Inactive",
+            active=False
+        )
+
+        self.active_app.tags.add(self.tag)
+        self.inactive_app.tags.add(self.tag)
+
+    def test_tag_page_shows_only_active_apps(self):
+        url = reverse("tag_page", args=["cluster"])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Cluster Active")
+        self.assertNotContains(response, "Cluster Inactive")
+
+    def test_inactive_app_page_returns_404(self):
+        url = reverse("app_page", args=["clusterinactive"])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 404)
