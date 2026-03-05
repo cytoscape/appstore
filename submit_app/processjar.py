@@ -35,9 +35,11 @@ def process_jar(jar_file, expect_app_name):
         LOGGER.info('User uploaded invalid jar file: ' + str(bzf))
         raise ValueError('is not a valid zip file')
 
-    manifest_file = archive.read(_MANIFEST_FILE_NAME)
-    manifest = parse_manifest(manifest_file)
-    archive.close()
+    # FIX: Context manager guarantees the ZipFile is closed 
+    # and the file descriptor is released even if an exception occurs
+    with archive:
+        manifest_file = archive.read(_MANIFEST_FILE_NAME)
+        manifest = parse_manifest(manifest_file)
 
     is_osgi_bundle = True if manifest.main_section[b'Bundle-SymbolicName'] else False
     parser_func = _parse_osgi_bundle # if is_osgi_bundle else _parse_simple_app
