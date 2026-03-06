@@ -5,5 +5,6 @@ urllib3
 Whoosh==2.7.4
 django-haystack==3.3.0
 Pillow
+requests
 gevent
 

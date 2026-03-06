@@ -23,6 +23,7 @@ urlpatterns = [
     re_path(r'^users/', include('users.urls')),
     re_path(r'^help/',  include('help.urls')),
     re_path(r'^backend/', include('backend.urls')),
+    re_path(r'^', include('serviceapps.urls')),
 ]
 
 # If DJANGO_STATIC_AND_MEDIA then have Django serve

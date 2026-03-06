@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %} - Service Apps{% endblock %}
+{% block content %}
+<h1>Service Apps</h1>
+
+<form method="get">
+  <input type="text" name="q" placeholder="Search..." value="{{ request.GET.q }}">
+  <select name="health">
+    <option value="">Any</option>
+    <option value="ok" {% if request.GET.health == "ok" %}selected{% endif %}>OK</option>
+    <option value="unavailable" {% if request.GET.health == "unavailable" %}selected{% endif %}>Unavailable</option>
+    <option value="error" {% if request.GET.health == "error" %}selected{% endif %}>Error</option>
+  </select>
+  <button type="submit" class="btn">Filter</button>
+</form>
+
+<ul>
+{% for s in services %}
+  <li>
+    <a href="{% url 'serviceapps:detail' s.pk %}">{{ s.display_name|default:s.service_url }}</a>
+    - <em>{{ s.last_status }}</em>
+  </li>
+{% empty %}
+  <li>No Service Apps yet.</li>
+{% endfor %}
+</ul>
+{% endblock %}

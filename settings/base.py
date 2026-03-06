@@ -85,6 +85,7 @@ INSTALLED_APPS = (
     'help',
     'backend',
     'download',
+    'serviceapps',
     'appstore'  # this must be included to find root templates
     )
 
