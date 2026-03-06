@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %} - Submit a Service App{% endblock %}
+{% block content %}
+<h1>Submit a Service App</h1>
+<p>Enter the base URL of your Cytoscape Web Service App.</p>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit" class="btn btn-primary">Validate &amp; Save</button>
+</form>
+{% endblock %}

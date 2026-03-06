@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %} - {{ object.display_name }}{% endblock %}
+{% block content %}
+<h1>{{ object.display_name }}</h1>
+<p>{{ object.description }}</p>
+
+<dl>
+  <dt>Service URL</dt>
+  <dd><a href="{{ object.service_url }}" target="_blank" rel="noopener noreferrer">{{ object.service_url }}</a></dd>
+  <dt>Author</dt>
+  <dd>{{ object.author }}</dd>
+  <dt>Version</dt>
+  <dd>{{ object.version }}</dd>
+  <dt>Status</dt>
+  <dd>{{ object.last_status }}</dd>
+</dl>
+
+{% if object.metadata.parameters %}
+<h2>Parameters</h2>
+<pre>{{ object.metadata.parameters }}</pre>
+{% endif %}
+
+{% if object.metadata.cyWebActions %}
+<h2>Actions</h2>
+<pre>{{ object.metadata.cyWebActions }}</pre>
+{% endif %}
+
+<p><a href="{% url 'serviceapps:config' %}" target="_blank">View JSON Config</a></p>
+{% endblock %}
