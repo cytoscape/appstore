@@ -2,10 +2,13 @@
 htmlcov/
 build/
 *~
-.DS_Store
-.idea/
+venv/
 __pycache__/
 *.pyc
+.env
+build/
+.DS_Store
+.idea/
 cyappstore.sql
 *.tgz
 *.swp
