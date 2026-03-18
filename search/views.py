@@ -23,33 +23,46 @@ def _init_xapian_search():
         qp.set_stemming_strategy(xapian.QueryParser.STEM_SOME)
         Xapian_Enquires[model] = (db, enquire, qp)
 
-def _xapian_search(query_str, limit = None, only_matching_ids = False):
+def _xapian_search(query_str, limit=None, only_matching_ids=False):
     global Xapian_Enquires
     if not Xapian_Enquires:
         _init_xapian_search()
 
-    if limit and (not type(limit) == type(1) or limit <= 0):
+    if limit and (not isinstance(limit, int) or limit <= 0):
         raise ValueError('limit parameter must be a positive integer')
 
     all_results = {}
+
     for model, (db, enquire, qp) in Xapian_Enquires.items():
         q = qp.parse_query(query_str, qp.FLAG_PARTIAL | qp.FLAG_PHRASE)
         enquire.set_query(q)
         matches = enquire.get_mset(0, limit if limit else db.get_doccount())
-        if not len(matches): continue
+
+        if not len(matches):
+            continue
 
         matched_obj_ids = (match.document.get_data() for match in matches)
+
         if only_matching_ids:
             all_results[model.__name__] = list(matched_obj_ids)
         else:
-            matched_objs = list()
-        for matched_obj_id in matched_obj_ids:
-            matched_obj = get_object_or_none(model, **{model.search_key: matched_obj_id})
-        if not matched_obj: continue
-        matched_objs.append(matched_obj)
-        if matched_objs:
-            all_results[model.__name__] = matched_objs
-        return all_results
+            matched_objs = []
+
+            for matched_obj_id in matched_obj_ids:
+                matched_obj = get_object_or_none(
+                    model,
+                    **{model.search_key: matched_obj_id}
+                )
+
+                if not matched_obj:
+                    continue
+
+                matched_objs.append(matched_obj)
+
+            if matched_objs:
+                all_results[model.__name__] = matched_objs
+
+    return all_results
 
 def removespace(query):
     final_query=''
