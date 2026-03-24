@@ -5,5 +5,5 @@ from django.core import mail
 class CustomEmailHandler(AdminEmailHandler):
     def send_mail(self, subject, message, *args, **kwargs):
         # set fail_silently true before proceeding
-        kwargs["fail_silently"] = False
+        kwargs["fail_silently"] = True
         return super().send_mail(subject, message, *args, **kwargs)
