@@ -1,11 +1,12 @@
 from django.urls import reverse
 from django.http import HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth import logout as auth_logout
+from django.contrib.auth import logout as auth_logout, REDIRECT_FIELD_NAME
 from social_core.actions import do_complete
 from django.conf import settings
 from social_core.utils import setting_name
 from social_django.utils import psa
+from social_django.views import _do_login
 from util.view_util import html_response
 import logging
 
