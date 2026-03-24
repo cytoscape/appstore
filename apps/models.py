@@ -293,8 +293,7 @@ class Release(models.Model):
 
     def delete_files(self):
         self.release_file.delete()
-        if self.releaseapi_set.count() > 0:
-            api = self.releaseapi_set.get()
+        for api in self.releaseapi_set.all():
             api.delete_files()
             api.delete()
 
