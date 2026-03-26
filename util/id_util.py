@@ -1,6 +1,6 @@
 import re
 
-_non_alphanum_re = re.compile('[\W_]+')
+_non_alphanum_re = re.compile(r'[\W_]+')
 
 
 def fullname_to_name(fullname):

@@ -1,4 +1,4 @@
-django==4.2.15  # requires django.utils.importlib
+django==5.2  # Django 5.2 LTS
 social-auth-app-django==5.4.2
 sphinx
 urllib3
@@ -6,4 +6,3 @@ Whoosh==2.7.4
 django-haystack==3.3.0
 Pillow
 gevent
-
