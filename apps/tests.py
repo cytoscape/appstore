@@ -13,10 +13,11 @@ import random
 from PIL import Image, ImageDraw
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
 from django.test import TestCase
-from apps.models import App
+from apps.models import App, APP_TYPE_DESKTOP, APP_TYPE_WEB, APP_TYPE_SERVICE
 from apps.models import Author
 from apps.models import OrderedAuthor
 from apps.models import Screenshot
@@ -677,3 +678,64 @@ class AppButtonsTestCase(TestCase):
         appobj.save()
         res = app_buttons.app_button_by_name('myapp')
         self.assertEqual('myapp', res['app'].name)
+
+
+class AppTypeTestCase(TestCase):
+
+    def setUp(self):
+        App.objects.all().delete()
+
+    def tearDown(self):
+        App.objects.all().delete()
+
+    def test_default_app_type_is_desktop(self):
+        appobj = App.objects.create(name='myapp', fullname='MyApp')
+        self.assertEqual(APP_TYPE_DESKTOP, appobj.app_type)
+
+    def test_app_type_persists_as_web(self):
+        App.objects.create(name='myapp', fullname='MyApp',
+                           app_type=APP_TYPE_WEB)
+        appobj = App.objects.get(name='myapp')
+        self.assertEqual(APP_TYPE_WEB, appobj.app_type)
+
+    def test_app_type_persists_as_service(self):
+        App.objects.create(name='myapp', fullname='MyApp',
+                           app_type=APP_TYPE_SERVICE)
+        appobj = App.objects.get(name='myapp')
+        self.assertEqual(APP_TYPE_SERVICE, appobj.app_type)
+
+    def test_invalid_app_type_fails_validation(self):
+        appobj = App.objects.create(name='myapp', fullname='MyApp',
+                                    app_type='invalid')
+        with self.assertRaises(ValidationError):
+            appobj.full_clean()
+
+    def test_filter_by_app_type_desktop(self):
+        App.objects.create(name='desktop1', fullname='Desktop One',
+                           app_type=APP_TYPE_DESKTOP)
+        App.objects.create(name='web1', fullname='Web One',
+                           app_type=APP_TYPE_WEB)
+        App.objects.create(name='service1', fullname='Service One',
+                           app_type=APP_TYPE_SERVICE)
+        results = App.objects.filter(app_type=APP_TYPE_DESKTOP)
+        self.assertEqual(1, results.count())
+        self.assertEqual('desktop1', results.first().name)
+
+    def test_filter_by_app_type_web(self):
+        App.objects.create(name='web1', fullname='Web One',
+                           app_type=APP_TYPE_WEB)
+        App.objects.create(name='web2', fullname='Web Two',
+                           app_type=APP_TYPE_WEB)
+        App.objects.create(name='desktop1', fullname='Desktop One',
+                           app_type=APP_TYPE_DESKTOP)
+        results = App.objects.filter(app_type=APP_TYPE_WEB)
+        self.assertEqual(2, results.count())
+
+    def test_filter_by_app_type_service(self):
+        App.objects.create(name='service1', fullname='Service One',
+                           app_type=APP_TYPE_SERVICE)
+        App.objects.create(name='desktop1', fullname='Desktop One',
+                           app_type=APP_TYPE_DESKTOP)
+        results = App.objects.filter(app_type=APP_TYPE_SERVICE)
+        self.assertEqual(1, results.count())
+        self.assertEqual('service1', results.first().name)

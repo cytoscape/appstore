@@ -69,6 +69,17 @@ GENERIC_ICON_URL = urljoin(settings.STATIC_URL,
                            'apps/img/app_icon_generic.png')
 
 
+APP_TYPE_DESKTOP = 'desktop'
+APP_TYPE_WEB = 'web'
+APP_TYPE_SERVICE = 'service'
+
+APP_TYPE_CHOICES = [
+    (APP_TYPE_DESKTOP, 'Desktop'),
+    (APP_TYPE_WEB, 'Web'),
+    (APP_TYPE_SERVICE, 'Service'),
+]
+
+
 def app_icon_path(app, filename):
     """
     Callable function used by :py:class:`~App` constructor
@@ -123,6 +134,13 @@ class App(models.Model):
     competition_winner_dec_2012 = models.BooleanField(default=False)
 
     active = models.BooleanField(default=False)
+
+    app_type = models.CharField(
+        max_length=10,
+        choices=APP_TYPE_CHOICES,
+        default=APP_TYPE_DESKTOP,
+        db_index=True,
+    )
 
     def is_editor(self, user):
         """
