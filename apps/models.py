@@ -79,6 +79,16 @@ APP_TYPE_CHOICES = [
     (APP_TYPE_SERVICE, 'Service'),
 ]
 
+HEALTH_STATUS_UNKNOWN = 'unknown'
+HEALTH_STATUS_HEALTHY = 'healthy'
+HEALTH_STATUS_UNHEALTHY = 'unhealthy'
+
+HEALTH_STATUS_CHOICES = [
+    (HEALTH_STATUS_UNKNOWN, 'Unknown'),
+    (HEALTH_STATUS_HEALTHY, 'Healthy'),
+    (HEALTH_STATUS_UNHEALTHY, 'Unhealthy'),
+]
+
 
 def app_icon_path(app, filename):
     """
@@ -416,3 +426,49 @@ class ReleaseAPI(models.Model):
             shutil.rmtree(dirpath)
         self.javadocs_jar_file.delete()
         self.pom_xml_file.delete()
+
+
+class ServiceAppMetadata(models.Model):
+    """
+    Extended metadata for Service-type Apps.
+    One-to-one with App; only meaningful when app.app_type == 'service'.
+    """
+    app = models.OneToOneField(
+        App,
+        on_delete=models.CASCADE,
+        related_name='service_metadata',
+    )
+    service_url = models.URLField(
+        help_text='Base URL of the running service (e.g. https://myservice.example.com)',
+    )
+    service_spec_version = models.CharField(
+        max_length=31,
+        blank=True,
+        default='',
+        help_text='Service App Specification version this app conforms to (e.g. 2.0)',
+    )
+    registration_validated = models.BooleanField(
+        default=False,
+        help_text='Has the service URL been validated against the spec?',
+    )
+    health_status = models.CharField(
+        max_length=10,
+        choices=HEALTH_STATUS_CHOICES,
+        default=HEALTH_STATUS_UNKNOWN,
+        db_index=True,
+    )
+    last_health_check = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Timestamp of the most recent health check attempt',
+    )
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.app.app_type != APP_TYPE_SERVICE:
+            raise ValidationError(
+                'ServiceAppMetadata can only be attached to apps with app_type="service".'
+            )
+
+    def __str__(self):
+        return f'ServiceAppMetadata({self.app.name})'

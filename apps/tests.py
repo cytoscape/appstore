@@ -17,7 +17,9 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
 from django.test import TestCase
-from apps.models import App, APP_TYPE_DESKTOP, APP_TYPE_WEB, APP_TYPE_SERVICE
+from apps.models import (App, APP_TYPE_DESKTOP, APP_TYPE_WEB, APP_TYPE_SERVICE,
+                         ServiceAppMetadata, HEALTH_STATUS_UNKNOWN,
+                         HEALTH_STATUS_HEALTHY, HEALTH_STATUS_UNHEALTHY)
 from apps.models import Author
 from apps.models import OrderedAuthor
 from apps.models import Screenshot
@@ -739,3 +741,106 @@ class AppTypeTestCase(TestCase):
         results = App.objects.filter(app_type=APP_TYPE_SERVICE)
         self.assertEqual(1, results.count())
         self.assertEqual('service1', results.first().name)
+
+
+class ServiceAppMetadataTestCase(TestCase):
+
+    def setUp(self):
+        self.service_app = App.objects.create(
+            name='myservice', fullname='My Service', app_type=APP_TYPE_SERVICE
+        )
+        self.desktop_app = App.objects.create(
+            name='mydesktop', fullname='My Desktop', app_type=APP_TYPE_DESKTOP
+        )
+
+    def tearDown(self):
+        App.objects.all().delete()
+
+    def test_create_metadata_for_service_app(self):
+        meta = ServiceAppMetadata.objects.create(
+            app=self.service_app,
+            service_url='https://myservice.example.com',
+        )
+        self.assertEqual(meta.app, self.service_app)
+        self.assertEqual(meta.health_status, HEALTH_STATUS_UNKNOWN)
+        self.assertFalse(meta.registration_validated)
+        self.assertEqual(meta.service_spec_version, '')
+        self.assertIsNone(meta.last_health_check)
+
+    def test_default_health_status_is_unknown(self):
+        meta = ServiceAppMetadata.objects.create(
+            app=self.service_app,
+            service_url='https://myservice.example.com',
+        )
+        self.assertEqual(HEALTH_STATUS_UNKNOWN, meta.health_status)
+
+    def test_health_status_can_be_set_to_healthy(self):
+        meta = ServiceAppMetadata.objects.create(
+            app=self.service_app,
+            service_url='https://myservice.example.com',
+            health_status=HEALTH_STATUS_HEALTHY,
+        )
+        self.assertEqual(HEALTH_STATUS_HEALTHY, meta.health_status)
+
+    def test_health_status_can_be_set_to_unhealthy(self):
+        meta = ServiceAppMetadata.objects.create(
+            app=self.service_app,
+            service_url='https://myservice.example.com',
+            health_status=HEALTH_STATUS_UNHEALTHY,
+        )
+        self.assertEqual(HEALTH_STATUS_UNHEALTHY, meta.health_status)
+
+    def test_registration_validated_persists(self):
+        meta = ServiceAppMetadata.objects.create(
+            app=self.service_app,
+            service_url='https://myservice.example.com',
+            registration_validated=True,
+        )
+        meta.refresh_from_db()
+        self.assertTrue(meta.registration_validated)
+
+    def test_service_spec_version_persists(self):
+        meta = ServiceAppMetadata.objects.create(
+            app=self.service_app,
+            service_url='https://myservice.example.com',
+            service_spec_version='2.0',
+        )
+        meta.refresh_from_db()
+        self.assertEqual('2.0', meta.service_spec_version)
+
+    def test_clean_raises_for_non_service_app(self):
+        meta = ServiceAppMetadata(
+            app=self.desktop_app,
+            service_url='https://myservice.example.com',
+        )
+        with self.assertRaises(ValidationError):
+            meta.clean()
+
+    def test_clean_passes_for_service_app(self):
+        meta = ServiceAppMetadata(
+            app=self.service_app,
+            service_url='https://myservice.example.com',
+        )
+        meta.clean()  # should not raise
+
+    def test_one_to_one_relation_via_related_name(self):
+        ServiceAppMetadata.objects.create(
+            app=self.service_app,
+            service_url='https://myservice.example.com',
+        )
+        self.assertTrue(hasattr(self.service_app, 'service_metadata'))
+        self.assertEqual(
+            self.service_app.service_metadata.service_url,
+            'https://myservice.example.com',
+        )
+
+    def test_filter_by_health_status(self):
+        ServiceAppMetadata.objects.create(
+            app=self.service_app,
+            service_url='https://myservice.example.com',
+            health_status=HEALTH_STATUS_HEALTHY,
+        )
+        results = ServiceAppMetadata.objects.filter(
+            health_status=HEALTH_STATUS_HEALTHY
+        )
+        self.assertEqual(1, results.count())
