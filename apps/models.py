@@ -96,6 +96,13 @@ class App(models.Model):
                                      through='OrderedAuthor')
     editors = models.ManyToManyField(User, blank=True)
 
+    class Platform(models.TextChoices):
+        Desktop = 'desktop', 'desktop'
+        Web = 'web', 'web'
+        Service = 'service', 'service'
+
+    platform = models.CharField(max_length=31, choices=Platform.choices, default=Platform.Desktop)
+
     cy_2x_plugin_download = models.URLField(blank=True, null=True)
     cy_2x_plugin_version = models.CharField(max_length=31, blank=True,
                                             null=True)
@@ -398,3 +405,14 @@ class ReleaseAPI(models.Model):
             shutil.rmtree(dirpath)
         self.javadocs_jar_file.delete()
         self.pom_xml_file.delete()
+"""
+class ServiceRelease(models.Model):
+    app = models.ForeignKey(App, on_delete=models.CASCADE)
+    version = models.CharField(max_length=31)
+    endpoint = models.URLField(blank=False, null=True)
+    
+    notes = models.TextField(blank=True, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    active = models.BooleanField(default=True)
+    docs_url = models.URLField(blank=True, null=True)
+"""

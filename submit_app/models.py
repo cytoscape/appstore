@@ -90,3 +90,12 @@ def _deploy_artifact(api):
     cmd = subprocess.Popen(deploy_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False)
     cmdout, _ = cmd.communicate()
     send_mail('Cytoscape App Store - App Repo Deploy (Release API ID: %d)' % api.id, cmdout, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
+
+"""
+class ServiceAppPending(models.Model):
+    submitter = models.ForeignKey(User, on_delete=models.CASCADE)
+    fullname = models.CharField(max_length=127)
+    version = models.CharField(max_length=31)
+    service_endpoint = models.URLField(blank=False, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+"""
