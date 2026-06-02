@@ -95,6 +95,7 @@ class App(models.Model):
     authors = models.ManyToManyField(Author, blank=True,
                                      through='OrderedAuthor')
     editors = models.ManyToManyField(User, blank=True)
+"""
 
     class Platform(models.TextChoices):
         Desktop = 'desktop', 'desktop'
@@ -102,7 +103,7 @@ class App(models.Model):
         Service = 'service', 'service'
 
     platform = models.CharField(max_length=31, choices=Platform.choices, default=Platform.Desktop)
-
+"""
     cy_2x_plugin_download = models.URLField(blank=True, null=True)
     cy_2x_plugin_version = models.CharField(max_length=31, blank=True,
                                             null=True)

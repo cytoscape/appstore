@@ -6,11 +6,10 @@ from submit_app.views import cy2x_plugins
 from submit_app.views import confirm_submission
 from submit_app.views import submit_api
 from submit_app.views import artifact_exists
-from submit_app.views import platform_select
+
 
 urlpatterns = [
     re_path(r'^$', submit_app, name='submit-app'),
-    re_path(r'^select$', platform_select, name='select-platform'),
     re_path(r'^pending$', pending_apps, name='pending-apps'),
     re_path(r'^cy2xplugins$', cy2x_plugins, name='cy2x-plugins'),
     re_path(r'^confirm/(\d{1,5})$', confirm_submission, name='confirm-submission'),
