@@ -91,7 +91,7 @@ def _deploy_artifact(api):
     cmdout, _ = cmd.communicate()
     send_mail('Cytoscape App Store - App Repo Deploy (Release API ID: %d)' % api.id, cmdout, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
 
-
+"""
 class ServiceAppPending(models.Model):
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=127)
@@ -109,3 +109,4 @@ class ServiceAppPending(models.Model):
         if user.is_staff or user.is_superuser:
             return True
         return user.username == self.submitter.username
+"""
