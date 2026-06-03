@@ -93,7 +93,7 @@ def _deploy_artifact(api):
 
 
 class ServiceAppPending(models.Model):
-    #submitter = models.ForeignKey(User, on_delete=models.CASCADE)
+    submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=127)
     version = models.CharField(max_length=31)
     created = models.DateTimeField(auto_now_add=True)
