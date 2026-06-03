@@ -102,10 +102,4 @@ class ServiceAppPending(models.Model):
     api_spec_url = models.URLField(blank=True, null=True)
     docs_url = models.URLField(blank=True, null=True)
     
-    class Meta:
-        ordering = ['created']
 
-    def can_confirm(self, user):
-        if user.is_staff or user.is_superuser:
-            return True
-        return user.username == self.submitter.username
