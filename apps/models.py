@@ -405,7 +405,7 @@ class ReleaseAPI(models.Model):
             shutil.rmtree(dirpath)
         self.javadocs_jar_file.delete()
         self.pom_xml_file.delete()
-"""
+
 class ServiceRelease(models.Model):
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     version = models.CharField(max_length=31)
@@ -415,4 +415,3 @@ class ServiceRelease(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     active = models.BooleanField(default=True)
     docs_url = models.URLField(blank=True, null=True)
-"""
