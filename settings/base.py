@@ -32,6 +32,8 @@ USE_I18N = False
 # calendars according to the current locale
 USE_L10N = False
 
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField" #test FK issue in db
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
