@@ -56,7 +56,7 @@ def submit_app(request):
     return html_response('upload_form.html', context, request)
 
 def platform_select(request):
-    return html_response('platform_select.html', {}, request)
+    return HttpResponse('platform_select.html', {}, request)
 
 def _user_cancelled(request, pending):
     pending.delete_files()
