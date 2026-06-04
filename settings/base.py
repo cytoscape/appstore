@@ -167,5 +167,5 @@ LOGGING = {
 FILE_UPLOAD_PERMISSIONS = 0o664
 
 # Starting with Django 3.2:
-#DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-DEFAULT_AUTO_FIELD = "django.db.models.AutoField" #using autofield for foreignkey errors
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
