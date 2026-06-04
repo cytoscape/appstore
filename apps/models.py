@@ -407,7 +407,7 @@ class ReleaseAPI(models.Model):
         self.pom_xml_file.delete()
 
 class ServiceRelease(models.Model):
-    app = models.ForeignKey(App, on_delete=models.CASCADE)
+    app = models.ForeignKey(App, on_delete=models.CASCADE, db_type='integer')
     version = models.CharField(max_length=31)
     endpoint = models.URLField(blank=False, null=True)
     
