@@ -100,6 +100,5 @@ class ServiceAppPending(models.Model):
 
     service_endpoint = models.URLField(blank=False, null=True)
     api_spec_url = models.URLField(blank=True, null=True)
-    docs_url = models.URLField(blank=True, null=True)
     
 
