@@ -35,7 +35,7 @@ def platform_select(request):
         ('desktop', 'Cytoscape Desktop App'),
         ('web-url', 'Web App (GitHub URL)'),
         ('web-bundle', 'Web App (Bundle/Manifest Upload)'),
-        ('service', 'Service App URL'),
+        ('service', 'Service App UR L'),
     ]
 
     context = {
@@ -46,8 +46,8 @@ def platform_select(request):
 """
 
 def platform_select(request):
-    return render(request, 'platform_select.html')
-    
+    return html_response('platform_select.html', {}, request)
+
 # Presents an app submission form and accepts app submissions.
 @login_required
 def submit_app(request):
