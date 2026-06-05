@@ -23,7 +23,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 LOGGER = logging.getLogger(__name__)
 
-"""
+
 def platform_select(request):
     if request.method == 'POST':
         platform = request.POST.get('platform')
@@ -43,11 +43,8 @@ def platform_select(request):
     }
 
     return html_response('platform_select.html', context, request)
-"""
 
-def platform_select(request):
-    return html_response('platform_select.html', {}, request)
-
+    
 # Presents an app submission form and accepts app submissions.
 @login_required
 def submit_app(request):
