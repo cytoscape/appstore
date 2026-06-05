@@ -1,14 +1,26 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
 
 {% block title %} Select a Platform {% endblock %}
 
+{% block content %} Choose a platform: {% endblock %}
+<!--
 {% block content %}
 <div class="row">
   <div class="span12">
     <div class="page-header">
       <h1>Select a Platform</h1>
+      <form method="post">
+        {% csrf_token %}
+        <select name="platform">
+          <option value="">Select a platform</option>
+          {% for value, label in platforms %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Submit</button>
+      </form>
     </div>
   </div>
 </div>
-{% endblock %}
+{% endblock %} -->

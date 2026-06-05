@@ -23,7 +23,31 @@ from django.views.decorators.csrf import csrf_exempt
 
 LOGGER = logging.getLogger(__name__)
 
+"""
+def platform_select(request):
+    if request.method == 'POST':
+        platform = request.POST.get('platform')
+        if not platform:
+            return HttpResponseBadRequest('platform is required')
+        return HttpResponseRedirect(reverse('submit-app') + '?expect_app_name=' + platform)
 
+    platforms = [
+        ('desktop', 'Cytoscape Desktop App'),
+        ('web-url', 'Web App (GitHub URL)'),
+        ('web-bundle', 'Web App (Bundle/Manifest Upload)'),
+        ('service', 'Service App URL'),
+    ]
+
+    context = {
+        'platforms' : platforms
+    }
+
+    return html_response('platform_select.html', context, request)
+"""
+
+def platform_select(request):
+    return render(request, 'platform_select.html')
+    
 # Presents an app submission form and accepts app submissions.
 @login_required
 def submit_app(request):
@@ -55,8 +79,6 @@ def submit_app(request):
             context['expect_app_name'] = expect_app_name
     return html_response('upload_form.html', context, request)
 
-def platform_select(request):
-    return HttpResponse('platform_select.html', {}, request)
 
 def _user_cancelled(request, pending):
     pending.delete_files()
