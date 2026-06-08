@@ -29,13 +29,13 @@ def platform_select(request):
         platform = request.POST.get('platform')
         if not platform:
             return HttpResponseBadRequest('platform is required')
-        return HttpResponseRedirect(reverse('submit-app') + '?expect_app_name=' + platform)
+        return HttpResponseRedirect(reverse('submit-app') + '?platform=' + platform)
 
     platforms = [
         ('desktop', 'Cytoscape Desktop App'),
         ('web-url', 'Web App (GitHub URL)'),
         ('web-bundle', 'Web App (Bundle/Manifest Upload)'),
-        ('service', 'Service App UR L'),
+        ('service', 'Service App URL'),
     ]
 
     context = {
@@ -44,7 +44,6 @@ def platform_select(request):
 
     return html_response('platform_select.html', context, request)
 
-    
 # Presents an app submission form and accepts app submissions.
 @login_required
 def submit_app(request):

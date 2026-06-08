@@ -10,8 +10,7 @@ from submit_app.views import platform_select
 
 
 urlpatterns = [
-    re_path(r'^$', platform_select, name='submit-app'),
-    re_path(r'^upload$', submit_app, name='submit-app-upload'),
+    re_path(r'^$', submit_app, name='submit-app'),
     re_path(r'^select_platform$', platform_select, name='platform-select'),
     re_path(r'^pending$', pending_apps, name='pending-apps'),
     re_path(r'^cy2xplugins$', cy2x_plugins, name='cy2x-plugins'),
