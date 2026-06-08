@@ -25,18 +25,28 @@ LOGGER = logging.getLogger(__name__)
 
 
 def platform_select(request):
-    if request.method == 'POST':
-        platform = request.POST.get('platform')
-        if not platform:
-            return HttpResponseBadRequest('platform is required')
-        return HttpResponseRedirect(reverse('submit-app') + '?platform=' + platform)
-
     platforms = [
         ('desktop', 'Cytoscape Desktop App'),
         ('web-url', 'Web App (GitHub URL)'),
         ('web-bundle', 'Web App (Bundle/Manifest Upload)'),
         ('service', 'Service App URL'),
     ]
+    if request.method == 'POST':
+        platform = request.POST.get('platform')
+        if not platform:
+            return HttpResponseBadRequest('platform is required')
+
+        platform_map = {
+            'desktop': 'submit-app',
+            'web-url': 'submit-web-url',
+            'web-bundle': 'submit-web-bundle',
+            'service': 'submit-service-app',
+        }
+        target = platform_map.get(platform)
+        if target:
+            return HttpResponseRedirect(reverse(target))
+
+        return HttpResponseRedirect(reverse('submit-app') + '?platform=' + platform)
 
     context = {
         'platforms' : platforms
@@ -488,3 +498,15 @@ def cy2x_plugins(request):
         return _Cy2xPluginsActions[action](request.POST)
     else:
         return html_response('cy2x_plugins.html', {}, request)
+
+@login_required
+def submit_service_app(request):
+    return html_response('service_upload_form.html', {}, request)
+
+@login_required
+def submit_web_url(request):
+    return html_response('web_url_upload_form.html', {}, request)
+
+@login_required
+def submit_web_bundle(request):
+    return html_response('web_bundle_upload_form.html', {}, request)

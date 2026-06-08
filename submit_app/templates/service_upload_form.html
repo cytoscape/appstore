@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if expect_app_name %}
+        - Submit a New Release
+    {% else %}
+        - Submit a Service App
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="span12">
+    <div class="page-header">
+      {% if expect_app_name %}
+      <h1>
+        Submit a New Release
+        <small>{{ expect_app_name }}</small>
+      </h1>
+      {% else %}
+      <h1>Submit a Service App</h1>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<form action="" method="POST"> 
+    {% csrf_token %}  
+    <div class="row">
+        <div class="span12">
+            Your Service App URL:
+            <input type="text" name="service-url" id="input-service-url" placeholder="https://serviceapp.com">
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </div>
+    </div>
+</form>
+{% endblock %}
