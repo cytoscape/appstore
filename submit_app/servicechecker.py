@@ -28,7 +28,7 @@ def _resolve_safe_ip(hostname: str) -> str:
         ip_str = ip[4][0]
 
         try:
-            ip_obj = addr.ip_address(ip_str)
+            ip_obj = ipaddress.ip_address(ip_str)
         except ValueError:
             raise ServiceCheckError('Could not resolve hostname')
         
@@ -36,7 +36,7 @@ def _resolve_safe_ip(hostname: str) -> str:
             or ip_obj.is_reserved or ip_obj.is_multicast 
             or ip_obj.is_unspecified):
             raise ServiceCheckError('Internal IPs are blocked')
-    return infos[0][4][0] #returns first tested ip
+    return ips[0][4][0] #returns first tested ip
 
 
 def _fetch_pinned(parsed_url, hostname: str, ip: str, maxbytes: int, allow_local: bool = False) -> bytes:
@@ -58,7 +58,6 @@ def _fetch_pinned(parsed_url, hostname: str, ip: str, maxbytes: int, allow_local
             server_hostname=hostname,
             timeout=10,
             retries=False,
-            verify=False,
         )
     else:
         pool = urllib3.HTTPConnectionPool(
@@ -66,7 +65,6 @@ def _fetch_pinned(parsed_url, hostname: str, ip: str, maxbytes: int, allow_local
             port=port,
             timeout=10,
             retries=False,
-            verify=False,
         )
  
     path = parsed_url.path or '/'
@@ -112,11 +110,11 @@ def _validate_url(url: str):
     if parsed.scheme not in ALLOWED_SCHEMES:
         raise ServiceCheckError('Only HTTP/HTTPS allowed')
 
-    ip = _resolve_safe_ip(hostname)
+    ip = _resolve_safe_ip(parsed.hostname)
 
     return parsed, ip
 
-def fetch_json(url: str, maxytes: int=50_000) -> dict:
+def fetch_json(url: str, maxbytes: int=50_000) -> dict:
 
     parsed, ip = _validate_url(url)
 
@@ -139,14 +137,14 @@ def check_reachable(url: str) -> None:
 
     _fetch_pinned(parsed, parsed.hostname, ip, maxbytes=50_000)
 
-    metadata = fetch_json(url, maxbytes=maxbytes)
+    metadata = fetch_json(url, maxbytes=50_000)
     if not isinstance(metadata, dict):
         raise ServiceCheckError('Response must be a JSON object')
 
-    missing_fields = [f for f in REQUIRED_FIELDS if not metadata.get(f)]
+    missing_fields = [f for f in REQUIRED_METADATA_FIELDS if not metadata.get(f)]
     
     if missing_fields:
-        raise ServiceCheckError(f"Missing required field(s): {' ,' .join(missing_field)}")
+        raise ServiceCheckError(f"Missing required field(s): {' ,' .join(missing_fields)}")
 
     return metadata
 
