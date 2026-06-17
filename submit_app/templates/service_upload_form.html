@@ -36,4 +36,8 @@
         </div>
     </div>
 </form>
+
+{% if error %} 
+  <div class="alert alert-error">{{ error }}</div>
+{% endif %}
 {% endblock %}

@@ -1,159 +1,119 @@
+# ...existing code...
+import logging
 import socket
 import ipaddress
+from urllib.parse import urlparse
+
 import requests
 import json
-from urllib.parse import urlparse
-import urllib3
 
-REQUIRED_METADATA_FIELDS = ('name', 'version', 'author')
- 
-ALLOWED_SCHEMES = ('http', 'https')
-ALLOWED_PORTS = {80, 443}
+LOGGER = logging.getLogger(__name__)
+
+# minimal required fields in your service metadata
+REQUIRED_FIELDS = ['name']
+
+# networks we treat as private/local to avoid SSRF
+_PRIVATE_NETWORKS = (
+    ipaddress.ip_network('10.0.0.0/8'),
+    ipaddress.ip_network('172.16.0.0/12'),
+    ipaddress.ip_network('192.168.0.0/16'),
+    ipaddress.ip_network('127.0.0.0/8'),
+    ipaddress.ip_network('::1/128'),
+    ipaddress.ip_network('fc00::/7'),
+    ipaddress.ip_network('fe80::/10'),
+)
 
 
 class ServiceCheckError(Exception):
+    """Raised when a service metadata fetch/validation fails."""
     pass
 
-def _resolve_safe_ip(hostname: str) -> str:
 
+def _host_is_private(hostname: str) -> bool:
+    """Resolve hostname and return True if any resolved IP is private/local."""
     try:
-        ips = socket.getaddrinfo(hostname, None)
+        infos = socket.getaddrinfo(hostname, None)
     except socket.gaierror:
-        raise ServiceCheckError('unable to resolve hostname')
+        LOGGER.debug("DNS resolution failed for %s", hostname)
+        return True  # treat unresolved hosts as unsafe
 
-    if not ips:
-        raise ServiceCheckError('Could not resolve hostname')
-    
-    for ip in ips:
-        ip_str = ip[4][0]
-
+    for _, _, _, _, sockaddr in infos:
+        ip = sockaddr[0]
         try:
-            ip_obj = addr.ip_address(ip_str)
+            addr = ipaddress.ip_address(ip)
         except ValueError:
-            raise ServiceCheckError('Could not resolve hostname')
-        
-        if (ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local 
-            or ip_obj.is_reserved or ip_obj.is_multicast 
-            or ip_obj.is_unspecified):
-            raise ServiceCheckError('Internal IPs are blocked')
-    return infos[0][4][0] #returns first tested ip
+            continue
+        for net in _PRIVATE_NETWORKS:
+            if addr in net:
+                LOGGER.debug("Host %s resolves to private IP %s", hostname, ip)
+                return True
+    return False
 
 
-def _fetch_pinned(parsed_url, hostname: str, ip: str, maxbytes: int, allow_local: bool = False) -> bytes:
+def fetch_json(url: str, timeout: int = 5, maxbytes: int = 50_000) -> dict:
     """
-    Fetch `parsed_url` over a connection pinned to `ip`, sending the
-    original hostname as the Host header (and TLS SNI, for https) so
-    virtual hosting / cert validation still work normally.
+    Fetch JSON from `url` and return parsed object.
+    Raises ServiceCheckError on errors.
     """
-    port = parsed_url.port or (443 if parsed_url.scheme == 'https' else 80)
- 
-    if port not in ALLOWED_PORTS and not allow_local:
-        raise ServiceCheckError('Only ports 80/443 are allowed')
- 
-    if parsed_url.scheme == 'https':
-        pool = urllib3.HTTPSConnectionPool(
-            ip,
-            port=port,
-            assert_hostname=hostname,
-            server_hostname=hostname,
-            timeout=10,
-            retries=False,
-        )
-    else:
-        pool = urllib3.HTTPConnectionPool(
-            ip,
-            port=port,
-            timeout=10,
-            retries=False,
-        )
- 
-    path = parsed_url.path or '/'
-    if parsed_url.query:
-        path += '?' + parsed_url.query
- 
-    try:
-        response = pool.request(
-            'GET',
-            path,
-            headers={'Host': hostname},
-            preload_content=False,
-            redirect=False,
-        )
-    except urllib3.exceptions.HTTPError as e:
-        raise ServiceCheckError(f'Request failed: {e}')
-    finally:
-        pool.close()
- 
-    if response.status != 200:
-        raise ServiceCheckError(f'Request failed with status {response.status}')
- 
-    content = bytearray()
-    try:
-        for chunk in response.stream(1024):
-            content.extend(chunk)
-            if len(content) > maxbytes:
-                raise ServiceCheckError('Response too large')
-    finally:
-        response.release_conn()
- 
-    return bytes(content)
-
-def _validate_url(url: str):
-    if not url:
-        raise ServiceCheckError('URL is required')
-
     parsed = urlparse(url)
+    if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+        raise ServiceCheckError("Invalid URL")
 
-    if not parsed.hostname:
-        raise ServiceCheckError('URL is required')
+    hostname = parsed.hostname
+    if not hostname:
+        raise ServiceCheckError("Invalid URL (no hostname)")
 
-    if parsed.scheme not in ALLOWED_SCHEMES:
-        raise ServiceCheckError('Only HTTP/HTTPS allowed')
+    if _host_is_private(hostname):
+        raise ServiceCheckError("Refusing to fetch private or unresolved host")
 
-    ip = _resolve_safe_ip(hostname)
-
-    return parsed, ip
-
-def fetch_json(url: str, maxytes: int=50_000) -> dict:
-
-    parsed, ip = _validate_url(url)
-
+    headers = {'Accept': 'application/json'}
     try:
-        content = _fetch_pinned(parsed, parsed.hostname, ip, maxbytes)
-    except ServiceCheckError:
-        raise
-    except Exception as e:
-        raise ServiceCheckError(f'Request Failed: {e}')
+        resp = requests.get(url, headers=headers, timeout=timeout, stream=True)
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        raise ServiceCheckError(f"Network error: {exc}")
+
+    # enforce maxbytes
+    content = b''
+    try:
+        for chunk in resp.iter_content(chunk_size=8192):
+            if chunk:
+                content += chunk
+                if len(content) > maxbytes:
+                    raise ServiceCheckError("Response too large")
+    finally:
+        resp.close()
 
     try:
         return json.loads(content.decode('utf-8'))
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        raise ServiceCheckError('Invalid JSON response')
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ServiceCheckError("Invalid JSON response") from exc
 
 
-def check_reachable(url: str) -> None:
-
-    parsed, ip = _validate_url(url)
-
-    _fetch_pinned(parsed, parsed.hostname, ip, maxbytes=50_000)
-
-    metadata = fetch_json(url, maxbytes=maxbytes)
+def check_reachable(url: str) -> dict:
+    """
+    Fetch and validate service metadata at `url`. Ensures required fields exist.
+    Returns metadata dict on success or raises ServiceCheckError.
+    """
+    metadata = fetch_json(url)
     if not isinstance(metadata, dict):
-        raise ServiceCheckError('Response must be a JSON object')
+        raise ServiceCheckError("Response must be a JSON object")
 
     missing_fields = [f for f in REQUIRED_FIELDS if not metadata.get(f)]
-    
     if missing_fields:
-        raise ServiceCheckError(f"Missing required field(s): {' ,' .join(missing_field)}")
+        raise ServiceCheckError("Missing required field(s): %s" % ", ".join(missing_fields))
+
+    # normalize version to string if present
+    if 'version' in metadata and metadata['version'] is not None:
+        metadata['version'] = str(metadata['version'])
 
     return metadata
 
-def check_service_status(url: str, maxbytes: int = 10_000) -> dict:
 
+def check_service_status(url: str, maxbytes: int = 10_000) -> dict:
     status_url = url.rstrip('/') + '/status'
     status = fetch_json(status_url, maxbytes=maxbytes)
- 
     if not isinstance(status, dict) or 'status' not in status:
         raise ServiceCheckError("Status response missing 'status' field")
- 
     return status
+# ...existing code...
