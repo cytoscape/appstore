@@ -21,6 +21,7 @@
                 <thead>
                     <tr>
                         <th>Name</th>
+                        <th>Platform</th>
                         <th>Version</th>
                         <th>Submitted On</th>
                         <th>Submitter</th>
@@ -30,6 +31,7 @@
                 {% for pending_app in pending_apps %}
                     <tr pending_id="{{ pending_app.id }}">
                         <td class="cy-app-name">{{ pending_app.fullname }}</td>
+                        <td class="cy-app-platform">Desktop</td>
                         <td class="cy-app-version">{{ pending_app.version }}</td>
                         <td>{{ pending_app.created|date:"j M, H:i:s" }}</td>
                         <td>
@@ -43,6 +45,30 @@
                         <td>
                             <a class="btn btn-info btn-mini" href="{{ pending_app.release_file.url }}">
                                 <i class="icon icon-arrow-down icon-white"></i> Download
+                            </a>
+                            <button class="cy-accept btn btn-success btn-mini"><i class="icon icon-ok icon-white"></i> Accept</button>
+                            <button class="cy-decline btn btn-danger btn-mini"><i class="icon icon-remove icon-white"></i> Decline</button>
+                            <span class="cy-loading" style="display: none;"><img src="{% get_static_prefix %}/common/img/loading_small.gif"></span>
+                        </td>
+                    </tr>
+                {% endfor %}
+                {% for pending in pending_service %}
+                    <tr pending_id="{{pending.id}}">
+                        <td class="cy-app-name">{{ pending.fullname }}</td>
+                        <td class="cy-app-platform">Service</td>
+                        <td class="cy-app-version">{{ pending.version }}</td>
+                        <td>{{ pending.created|date:"j M, H:i:s" }}</td>
+                        <td>
+                            {{ pending.submitter.username }}
+                            {% if pending.submitter.email %}
+                                <a href="mailto:{{ pending.submitter.email }}">
+                                    &lt;{{ pending.submitter.email }}&gt;
+                                </a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a class="btn btn-info btn-mini" href="{{ pending.service_endpoint }}" target="_blank">
+                                <i class="icon icon-arrow-down icon-white"></i> View Service
                             </a>
                             <button class="cy-accept btn btn-success btn-mini"><i class="icon icon-ok icon-white"></i> Accept</button>
                             <button class="cy-decline btn btn-danger btn-mini"><i class="icon icon-remove icon-white"></i> Decline</button>

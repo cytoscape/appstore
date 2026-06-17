@@ -31,13 +31,15 @@
       {% endif %}
     </div>
   </div>
-
+{% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
 <form action="" method="POST">   
     {% csrf_token %}
     <div class="row">
         <div class="span12">
             Your Web App Bundle/Manifest File (.js):
-            <input type="file" name="webapp-file" id="input-webapp-file" class="span8">
+            <input type="file" name="bundle" id="input-bundle" class="span8">
+            <button type="submit" class="btn btn-primary">Submit</button>
         </div>
     </div>
 </form>

@@ -1,25 +1,35 @@
 from zipfile import ZipFile
 from os.path import basename
 from urllib.request import urlopen
+from urllib.parse import urlparse
 import re
 import logging
+import socket
+import ipaddress
+import json
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
 from django.conf import settings
 from django.core.mail import send_mail
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
+from django import forms
 
 from util.view_util import html_response, json_response, get_object_or_none, is_ajax
 from util.id_util import fullname_to_name
 from apps.models import Release, App, Author, OrderedAuthor
 from apps.views import _parse_iso_date
-from .models import AppPending
+from .models import AppPending, ServiceAppPending
 from .pomparse import PomAttrNames, parse_pom
 from .processjar import process_jar
 
+from .servicechecker import check_reachable, ServiceCheckError
+
 
 from django.views.decorators.csrf import csrf_exempt
+
+LOGGER = logging.getLogger('django')   
 
 LOGGER = logging.getLogger(__name__)
 
@@ -27,9 +37,9 @@ LOGGER = logging.getLogger(__name__)
 def platform_select(request):
     platforms = [
         ('desktop', 'Cytoscape Desktop App'),
-        ('web-url', 'Web App (GitHub URL)'),
-        ('web-bundle', 'Web App (Bundle/Manifest Upload)'),
-        ('service', 'Service App URL'),
+        ('web-url', 'Cytoscape Web - Github/Repo URL'),
+        ('web-bundle', 'Cytoscape Web - Bundle File/Manifest'),
+        ('service', 'Cytoscape Web - Service App URL'),
     ]
     if request.method == 'POST':
         platform = request.POST.get('platform')
@@ -354,7 +364,7 @@ def _pending_app_accept(pending, request):
     _send_email_for_accepted_app(pending.submitter.email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
 
 def _pending_app_decline(pending_app, request):
-    pending_app.delete_files()
+    #pending_app.delete_files() # won't deny service_apps if uncommented, may need new function to delete service app pending
     pending_app.delete()
 
 _PendingAppsActions = {
@@ -377,15 +387,18 @@ def pending_apps(request):
         if not pending_id:
             return HttpResponseBadRequest('pending_id must be specified')
         try:
-            pending_app = AppPending.objects.get(id = int(pending_id))
-        except AppPending.DoesNotExist as ValueError:
+            pending_app = AppPending.objects.filter(id = int(pending_id)).first()
+            if pending_app is None:
+                pending_app = ServiceAppPending.objects.filter(id = int(pending_id)).first()
+        except (AppPending.DoesNotExist, ServiceAppPending.DoesNotExist) as ValueError:
             return HttpResponseBadRequest('invalid pending_id')
         _PendingAppsActions[action](pending_app, request)
         if is_ajax(request):
             return json_response(True)
 
     pending_apps = AppPending.objects.all()
-    return html_response('pending_apps.html', {'pending_apps': pending_apps}, request)
+    pending_service = ServiceAppPending.objects.all()
+    return html_response('pending_apps.html', {'pending_apps': pending_apps, 'pending_service': pending_service}, request)
 
 AppRepoUrl = 'http://code.cytoscape.org/nexus/content/repositories/apps'
 
@@ -499,14 +512,134 @@ def cy2x_plugins(request):
     else:
         return html_response('cy2x_plugins.html', {}, request)
 
+
+#---------------------- SERVICE APP SUBMISSION ----------------------
 @login_required
 def submit_service_app(request):
-    return html_response('service_upload_form.html', {}, request)
+    context = {}
 
+    if request.method != 'POST':
+        return html_response('service_upload_form.html', context, request)
+    
+    service_url = request.POST.get('service-url')
+
+    if not service_url:
+        context['error'] = "Service URL is required"
+        return html_response('service_upload_form.html', context, request)
+
+    try:
+        metadata = check_reachable(service_url)
+    except ServiceCheckError as e:
+        LOGGER.info("submit_service_app service check error: %s", e)
+        context['error'] = str(e)
+        return html_response('service_upload_form.html', context, request)
+    except Exception as e:
+        context['error'] = 'Error fetching server metadata: %s' % str(e)
+        return html_response('service_upload_form.html', context, request)
+
+    fullname = metadata.get('name', '')
+    version = metadata.get('version', '')
+
+    try:
+        pending = _create_pending_service(request.user, fullname, version, service_url, metadata)
+    except ValueError as e:
+        context['error'] = str(e)
+        LOGGER.info("Created ServiceAppPending id=%s fullname=%r", pending.id, pending.fullname)
+        return html_response('service_upload_form.html', context, request)
+
+
+    pending = ServiceAppPending.objects.create(
+        submitter=request.user,
+        fullname='',
+        version='',
+        service_endpoint=service_url,
+        metadata={},
+    )
+
+    return HttpResponseRedirect(reverse('confirm-service', args=[pending.id])) 
+
+def _service_cancel(request, pending):
+    pending.delete()
+
+def _service_accepted(request, pending):
+    app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
+    if app:
+        if not app.is_editor(request.user):
+            return HttpResponseForbidden('You are not authorized to make changes or add new releases to this app')
+        if not app.is_active:
+            app.active = True
+            app.save()
+           
+        pending.delete()
+        return HttpResponseRedirect(reverse('app-page-edit', args=[app.name]) + '?upload_release=true')
+    else:
+        app_name = pending.fullname
+        pending.delete()
+        return html_response('submit_done.html', {'app_name': app_name}, request)
+
+def service_app_confirm(request, id):
+    pending = get_object_or_404(ServiceAppPending, id=int(id))
+
+    if not (request.user.is_staff or request.user == pending.submitter):
+        return HttpResponseForbidden('You are not authorized to view this page')
+
+    action = request.POST.get('action')
+
+    if action:
+        if action == 'cancel':
+            _service_cancel(request, pending)
+            return HttpResponseRedirect(reverse('submit-service-app'))
+        elif action == 'accept':
+            _service_accepted(request, pending)
+
+    return html_response('confirm_service.html', {'pending': pending}, request)
+
+"""
+
+def _create_pending_service(submitter, fullname, version, service_endpoint, metadata):
+    name = fullname_to_name(fullname)
+    app = get_object_or_none(App, name=name)
+    if app:
+        if not app.is_editor(submitter):
+            raise ValueError('cannot be accepted because you are not '
+                             'an editor')
+        release = get_object_or_none(ServiceRelease, app=app, version=version)
+        if release and release.active:
+            raise ValueError('cannot be accepted because the app %s already'
+                             ' has a release with version %s. You can delete '
+                             'this version by going to the Release History '
+                             'tab in the app edit page' % (app.fullname,
+                                                           version))
+
+    pending = ServiceAppPending.objects.create(submitter=submitter,
+                                        fullname=fullname,
+                                        version=version,
+                                        service_endpoint=service_endpoint,
+                                        metadata=metadata)
+    return pending
+
+"""
+#---------------------- WEB APP URL SUBMISSION ----------------------
 @login_required
 def submit_web_url(request):
-    return html_response('web_url_upload_form.html', {}, request)
+    context = {}
+    if request.method == 'POST':
+        url = request.POST.get('url')
+        if url:
+            context['message'] = 'URL received'
+        else:
+            context['error'] = 'No URL received'
+    return html_response('web_url_upload_form.html', context, request)
 
+
+#---------------------- WEB APP BUNDLE SUBMISSION ----------------------
 @login_required
 def submit_web_bundle(request):
-    return html_response('web_bundle_upload_form.html', {}, request)
+    context= {}
+    if request.method == 'POST':
+        bundle = request.FILES.get('bundle')
+        if bundle:
+            context['message'] = 'Bundle received'
+        else:
+            context['error'] = 'No bundle received'
+    return html_response('web_bundle_upload_form.html', context, request)

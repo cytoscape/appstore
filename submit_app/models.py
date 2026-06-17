@@ -93,12 +93,37 @@ def _deploy_artifact(api):
 
 
 class ServiceAppPending(models.Model):
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        VALIDATED = 'validated', 'Validated'
+        FAILED = 'failed', 'Failed'
+
+    
+    submitter = models.ForeignKey(User, on_delete=models.CASCADE)
+    fullname = models.CharField(max_length=127)
+    version = models.CharField(max_length=31)
+    created = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=31, choices=Status.choices, default=Status.PENDING)
+
+    service_endpoint = models.URLField(blank=True, null=True)
+    documentation_url = models.URLField(blank=True, null=True)
+
+    metadata = models.JSONField(null=True, blank=True)
+
+    validation_error = models.TextField(blank=True)
+
+    """
+    def make_service_release(self, app)
+
+    """
+
+"""
+class WebAppPending(models.Model):
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=127)
     version = models.CharField(max_length=31)
     created = models.DateTimeField(auto_now_add=True)
 
-    service_endpoint = models.URLField(blank=False, null=True)
-    api_spec_url = models.URLField(blank=True, null=True)
-    
-
+    web_url = models.URLField(blank=False, null=True)
+"""
