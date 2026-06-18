@@ -3,7 +3,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 DEBUG = False
 DJANGO_STATIC_AND_MEDIA = DEBUG
-ALLOWED_HOSTS = ["apps-stage.cytoscape.org", 'localhost', '127.0.0.1', ]
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', ]
 
 MVN_BIN_PATH = ""
 MVN_SETTINGS_PATH = ""
