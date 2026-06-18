@@ -83,6 +83,7 @@ def app_icon_path(app, filename):
 
 
 class App(models.Model):
+    id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=127, unique=True)
     fullname = models.CharField(max_length=127, unique=True)
     description = models.CharField(max_length=255, blank=True, null=True)
@@ -211,6 +212,7 @@ class App(models.Model):
 
 
 class OrderedAuthor(models.Model):
+    id = models.BigAutoField(primary_key=True)
     author = models.ForeignKey(Author, on_delete=models.CASCADE)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     author_order = models.PositiveSmallIntegerField(default=0)
@@ -245,6 +247,7 @@ def release_file_path(release, filename):
 
 
 class Release(models.Model):
+    id = models.BigAutoField(primary_key=True)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     version = models.CharField(max_length=31)
     works_with = models.CharField(max_length=31)
@@ -332,6 +335,7 @@ def thumbnail_path(screenshot, filename):
 
 
 class Screenshot(models.Model):
+    id = models.BigAutoField(primary_key=True)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     screenshot = models.ImageField(upload_to=screenshot_path)
     thumbnail = models.ImageField(upload_to=thumbnail_path)
@@ -363,6 +367,7 @@ def pom_xml_path(release_api, filename):
 
 
 class ReleaseAPI(models.Model):
+    id = models.BigAutoField(primary_key=True)
     release = models.ForeignKey(Release, on_delete=models.CASCADE)
     javadocs_jar_file = models.FileField(upload_to=javadocs_path)
     pom_xml_file = models.FileField(upload_to=pom_xml_path)
@@ -407,6 +412,7 @@ class ReleaseAPI(models.Model):
         self.pom_xml_file.delete()
 
 class ServiceRelease(models.Model):
+    id = models.BigAutoField(primary_key=True)
     app = models.ForeignKey(App, on_delete=models.CASCADE) #did not fake on migrations, so if issues arise, check for bigint vs int on id fk
     version = models.CharField(max_length=31)
     endpoint = models.URLField(blank=False, null=True)

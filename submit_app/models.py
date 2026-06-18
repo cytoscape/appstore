@@ -13,6 +13,7 @@ from django.conf import settings
 
 
 class AppPending(models.Model):
+    id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=127)
     version = models.CharField(max_length=31)
@@ -99,7 +100,7 @@ class ServiceAppPending(models.Model):
         VALIDATED = 'validated', 'Validated'
         FAILED = 'failed', 'Failed'
 
-    
+    id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=127)
     version = models.CharField(max_length=31)
@@ -111,8 +112,6 @@ class ServiceAppPending(models.Model):
 
     metadata = models.JSONField(null=True, blank=True)
 
-    validation_error = models.TextField(blank=True)
-
     """
     def make_service_release(self, app)
 
@@ -120,6 +119,7 @@ class ServiceAppPending(models.Model):
 
 """
 class WebAppPending(models.Model):
+    id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=127)
     version = models.CharField(max_length=31)

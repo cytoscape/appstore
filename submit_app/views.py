@@ -539,27 +539,27 @@ def submit_service_app(request):
 
     fullname = metadata.get('name', '')
     version = metadata.get('version', '')
-
+    """
     try:
         pending = _create_pending_service(request.user, fullname, version, service_url, metadata)
     except ValueError as e:
         context['error'] = str(e)
         LOGGER.info("Created ServiceAppPending id=%s fullname=%r", pending.id, pending.fullname)
         return html_response('service_upload_form.html', context, request)
-
-
+    """
     pending = ServiceAppPending.objects.create(
-        submitter=request.user,
-        fullname='',
-        version='',
-        service_endpoint=service_url,
-        metadata={},
-    )
+    submitter=request.user,
+    fullname=fullname,
+    version=version,
+    service_endpoint=service_url,
+    metadata=metadata,
+)
 
     return HttpResponseRedirect(reverse('confirm-service', args=[pending.id])) 
 
 def _service_cancel(request, pending):
     pending.delete()
+    return HttpResponseRedirect(reverse('submit-service-app'))
 
 def _service_accepted(request, pending):
     app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
@@ -583,14 +583,14 @@ def service_app_confirm(request, id):
     if not (request.user.is_staff or request.user == pending.submitter):
         return HttpResponseForbidden('You are not authorized to view this page')
 
-    action = request.POST.get('action')
-
-    if action:
-        if action == 'cancel':
-            _service_cancel(request, pending)
-            return HttpResponseRedirect(reverse('submit-service-app'))
-        elif action == 'accept':
-            _service_accepted(request, pending)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action:
+            if action == 'cancel':
+                return _service_cancel(request, pending)
+            elif action == 'accept':
+               return  _service_accepted(request, pending)
+                
 
     return html_response('confirm_service.html', {'pending': pending}, request)
 
