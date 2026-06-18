@@ -17,6 +17,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Author(models.Model):
+    id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=255)
     institution = models.CharField(max_length=255, null=True, blank=True)
 
