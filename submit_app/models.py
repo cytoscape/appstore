@@ -108,7 +108,7 @@ class ServiceAppPending(models.Model):
     status = models.CharField(max_length=31, choices=Status.choices, default=Status.PENDING)
 
     service_endpoint = models.URLField(blank=True, null=True)
-    documentation_url = models.URLField(blank=True, null=True)
+    #documentation_url = models.URLField(blank=True, null=True) go under pending
 
     metadata = models.JSONField(null=True, blank=True)
 

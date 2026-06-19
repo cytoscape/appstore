@@ -4,7 +4,7 @@ import json
 import requests
 from urllib.parse import urlparse
 
-REQUIRED_METADATA_FIELDS = ('name', 'version', 'author')
+REQUIRED_METADATA_FIELDS = ('name', 'version')
 
 
 class ServiceCheckError(Exception):
@@ -33,7 +33,7 @@ def check_reachable(url: str, maxbytes: int = 1024, allow_local: bool=False) -> 
     metadata dict on success.
 
     """
-    parsed = urlparse(url) #
+    parsed = urlparse(url)
 
     if not parsed.hostname:
         raise ServiceCheckError('URL is required')
@@ -57,19 +57,17 @@ def check_reachable(url: str, maxbytes: int = 1024, allow_local: bool=False) -> 
     try:
         for chunk in response.iter_content(chunk_size=512):
             if not chunk:
-                continue    
+                continue
             content.extend(chunk)
             if len(content) > maxbytes:
                 raise ServiceCheckError('response too large')
     finally:
         response.close()
+
     try:
-        metadata = response.json()
+        metadata = json.loads(content)
     except ValueError:
         raise ServiceCheckError('Service did not return valid JSON')
-
-    if not isinstance(metadata, dict):
-        raise ServiceCheckError('Metadata response must be a JSON object')
 
     missing = [f for f in REQUIRED_METADATA_FIELDS if not metadata.get(f)]
     if missing:

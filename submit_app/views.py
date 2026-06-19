@@ -364,12 +364,21 @@ def _pending_app_accept(pending, request):
     _send_email_for_accepted_app(pending.submitter.email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
 
 def _pending_app_decline(pending_app, request):
-    #pending_app.delete_files() # won't deny service_apps if uncommented, may need new function to delete service app pending
+    pending_app.delete_files()
     pending_app.delete()
+
+def _pending_service_decline(pending_app, request):
+    pending_app.delete()
+
+def _pending_instance_decline(pending_app, request):
+    if isinstance(pending_app, AppPending):
+        return _pending_app_decline(pending_app, request)
+    if isinstance(pending_app, ServiceAppPending):
+        return _pending_service_decline(pending_app, request)
 
 _PendingAppsActions = {
     'accept': _pending_app_accept,
-    'decline': _pending_app_decline,
+    'decline': _pending_instance_decline,
 }
 
 @login_required
@@ -516,6 +525,7 @@ def cy2x_plugins(request):
 #---------------------- SERVICE APP SUBMISSION ----------------------
 @login_required
 def submit_service_app(request):
+    LOGGER.info("submit_service_app called, method=%s POST=%s", request.method, dict(request.POST))
     context = {}
 
     if request.method != 'POST':
@@ -574,7 +584,7 @@ def _service_accepted(request, pending):
         return HttpResponseRedirect(reverse('app-page-edit', args=[app.name]) + '?upload_release=true')
     else:
         app_name = pending.fullname
-        pending.delete()
+        #pending.delete()
         return html_response('submit_done.html', {'app_name': app_name}, request)
 
 def service_app_confirm(request, id):

@@ -68,7 +68,11 @@ MIGRATION_MODULES = {
     'download': 'build.appstore.download',
     'submit_app': 'build.appstore.submit_app'
 }
-
+LOGGING['loggers']['submit_app'] = {
+    'handlers': ['console'],
+    'level': 'INFO',
+    'propagate': False,
+}
 # Output all logs
 LOGGING['handlers']['console']['level'] = 'DEBUG'
 LOGGING['loggers']['appstore'] = {
@@ -76,6 +80,7 @@ LOGGING['loggers']['appstore'] = {
     'level': 'DEBUG',
     'propagate': True,
 }
+
 
 # put the whoosh_index directory under build/ directory
 HAYSTACK_CONNECTIONS['default']['PATH'] = os.path.join(BUILD_DIR, 'whoosh_index')
