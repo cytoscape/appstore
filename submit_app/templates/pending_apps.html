@@ -54,9 +54,9 @@
                 {% endfor %}
                 {% for pending in pending_service %}
                     <tr pending_id="{{pending.id}}">
-                        <td class="cy-app-name">{{ pending.fullname }}</td>
-                        <td class="cy-app-platform">Service</td>
-                        <td class="cy-app-version">{{ pending.version }}</td>
+                        <td class="cy-service-app-name">{{ pending.fullname }}</td>
+                        <td class="cy-service-app-platform">Service</td>
+                        <td class="cy-service-app-version">{{ pending.version }}</td>
                         <td>{{ pending.created|date:"j M, H:i:s" }}</td>
                         <td>
                             {{ pending.submitter.username }}

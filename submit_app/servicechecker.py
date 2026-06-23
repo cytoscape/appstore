@@ -4,8 +4,16 @@ import json
 import requests
 from urllib.parse import urlparse
 
-REQUIRED_METADATA_FIELDS = ('name', 'version')
+SUBMISSION_REQUIRED_FIELDS = ('name', 'version') #sumbitter or author here as required?
 
+#-----------------------REMOVE BEFORE FLIGHT--------------------------------------
+import urllib3
+# disable InsecureRequestWarning
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# make requests default to not verify certs (debug only)
+import requests
+requests.Session.verify = False
+#---------------------------------------------------------------------------------
 
 class ServiceCheckError(Exception):
     pass
@@ -26,7 +34,7 @@ def _is_private_ip(hostname: str) -> bool:
     )
 
 
-def check_reachable(url: str, maxbytes: int = 1024, allow_local: bool=False) -> dict:
+def check_reachable(url: str, maxbytes: int = 4096, allow_local: bool=False) -> dict:
     """
     Quick check that the URL is reachable and returns valid service
     metadata. Raises ServiceCheckError on any failure, returns the
@@ -69,7 +77,7 @@ def check_reachable(url: str, maxbytes: int = 1024, allow_local: bool=False) -> 
     except ValueError:
         raise ServiceCheckError('Service did not return valid JSON')
 
-    missing = [f for f in REQUIRED_METADATA_FIELDS if not metadata.get(f)]
+    missing = [f for f in SUBMISSION_REQUIRED_FIELDS if not metadata.get(f)]
     if missing:
         raise ServiceCheckError(f"Missing required field(s): {', '.join(missing)}")
 
@@ -84,7 +92,7 @@ def check_service_status(url: str) -> dict:
     status_url = url.rstrip('/') + '/status'
 
     try:
-        response = requests.get(status_url, timeout=10, allow_redirects=False)
+        response = requests.get(status_url, timeout=10, allow_redirects=False, verify=False)
         response.raise_for_status()
         status = response.json()
     except requests.RequestException as e:
@@ -92,7 +100,14 @@ def check_service_status(url: str) -> dict:
     except ValueError:
         raise ServiceCheckError('Invalid status response')
 
+    if response.status_code != 200:
+        raise ServiceCheckError(f'Returned status code: {response.status_code}')
+
     if not isinstance(status, dict) or 'status' not in status:
         raise ServiceCheckError("Status response missing 'status' field")
+
+    if status.get('status') != 'ok':
+        stat = status.get('status')
+        raise ServiceCheckError(f'Status reported non-ok: {stat}')
 
     return status

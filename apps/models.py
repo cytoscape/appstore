@@ -417,8 +417,10 @@ class ServiceRelease(models.Model):
     app = models.ForeignKey(App, on_delete=models.CASCADE) #did not fake on migrations, so if issues arise, check for bigint vs int on id fk
     version = models.CharField(max_length=31)
     endpoint = models.URLField(blank=False, null=True)
-    
-    notes = models.TextField(blank=True, null=True)
+    author = models.CharField(max_length=512, blank=True)
+    description = models.TextField(blank=True)
+    citation = models.URLField(blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True)
     active = models.BooleanField(default=True)
-    docs_url = models.URLField(blank=True, null=True)
+    metadata = models.JSONField(null=True, blank=True)
+    

@@ -18,7 +18,7 @@ from django import forms
 
 from util.view_util import html_response, json_response, get_object_or_none, is_ajax
 from util.id_util import fullname_to_name
-from apps.models import Release, App, Author, OrderedAuthor
+from apps.models import Release, ServiceRelease, App, Author, OrderedAuthor
 from apps.views import _parse_iso_date
 from .models import AppPending, ServiceAppPending
 from .pomparse import PomAttrNames, parse_pom
@@ -367,6 +367,20 @@ def _pending_app_decline(pending_app, request):
     pending_app.delete_files()
     pending_app.delete()
 
+def _pending_service_accept(pending, request):
+    name = fullname_to_name(pending.fullname)
+    app = App.objects.create(fullname = pending.fullname, name = name)
+    app.active = True
+    app.editors.add(pending.submitter)
+    app.save()
+
+    pending.make_service_release(app)
+    submitter_email = pending.submitter.email
+    pending.delete()
+
+    server_url = _get_server_url(request)
+    _send_email_for_accepted_app(submitter_email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
+
 def _pending_service_decline(pending_app, request):
     pending_app.delete()
 
@@ -376,8 +390,14 @@ def _pending_instance_decline(pending_app, request):
     if isinstance(pending_app, ServiceAppPending):
         return _pending_service_decline(pending_app, request)
 
+def _pending_instance_accept(pending_app, request):
+    if isinstance(pending_app, AppPending):
+        return _pending_app_accept(pending_app, request)
+    if isinstance(pending_app, ServiceAppPending):
+        return _pending_service_accept(pending_app, request)
+
 _PendingAppsActions = {
-    'accept': _pending_app_accept,
+    'accept': _pending_instance_accept,
     'decline': _pending_instance_decline,
 }
 
@@ -404,6 +424,8 @@ def pending_apps(request):
         _PendingAppsActions[action](pending_app, request)
         if is_ajax(request):
             return json_response(True)
+
+        return HttpResponseRedirect(reverse('pending-apps'))
 
     pending_apps = AppPending.objects.all()
     pending_service = ServiceAppPending.objects.all()
@@ -549,6 +571,7 @@ def submit_service_app(request):
 
     fullname = metadata.get('name', '')
     version = metadata.get('version', '')
+    author = metadata.get('author', '')
     """
     try:
         pending = _create_pending_service(request.user, fullname, version, service_url, metadata)
@@ -560,6 +583,7 @@ def submit_service_app(request):
     pending = ServiceAppPending.objects.create(
     submitter=request.user,
     fullname=fullname,
+    author = author,
     version=version,
     service_endpoint=service_url,
     metadata=metadata,
@@ -567,21 +591,21 @@ def submit_service_app(request):
 
     return HttpResponseRedirect(reverse('confirm-service', args=[pending.id])) 
 
-def _service_cancel(request, pending):
+def _service_user_cancel(request, pending):
     pending.delete()
     return HttpResponseRedirect(reverse('submit-service-app'))
 
-def _service_accepted(request, pending):
+def _service_user_accepted(request, pending):
     app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
     if app:
         if not app.is_editor(request.user):
             return HttpResponseForbidden('You are not authorized to make changes or add new releases to this app')
-        if not app.is_active:
+        if not app.active:
             app.active = True
             app.save()
            
         pending.delete()
-        return HttpResponseRedirect(reverse('app-page-edit', args=[app.name]) + '?upload_release=true')
+        return HttpResponseRedirect(reverse('app_page_edit', args=[app.name]) + '?upload_release=true')
     else:
         app_name = pending.fullname
         #pending.delete()
@@ -597,9 +621,11 @@ def service_app_confirm(request, id):
         action = request.POST.get('action')
         if action:
             if action == 'cancel':
-                return _service_cancel(request, pending)
+                return _service_user_cancel(request, pending)
             elif action == 'accept':
-               return  _service_accepted(request, pending)
+                pending.status = ServiceAppPending.Status.VALIDATED
+                pending.save()
+                return  _service_user_accepted(request, pending)
                 
 
     return html_response('confirm_service.html', {'pending': pending}, request)

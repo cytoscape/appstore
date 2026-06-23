@@ -97,8 +97,11 @@ class ServiceAppPending(models.Model):
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
-        VALIDATED = 'validated', 'Validated'
+        VALIDATED = 'validated', 'Validated' #sumbission validated (basic checks)
         FAILED = 'failed', 'Failed'
+        CHECKER_PASSED = 'checker_passed', 'Checker Passed' 
+        ACCEPTED = 'accepted', 'Accepted'
+        REJECTED = 'rejected', 'Rejected'
 
     id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -108,14 +111,25 @@ class ServiceAppPending(models.Model):
     status = models.CharField(max_length=31, choices=Status.choices, default=Status.PENDING)
 
     service_endpoint = models.URLField(blank=True, null=True)
-    #documentation_url = models.URLField(blank=True, null=True) go under pending
+    citation = models.CharField(max_length=512, blank=True)
+
+    author = models.CharField(max_length=512, blank=True, null=True)
+    
 
     metadata = models.JSONField(null=True, blank=True)
 
-    """
-    def make_service_release(self, app)
+    def make_service_release(self, app):
+        release, _ = ServiceRelease.objects.get_or_create(app = app, version = self.version)
+        release.active=True
+        release.created=datetime.datetime.today()
+        release.save()
 
-    """
+        if not app.has_releases:
+            app.has_releases = True
+        app.latest_release_date = release.created
+        app.save()
+
+
 
 """
 class WebAppPending(models.Model):
