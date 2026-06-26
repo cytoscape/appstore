@@ -82,6 +82,10 @@ def app_icon_path(app, filename):
     """
     return pathjoin(app.name, filename)
 
+class Platform(models.TextChoices):
+        DESKTOP = 'desktop', 'Desktop'
+        WEB = 'web', 'Web'
+        SERVICE = 'service', 'Service'
 
 class App(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -98,12 +102,8 @@ class App(models.Model):
                                      through='OrderedAuthor')
     editors = models.ManyToManyField(User, blank=True)
 
-    class Platform(models.TextChoices):
-        Desktop = 'desktop', 'desktop'
-        Web = 'web', 'web'
-        Service = 'service', 'service'
 
-    platform = models.CharField(max_length=31, choices=Platform.choices, default=Platform.Desktop)
+    platform = models.CharField(max_length=31, choices=Platform.choices)
 
     cy_2x_plugin_download = models.URLField(blank=True, null=True)
     cy_2x_plugin_version = models.CharField(max_length=31, blank=True,
@@ -193,12 +193,19 @@ class App(models.Model):
     def releases(self):
         return self.release_set.filter(active=True).all()
 
+    @property
+    def servicereleases(self):
+        return self.servicerelease_set.filter(active=True).all()
+
     def update_has_releases(self):
         self.has_releases = (self.release_set.filter(active=True).count() > 0)
         self.save()
 
     @property
     def page_url(self):
+        if self.platform == "Service":
+            return reverse('service_page', args=[self.name])
+
         return reverse('app_page', args=[self.name])
 
     @property
@@ -414,9 +421,9 @@ class ReleaseAPI(models.Model):
 
 class ServiceRelease(models.Model):
     id = models.BigAutoField(primary_key=True)
-    app = models.ForeignKey(App, on_delete=models.CASCADE) #did not fake on migrations, so if issues arise, check for bigint vs int on id fk
+    app = models.ForeignKey(App, on_delete=models.CASCADE)
     version = models.CharField(max_length=31)
-    endpoint = models.URLField(blank=False, null=True)
+    service_endpoint = models.URLField(blank=False, null=True)
     author = models.CharField(max_length=512, blank=True)
     description = models.TextField(blank=True)
     citation = models.URLField(blank=True, null=True)

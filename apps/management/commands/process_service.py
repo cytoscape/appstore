@@ -3,6 +3,7 @@ from submit_app.models import ServiceAppPending
 from submit_app.servicechecker import check_reachable, check_service_status, ServiceCheckError
 import requests
 from django.core.mail import send_mail
+from django.conf import settings
 
 VALID_CY_WEB_ACTIONS = {
     'addNetworks', 'updateNetwork', 'addTables',
@@ -35,7 +36,7 @@ class Command(BaseCommand):
     help = 'Validate pending service app submissions'
 
     def handle(self, *args, **options):
-        pending_apps = ServiceAppPending.objects.filter(status=ServiceAppPending.Status.VALIDATED)
+        pending_apps = ServiceAppPending.objects.filter(status=ServiceAppPending.Status.PENDING_CHECKER)
 
         for pending in pending_apps:
             errors = []
@@ -44,7 +45,7 @@ class Command(BaseCommand):
                 metadata = check_reachable(pending.service_endpoint)
             except ServiceCheckError as e:
                 errors.append(f'Reachability check failed: {e}')
-                pending.status = ServiceAppPending.Status.FAILED    
+                pending.status = ServiceAppPending.Status.CHECKER_FAILED    
                 pending.metadata = {**(pending.metadata or {}), 'check_errors': errors}
                 pending.save()
                 continue
@@ -66,14 +67,35 @@ class Command(BaseCommand):
                 errors.append(f"Name in metadata ({metadata.get('version')!r}) does not match submitted name ({pending.version!r})")
 
             if errors:
-                pending.status = ServiceAppPending.Status.FAILED
+                pending.status = ServiceAppPending.Status.CHECKER_FAILED
                 pending.metadata = {**(pending.metadata or {}), 'check_errors': errors}
-                #email submitter
                 self.stdout.write(self.style.ERROR(f'  FAILED: {errors}'))
 
-            else:
-                pending.status = ServiceAppPending.Status.CHECKER_PASSED
-                pending.metadata = {**(pending.metadata or {}), 'check_errors': []}
-                self.stdout.write(self.style.SUCCESS(f'  PASSED'))
+                submitter_email = getattr(pending.submitter, 'email', None)
+                if submitter_email:
+                    subject = f"Service submission '{pending.fullname}' failed automated checks"
+                    body_lines = [
+                        f"Your submission '{pending.fullname}' ({pending.service_endpoint}) failed the automated checker.",
+                        '',
+                        'Problems Found:',
+                    ] + [f"- {e}" for e in errors] + [
+                        '',
+                        'Please fix the issues above and resubmit at https://apps.cytoscape.org/submit_app/service',
+                        '',
+                        '- Cytoscape App Store Team',
+                        f"Contact: {getattr(settings, 'CONTACT_EMAIL', 'no-reply')}"
+                    ]
+                    body = '\n'.join(body_lines)
 
-            pending.save()
+                    try:
+                        send_mail(subject, body, getattr(settings, 'CONTACT_EMAIL', None), [submitter_email], fail_silently=False)
+                        
+                    except Exception as e:
+                        self.stdout.write(self.style.ERROR(f'Failed to send email to {submitter_email}: {e}'))
+
+                pending.delete()
+            else:
+                pending.status = ServiceAppPending.Status.PENDING_REVIEW
+                pending.metadata = {**(pending.metadata or {}), 'check_errors': []}
+                self.stdout.write(self.style.SUCCESS(f'  CHECKER PASSED. TO BE REVIEWED MANUALLY'))
+                pending.save()

@@ -11,6 +11,8 @@ from apps.views import app_page
 from apps.views import app_page_edit
 from apps.views import author_names
 from apps.views import institution_names
+from apps.views import service_page
+from apps.views import service_page_edit
 from download.views import release_download
 
 urlpatterns = [
@@ -22,7 +24,9 @@ urlpatterns = [
     re_path(r'^with_tag/(\w{1,100})$', apps_with_tag, name='tag_page'),
     re_path(r'^with_author/(.{1,300})$', apps_with_author, name='author_page'),
     re_path(r'^(\w{1,100})$', app_page, name='app_page'),
+    re_path(r'^(\w{1,100})$', service_page, name='service_page'),
     re_path(r'^(\w{1,100})/edit$', app_page_edit, name='app_page_edit'),
+    re_path(r'^(\w{1,100})/edit_service$', service_page_edit, name='service_page_edit'),
     re_path(r'^(\w{1,100})/author_names$', author_names),
     re_path(r'^(\w{1,100})/institution_names$', institution_names),
     re_path(r'^(\w{1,100})/download/(.{1,31})$', release_download), # old url for downloads

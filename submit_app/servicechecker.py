@@ -53,7 +53,7 @@ def check_reachable(url: str, maxbytes: int = 4096, allow_local: bool=False) -> 
         raise ServiceCheckError('Internal IPs are blocked')
 
     try:
-        response = requests.get(url, timeout=10, allow_redirects=False, verify=False)
+        response = requests.get(url, timeout=10, allow_redirects=False, verify=False) #REMOVE VERIFY BEFORE PRODUCTION
     except requests.RequestException as e:
         raise ServiceCheckError(f'Could not reach service: {e}')
 
@@ -92,7 +92,7 @@ def check_service_status(url: str) -> dict:
     status_url = url.rstrip('/') + '/status'
 
     try:
-        response = requests.get(status_url, timeout=10, allow_redirects=False, verify=False)
+        response = requests.get(status_url, timeout=10, allow_redirects=False, verify=False) #REMOVE VERIFY BEFORE PRODUCTION
         response.raise_for_status()
         status = response.json()
     except requests.RequestException as e:

@@ -5,7 +5,7 @@ from threading import Thread
 
 from django.db import models
 from django.contrib.auth.models import User
-from apps.models import App, Release, ReleaseAPI
+from apps.models import App, ServiceRelease, Release, ReleaseAPI
 from util.id_util import fullname_to_name
 from util.view_util import get_object_or_none
 from django.core.mail import send_mail
@@ -96,32 +96,44 @@ def _deploy_artifact(api):
 class ServiceAppPending(models.Model):
 
     class Status(models.TextChoices):
-        PENDING = 'pending', 'Pending'
-        VALIDATED = 'validated', 'Validated' #sumbission validated (basic checks)
-        FAILED = 'failed', 'Failed'
-        CHECKER_PASSED = 'checker_passed', 'Checker Passed' 
-        ACCEPTED = 'accepted', 'Accepted'
-        REJECTED = 'rejected', 'Rejected'
+        PENDING_CHECKER = 'pending_checker', 'Pending Checker' #submission was successful, waiting for checker command
+        CHECKER_VALIDATED = 'checker_validated', 'Validated by Checker' #passed all checks from checker
+        CHECKER_FAILED = 'checker_failed', 'Failed Checker' #checker validation failed
+        PENDING_REVIEW = 'pending_review', 'Pending Manual Review' #checker passed, awaiting human/admin review
 
     id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=127)
     version = models.CharField(max_length=31)
     created = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=31, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(max_length=31, choices=Status.choices, default=Status.PENDING_CHECKER)
 
     service_endpoint = models.URLField(blank=True, null=True)
     citation = models.CharField(max_length=512, blank=True)
+    documentation = models.CharField(max_length=512, blank=True, null=True)
 
     author = models.CharField(max_length=512, blank=True, null=True)
     
-
     metadata = models.JSONField(null=True, blank=True)
 
+    name = models.CharField(max_length=256, unique=True, db_index=True, null=True)
+
+    class Meta:
+        ordering = ['-created']
+    
+    def __str__(self):
+        return f'{self.app.fullname} {self.version}'
+
+
     def make_service_release(self, app):
-        release, _ = ServiceRelease.objects.get_or_create(app = app, version = self.version)
-        release.active=True
-        release.created=datetime.datetime.today()
+        release, _ = ServiceRelease.objects.get_or_create(app=app, version=self.version)
+        release.service_endpoint = self.service_endpoint
+        release.author = self.author or ''
+        release.citation = self.citation or ''
+        release.documentation = self.documentation or ''
+        release.metadata = self.metadata
+        release.active = True
+        release.created = datetime.datetime.today()
         release.save()
 
         if not app.has_releases:

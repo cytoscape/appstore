@@ -18,7 +18,7 @@ from django import forms
 
 from util.view_util import html_response, json_response, get_object_or_none, is_ajax
 from util.id_util import fullname_to_name
-from apps.models import Release, ServiceRelease, App, Author, OrderedAuthor
+from apps.models import Release, ServiceRelease, App, Author, OrderedAuthor, Platform
 from apps.views import _parse_iso_date
 from .models import AppPending, ServiceAppPending
 from .pomparse import PomAttrNames, parse_pom
@@ -351,7 +351,7 @@ def _get_server_url(request):
 def _pending_app_accept(pending, request):
     name = fullname_to_name(pending.fullname)
     # we always create a new app, because only new apps require accepting
-    app = App.objects.create(fullname = pending.fullname, name = name)
+    app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.DESKTOP)
     app.active = True
     app.editors.add(pending.submitter)
     app.save()
@@ -369,7 +369,7 @@ def _pending_app_decline(pending_app, request):
 
 def _pending_service_accept(pending, request):
     name = fullname_to_name(pending.fullname)
-    app = App.objects.create(fullname = pending.fullname, name = name)
+    app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.SERVICE)
     app.active = True
     app.editors.add(pending.submitter)
     app.save()
@@ -413,17 +413,33 @@ def pending_apps(request):
         if not action in _PendingAppsActions:
             return HttpResponseBadRequest('invalid action--must be: %s' % ', '.join(_PendingAppsActions.keys()))
         pending_id = request.POST.get('pending_id')
+        pending_platform = request.POST.get('pending_platform')
         if not pending_id:
             return HttpResponseBadRequest('pending_id must be specified')
         try:
-            pending_app = AppPending.objects.filter(id = int(pending_id)).first()
-            if pending_app is None:
-                pending_app = ServiceAppPending.objects.filter(id = int(pending_id)).first()
-        except (AppPending.DoesNotExist, ServiceAppPending.DoesNotExist) as ValueError:
+            pending_id = int(pending_id)
+        except ValueError:
             return HttpResponseBadRequest('invalid pending_id')
-        _PendingAppsActions[action](pending_app, request)
+
+        platform_map = {
+            'desktop' : AppPending,
+            'service' : ServiceAppPending,
+        } 
+
+        model = platform_map.get(pending_platform)
+        if model is None:
+            return HttpResponseBadRequest(f'invalid platform: {pending_platform}')
+
+        pending_app = model.objects.filter(id=pending_id).first()
+        if pending_app is None:
+            return HttpResponseBadRequest('invalid pending_id')
+        
+        result = _PendingAppsActions[action](pending_app, request)
         if is_ajax(request):
             return json_response(True)
+
+        if isinstance(result, HttpResponse):
+            return result
 
         return HttpResponseRedirect(reverse('pending-apps'))
 
@@ -572,6 +588,37 @@ def submit_service_app(request):
     fullname = metadata.get('name', '')
     version = metadata.get('version', '')
     author = metadata.get('author', '')
+    name = fullname_to_name(fullname)
+
+    if version and not re.match(r'^\d+\.\d+(\.\d+)?$', version):
+        context['error'] = "Version must does not match required pattern. It should have 2 order version numbering (e.g: x.y) or 3 order version numbering (e.g: x.y.z)"
+        return html_response('service_upload_form.html', context, request)
+
+
+    existing = get_object_or_none(App, name=name)
+    if existing and not existing.is_editor(request.user):
+        context['error'] = 'An app with that name already exists and you are not an editor'
+        return html_response('service_upload_form.html', context, request)
+
+    if ServiceAppPending.objects.filter(name=name).exists():
+        context['error'] = 'A submission with that name is already pending review. Please wait for review or contact support.'
+        return html_response('service_upload_form.html', context, request)
+
+    try:
+        pending = ServiceAppPending.objects.create(
+        submitter=request.user,
+        fullname=fullname,
+        author = author,
+        version=version,
+        service_endpoint=service_url,
+        metadata=metadata,
+        name=name
+        )
+
+    except IntegrityError:
+        context['error'] = 'A submission with that name is already pending review. Please wait for review.'
+        return html_response('service_upload_form.html', context, request)
+
     """
     try:
         pending = _create_pending_service(request.user, fullname, version, service_url, metadata)
@@ -580,14 +627,6 @@ def submit_service_app(request):
         LOGGER.info("Created ServiceAppPending id=%s fullname=%r", pending.id, pending.fullname)
         return html_response('service_upload_form.html', context, request)
     """
-    pending = ServiceAppPending.objects.create(
-    submitter=request.user,
-    fullname=fullname,
-    author = author,
-    version=version,
-    service_endpoint=service_url,
-    metadata=metadata,
-)
 
     return HttpResponseRedirect(reverse('confirm-service', args=[pending.id])) 
 
@@ -623,7 +662,7 @@ def service_app_confirm(request, id):
             if action == 'cancel':
                 return _service_user_cancel(request, pending)
             elif action == 'accept':
-                pending.status = ServiceAppPending.Status.VALIDATED
+                pending.status = ServiceAppPending.Status.PENDING_CHECKER
                 pending.save()
                 return  _service_user_accepted(request, pending)
                 

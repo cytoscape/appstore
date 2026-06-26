@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from util.view_util import json_response, html_response, obj_to_dict, get_object_or_none
 from util.img_util import scale_img
 from util.id_util import fullname_to_name
-from apps.models import Tag, App, Author, OrderedAuthor, Screenshot, Release
+from apps.models import Tag, App, Platform, Author, OrderedAuthor, Screenshot, Release, ServiceRelease
 from django.views.decorators.csrf import csrf_exempt
 from util.view_util import is_ajax
 # Returns a unicode string encoded in a cookie
@@ -209,6 +209,9 @@ _AppActions = {
 def app_page(request, app_name):
     app = get_object_or_404(App, active=True, name=app_name)
     user = request.user if request.user.is_authenticated else None
+
+    if app.platform == Platform.SERVICE:
+        return service_page(request, app_name)
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -516,3 +519,98 @@ def app_page_edit(request, app_name):
         'release_uploaded': request.GET.get('upload_release') == 'true',
     }
     return html_response('app_page_edit.html', c, request)
+
+#---------------------------SERVICE APPS----------------------------
+
+def _latest_service_release(app):
+    releases = app.servicereleases
+    if not releases:
+        return None
+    return releases[0]
+
+def _mk_service_page(app, user, request):
+    c = {
+        'app': app,
+        'is_editor': (user and app.is_editor(user)),
+        'service_latest_release': _latest_service_release(app),
+        'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
+        'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
+    }
+    return html_response('service_page.html', c, request)
+
+
+def service_page(request, app_name):
+    app = get_object_or_404(App, active=True, name=app_name)
+    user = request.user if request.user.is_authenticated else None
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if not action:
+            return HttpResponseBadRequest('no action specified')
+        if not action in _AppActions:
+            return HttpResponseBadRequest('action "%s" invalid--must be: %s' % (action, ', '.join(_AppActions)))
+        try:
+            result = _AppActions[action](app, user, request.POST)
+        except ValueError as e:
+            return HttpResponseBadRequest(str(e))
+        if isinstance(result, HttpResponse):
+            return result
+        if is_ajax(request):
+            return json_response(result)
+    return _mk_service_page(app, user, request)
+
+
+_ServiceEditActions = {
+    'save_description':   _mk_basic_field_saver('description'),
+    #'save_license_text':  _mk_basic_field_saver('license_text'),
+    #'save_license_confirm':  _mk_basic_field_saver('license_confirm', func = lambda s: s.lower() == 'true'),
+    'save_website':       _mk_basic_field_saver('website'),
+    'save_tutorial':      _mk_basic_field_saver('tutorial'),
+    'save_citation':      _mk_basic_field_saver('citation'),
+    'save_coderepo':      _mk_basic_field_saver('coderepo'),
+    'save_automation':  _mk_basic_field_saver('automation'),
+    'save_contact':       _mk_basic_field_saver('contact'),
+    'save_details':       _mk_basic_field_saver('details'),
+    'save_tags':          _save_tags,
+    'upload_icon':        _upload_icon,
+    'upload_screenshot':  _upload_screenshot,
+    'delete_screenshot':  _delete_screenshot,
+    'check_editor':       _check_editor,
+    'save_editors':       _save_editors,
+    'save_authors':       _save_authors,
+    'save_release_notes': _save_release_notes,
+    'delete_release':     _delete_release,
+}
+
+@login_required
+@csrf_exempt
+def service_page_edit(request, app_name):
+    app = get_object_or_404(App, active = True, name = app_name)
+    if not app.is_editor(request.user):
+        return HttpResponseForbidden()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if not action:
+            return HttpResponseBadRequest('no action specified')
+        if not action in _AppEditActions:
+            return HttpResponseBadRequest('action "%s" invalid--must be: %s' % (action, ', '.join(_AppEditActions)))
+        try:
+            result = _AppEditActions[action](app, request)
+        except ValueError as e:
+            return HttpResponseBadRequest(str(e))
+        app.save()
+        if is_ajax(request):
+            return json_response(result)
+
+    all_tags = [tag.fullname for tag in Tag.objects.all()]
+    c = {
+        'app': app,
+        'all_tags': all_tags,
+        'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
+        'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,
+        'thumbnail_height_px': _AppPageEditConfig.thumbnail_height_px,
+        'app_description_maxlength': _AppPageEditConfig.app_description_maxlength,
+        'release_uploaded': request.GET.get('upload_release') == 'true',
+    }
+    return html_response('service_page_edit.html', c, request)

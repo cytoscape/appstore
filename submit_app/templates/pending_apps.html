@@ -29,7 +29,7 @@
                     </tr>
                 </thead>
                 {% for pending_app in pending_apps %}
-                    <tr pending_id="{{ pending_app.id }}">
+                    <tr pending_id="{{ pending_app.id }}" pending_platform= "desktop">
                         <td class="cy-app-name">{{ pending_app.fullname }}</td>
                         <td class="cy-app-platform">Desktop</td>
                         <td class="cy-app-version">{{ pending_app.version }}</td>
@@ -53,7 +53,7 @@
                     </tr>
                 {% endfor %}
                 {% for pending in pending_service %}
-                    <tr pending_id="{{pending.id}}">
+                    <tr pending_id="{{pending.id}}" pending_platform="service">
                         <td class="cy-service-app-name">{{ pending.fullname }}</td>
                         <td class="cy-service-app-platform">Service</td>
                         <td class="cy-service-app-version">{{ pending.version }}</td>
@@ -67,6 +67,7 @@
                             {% endif %}
                         </td>
                         <td>
+                            <button class ="cy-try-web btn btn-info btn-mini">Try in Cytoscape Web</button>
                             <button class="cy-accept btn btn-success btn-mini"><i class="icon icon-ok icon-white"></i> Accept</button>
                             <button class="cy-decline btn btn-danger btn-mini"><i class="icon icon-remove icon-white"></i> Decline</button>
                             <span class="cy-loading" style="display: none;"><img src="{% get_static_prefix %}/common/img/loading_small.gif"></span>
@@ -78,6 +79,9 @@
     </div>
     
     <script type="text/javascript" src="{% get_static_prefix %}submit_app/js/pending_apps.js"></script>
+ <!--   <script>
+         var CYTOSCAPE_WEB_BASE = "{{ CYTOSCAPE_WEB_BASE|default:'https://web.cytoscape.org' }}";
+    </script>-->
     <script type="text/javascript">
         PendingApps.setup_accept_and_decline_btns();
     </script>
