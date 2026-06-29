@@ -50,7 +50,7 @@
 				<span class="caret"></span>
 			</a>
 			<ul class="dropdown-menu pull-right">
-				<li><a href="{% url 'service_page_edit' app.name %}">Edit this page</a></li>
+				<li><a href="{% url 'app_page_edit' app.name %}">Edit this page</a></li>
 				<li><a href="{% url 'submit-service-app' %}?expect_app_name={{ app.fullname }}">Submit a new service release</a></li>
 				<li class="divider"></li>
 				<li><a data-toggle="modal" href="#delete_ratings_modal">Delete all ratings</a></li>
@@ -98,7 +98,7 @@
 
 		{# badges #}
 		{% if app.has_releases %}
-		<a href="web.cytoscape.org" target="_blank">
+		<a href="https://web.cytoscape.org/" target="_blank">
             <img src="{% get_static_prefix %}apps/img/cyweb_sticker.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is available for Cytoscape Web">
         </a>
 		{% endif %}

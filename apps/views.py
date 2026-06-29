@@ -22,7 +22,7 @@ def _unescape_and_unquote(s):
 # ============================================
 
 class _NavPanelConfig:
-    min_tag_count = 3
+    min_tag_count = 1
     num_of_top_tags = 20
     tag_cloud_max_font_size_em = 2.0
     tag_cloud_min_font_size_em = 1.0
@@ -157,6 +157,20 @@ def apps_with_author(request, author_name):
     }
     return html_response('apps_with_author.html', c, request, processors = (_nav_panel_context, ))
 
+def apps_with_platform(request, platform):
+    apps = App.objects.filter(active=True, platform=platform)
+    if not apps:
+        raise Http404('No apps for this platform were found')
+
+    c = {
+        'platform': platform,
+        'apps' : apps,
+        'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
+        'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
+    }
+
+    return html_response('apps_with_platform.html', c, request, processors = (_nav_panel_context, ))
+
 # ============================================
 #      App Pages
 # ============================================
@@ -227,6 +241,8 @@ def app_page(request, app_name):
             return result
         if is_ajax(request):
             return json_response(result)
+
+
     return _mk_app_page(app, user, request)
 
 # ============================================
@@ -613,4 +629,4 @@ def service_page_edit(request, app_name):
         'app_description_maxlength': _AppPageEditConfig.app_description_maxlength,
         'release_uploaded': request.GET.get('upload_release') == 'true',
     }
-    return html_response('service_page_edit.html', c, request)
+    return html_response('app_page_edit.html', c, request)

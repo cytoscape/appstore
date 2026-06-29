@@ -14,7 +14,7 @@ from submit_app.views import submit_web_bundle
 
 
 urlpatterns = [
-    re_path(r'^$', submit_app, name='submit-app'),
+    re_path(r'^submit_desktop_app$', submit_app, name='submit-app'),
     re_path(r'^select_platform$', platform_select, name='platform-select'),
     re_path(r'^pending$', pending_apps, name='pending-apps'),
     re_path(r'^cy2xplugins$', cy2x_plugins, name='cy2x-plugins'),

@@ -134,47 +134,72 @@
       <div class="tab-pane" id="cy-app-releases-tab">
         <div class="row">
           <div class="span7">
-            {% for release in app.releases %}
-            <div class="cy-release" release_id="{{ release.id }}">
-              <h4>
-                {{ release.version }}
-                <small><abbr class="timeago" title="{{ release.created_iso }}"></abbr></small>
-                <button class="btn btn-small {% if release.dependents.count %}disabled{% endif %} cy-release-delete"><i class="icon icon-trash"></i> Delete</button>
-              </h4>
-              <p>
-                <strong>Works with Cytoscape</strong>
-                {{ release.works_with }}
-              </p>
-              {% if release.releaseapi_set.count %}
-              {% with releaseapi=release.releaseapi_set.get %}
-              <p>
-                <strong>API</strong>
-                &nbsp;
-                <a target="_blank" href="{{ releaseapi.pom_xml_file.url }}">pom.xml</a>
-                &nbsp;
-                <a target="_blank" href="{{ releaseapi.javadocs_jar_file.url }}-extracted">Javadocs</a>
-              </p>
-              {% endwith %}
-              {% endif %}
-              {% if release.dependents.count %}
-              <p>
-                <strong>Apps that depend on this release</strong>
-                <ul>
-                  {% for dependent in release.dependents.all %}
-                  <li>
-                    <a href="{% url 'app_page' dependent.app.name %}" target="_blank">{{ dependent.app.fullname }}</a> {{ dependent.version }}
-                  </li>
-                  {% endfor %}
-                </ul>
-              </p>
-              {% endif %}
-              <p><strong>Release Notes</strong></p>
-              <textarea class="cy-release-notes" rows="5">{% if release.notes %}{{ release.notes }}{% endif %}</textarea>
-              <h6 class="muted">PREVIEW</h6>
-              <div class="cy-release-notes-preview"></div>
-              <hr>
-            </div>
-            {% endfor %}
+            {% if app.platform == 'service'%}
+              {% for release in apps.servicerelease%}
+               <div class="cy-release" release_id="{{ release.id }}">
+                <h4>
+                  {{ release.version }}
+                  <small><abbr class="timeago" title="{{ release.created_iso }}"></abbr></small>
+                  <button class="btn btn-small {% if release.dependents.count %}disabled{% endif %} cy-release-delete"><i class="icon icon-trash"></i> Delete</button>
+                </h4>
+                <p>
+                  <strong>Works with Cytoscape Web</strong>
+                  {{ release.works_with }}
+                </p>
+                <p><strong>Release Notes</strong></p>
+                <textarea class="cy-release-notes" rows="5">{% if release.notes %}{{ release.notes }}{% endif %}</textarea>
+                <h6 class="muted">PREVIEW</h6>
+                <div class="cy-release-notes-preview"></div>
+                <hr>
+              </div>
+              {% endfor %}
+            {% endif %}
+
+            {% if app.platform == 'desktop' %}
+              {% for release in app.releases %}
+              <div class="cy-release" release_id="{{ release.id }}">
+                <h4>
+                  {{ release.version }}
+                  <small><abbr class="timeago" title="{{ release.created_iso }}"></abbr></small>
+                  <button class="btn btn-small {% if release.dependents.count %}disabled{% endif %} cy-release-delete"><i class="icon icon-trash"></i> Delete</button>
+                </h4>
+                <p>
+                  <strong>Works with Cytoscape</strong>
+                  {{ release.works_with }}
+                </p>
+                {% if release.releaseapi_set.count %}
+                {% with releaseapi=release.releaseapi_set.get %}
+                <p>
+                  <strong>API</strong>
+                  &nbsp;
+                  <a target="_blank" href="{{ releaseapi.pom_xml_file.url }}">pom.xml</a>
+                  &nbsp;
+                  <a target="_blank" href="{{ releaseapi.javadocs_jar_file.url }}-extracted">Javadocs</a>
+                </p>
+                {% endwith %}
+                {% endif %}
+                {% if release.dependents.count %}
+                <p>
+                  <strong>Apps that depend on this release</strong>
+                  <ul>
+                    {% for dependent in release.dependents.all %}
+                    <li>
+                      <a href="{% url 'app_page' dependent.app.name %}" target="_blank">{{ dependent.app.fullname }}</a> {{ dependent.version }}
+                    </li>
+                    {% endfor %}
+                  </ul>
+                </p>
+                {% endif %}
+                <p><strong>Release Notes</strong></p>
+                <textarea class="cy-release-notes" rows="5">{% if release.notes %}{{ release.notes }}{% endif %}</textarea>
+                <h6 class="muted">PREVIEW</h6>
+                <div class="cy-release-notes-preview"></div>
+                <hr>
+              </div>
+              {% endfor %}
+            {% endif %}
+
+            {# end outer div #}
           </div>
         </div>
       </div>
@@ -205,6 +230,7 @@
     {# end editors #}
         
     {# 2.x #}
+    {% if app.platform == 'desktop' %}
     <div class="well cy-right-panel">
       <h6 class="muted panel-title">Cytoscape 2.x Plugin</h6>
                 
@@ -229,7 +255,7 @@
       </fieldset>
     </div>
     {# end 2.x #}
-
+    {% endif %}
     {# resources #}
     <div class="well cy-right-panel">
       <h6 class="muted panel-title">Resources</h6>
