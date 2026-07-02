@@ -34,20 +34,21 @@
           </tr>
           <tr>
             <td>
-              <a href="{% url 'platform_page' 'desktop' %}">Desktop Apps</a>
+              <ul class="nav nav-list">
+                <li {% if platform == "desktop" %}class="active"{% endif %}>
+                    <a href="{% url 'platform_page' 'desktop' %}"><h5 style="margin: 0;">Desktop Apps</h5></a>
+                </li>
+
+                <li {% if platform == "service" %}class="active"{% endif %}>
+                    <a href="{% url 'platform_page' 'service' %}"><h5 style="margin: 0;">Service Apps</h5></a>
+                </li>
+
+                <li {% if platform == "web" %}class="active"{% endif %}>
+                    <a href="{% url 'platform_page' 'web' %}"><h5 style="margin: 0;">Web Apps</h5></a>
+                </li>
+              </ul>
             </td>
           </tr>
-          <tr>
-            <td>
-              <a href="{% url 'platform_page' 'service' %}">Service Apps</a>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <a href="{% url 'platform_page' 'web' %}">Web Apps</a>
-            </td>
-          </tr>
-          <tr>
             <td><h3>Categories</h3></td>
             <td>
               <div class="pull-right">

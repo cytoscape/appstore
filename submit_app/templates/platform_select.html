@@ -6,7 +6,8 @@
   <div class="span12">
     <div class="page-header">
       <h1>Select a Platform</h1>
-      <form method="post">
+    </div>
+    <form method="post">
         {% csrf_token %}
         <select name="platform">
           <option value="">Select a platform</option>
@@ -16,7 +17,7 @@
         </select>
         <button type="submit">Confirm</button>
       </form>
-    </div>
+      <i>Unsure Which Platform to Choose? Click the Guide Here</i>
   </div>
 </div>
 {% endblock %}

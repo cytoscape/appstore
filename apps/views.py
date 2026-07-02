@@ -159,8 +159,9 @@ def apps_with_author(request, author_name):
 
 def apps_with_platform(request, platform):
     apps = App.objects.filter(active=True, platform=platform)
-    if not apps:
-        raise Http404('No apps for this platform were found')
+    #
+    #if not apps:
+    #    raise Http404('No apps for this platform were found')
 
     c = {
         'platform': platform,
