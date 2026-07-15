@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    -Selecting a Platform
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Submit an Application</h1>
+        <p class="lead">
+            Not sure which submission type to choose? Select the option that
+            best matches how your application is deployed.
+        </p>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>Tip:</strong> The easiest way to decide is to ask:
+        <em>"Where does my application run?"</em>
+    </div>
+
+    <div class="row">
+
+        <!-- Desktop -->
+        <div class="span4">
+            <div class="well">
+                <h3>🖥 Desktop App</h3>
+
+                <p>
+                    Runs inside the Cytoscape desktop application.
+                </p>
+
+                <h5>Submission</h5>
+                <ul>
+                    <li>Upload a JAR release</li>
+                    <li>Provide release information</li>
+                </ul>
+
+                <h5>Choose this if...</h5>
+                <ul>
+                    <li>Your app is installed into Cytoscape Desktop.</li>
+                    <li>Your application is packaged as a JAR.</li>
+                    <li>Your code runs on the user's computer.</li>
+                </ul>
+
+                <p style="margin-top:20px;">
+                    <a class="btn btn-primary btn-block"
+                       href="{% url 'submit-app' %}">
+                        Submit Desktop App
+                    </a>
+                </p>
+            </div>
+        </div>
+
+        <!-- Web -->
+        <div class="span4">
+            <div class="well">
+                <h3>🌐 Web App</h3>
+
+                <p>
+                    Runs inside Cytoscape Web in the user's browser.
+                </p>
+
+                <hr>
+
+                <h4>GitHub Repository <small>(Recommended)</small></h4>
+
+                <p>
+                    Submit a public GitHub repository and an immutable version
+                    reference (tag or commit SHA).
+                </p>
+
+                <ul>
+                    <li>App Store builds the application</li>
+                    <li>Automatic validation</li>
+                    <li>Hosted by the App Store</li>
+                </ul>
+
+                <a class="btn btn-primary btn-block"
+                   href="{% url 'platform-select' %}">
+                    Submit via GitHub Repo
+                </a>
+
+                <hr>
+
+                <h4>Bundle Upload</h4>
+
+                <p>
+                    Upload a production-ready bundle directly.
+                </p>
+
+                <ul>
+                    <li>Ideal for closed-source applications</li>
+                    <li>Pre-built production bundle</li>
+                    <li>Reviewed before publication</li>
+                </ul>
+
+                <a class="btn btn-default btn-block"
+                   href="{% url 'submit-web-bundle' %}">
+                    Upload Bundle
+                </a>
+            </div>
+        </div>
+
+        <!-- Service -->
+        <div class="span4">
+            <div class="well">
+                <h3>⚙ Service App</h3>
+
+                <p>
+                    Runs on your own server and exposes an HTTP endpoint.
+                </p>
+
+                <h5>Submission</h5>
+                <ul>
+                    <li>Submit your service endpoint URL</li>
+                    <li>Metadata is retrieved automatically</li>
+                </ul>
+
+                <h5>Choose this if...</h5>
+                <ul>
+                    <li>Your application runs on your own infrastructure.</li>
+                    <li>Cytoscape communicates with your service over HTTP.</li>
+                    <li>You are providing an API rather than downloadable code.</li>
+                </ul>
+
+                <p style="margin-top:20px;">
+                    <a class="btn btn-primary btn-block"
+                       href="{% url 'submit-service-app' %}">
+                        Submit Service App
+                    </a>
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <hr>
+
+    <h2>Comparison</h2>
+
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Desktop</th>
+                <th>Web</th>
+                <th>Service</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+                <th>Runs In</th>
+                <td>Cytoscape Desktop</td>
+                <td>User's Browser</td>
+                <td>Developer Server</td>
+            </tr>
+
+            <tr>
+                <th>Developer Submits</th>
+                <td>JAR File</td>
+                <td>GitHub Repository or Bundle</td>
+                <td>Service Endpoint</td>
+            </tr>
+
+            <tr>
+                <th>Built by App Store</th>
+                <td>No</td>
+                <td>GitHub submissions only</td>
+                <td>No</td>
+            </tr>
+
+            <tr>
+                <th>Hosted by App Store</th>
+                <td>No</td>
+                <td>Yes</td>
+                <td>No</td>
+            </tr>
+
+            <tr>
+                <th>Requires Your Own Server</th>
+                <td>No</td>
+                <td>No</td>
+                <td>Yes</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

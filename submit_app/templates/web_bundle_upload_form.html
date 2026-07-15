@@ -1,24 +1,16 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block more_head %}
-    <style type="text/css">
-        #instructions { display: none; }
-        #loading { display: none; }
-        #instructions li { margin-bottom: 1em; }
-    </style>
-{% endblock %}
-
 {% block title %}
     {% if expect_app_name %}
         - Submit a New Release
     {% else %}
-        - Submit a Web App
+        - Submit a Web App (Bundle)
     {% endif %}
 {% endblock %}
 
 {% block content %}
-<div>
+<div class="row">
   <div class="span12">
     <div class="page-header">
       {% if expect_app_name %}
@@ -27,22 +19,38 @@
         <small>{{ expect_app_name }}</small>
       </h1>
       {% else %}
-      <h1>Submit a Web App</h1>
+      <h1>Submit a Web App (Bundle)</h1>
       {% endif %}
     </div>
   </div>
-{% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
-{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
-<form action="" method="POST">   
-    {% csrf_token %}
-    <div class="row">
-        <div class="span12">
-            Your Web App Bundle/Manifest File (.js):
-            <input type="file" name="bundle" id="input-bundle" class="span8">
-            <button type="submit" class="btn btn-primary">Submit</button>
-        </div>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  {% for field in form %}
+    <div>
+      {{ field.label_tag }}
+      {{ field }}
+      {% if field.help_text %}
+        <small class="form-text text-muted">{{ field.help_text }}</small>
+      {% endif %}
     </div>
+  {% endfor %}
+  <button type="submit" class="btn btn-primary">Submit</button>
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger" style="margin-top: 10px;">
+      {% for error in form.non_field_errors %}
+        <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
 </form>
 
+<i class="danger">Fields marked with * are required</i> <br>
+<i>Your bundle upload should include: remoteEntry.js, </i>
 
+{% if error %} 
+  <div class="alert alert-error">{{ error }}</div>
+{% endif %}
 {% endblock %}
+

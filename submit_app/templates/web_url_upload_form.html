@@ -28,12 +28,27 @@
   {% csrf_token %}
     <div class="row">
         <div class="span12">
-            Your Web App Github URL:
-            <input type="text" name="service-url" id="input-web-url" placeholder="https://serviceapp.com" required>
-        </div>
-        <div class='span12'>
-          Immutable Commit Reference: 
-          <input type='text' name='commit-ref' id='input-commit-ref' placeholder="Commit/SHA ref" required></input>
+            <form method="post" enctype="multipart/form-data">
+              {% csrf_token %}
+
+              {% for field in form %}
+                <div class="form-group mb-3">
+                  {{ field.label_tag }}
+                  {{ field }}
+                  {% if field.help_text %}
+                    <small class="form-text text-muted">{{ field.help_text }}</small>
+                  {% endif %}
+                  {% for error in field.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              {% endfor %}
+              <div style="margin-top: 15px;">
+                <button type="submit" class="btn btn-primary">Submit</button>
+              </div>
+            </form>
+            <i style="color: red; margin-top: 12px;">Fields marked with * are required.</i>
+          </div>
         </div>
     </div>
 </form>

@@ -424,15 +424,71 @@ class ServiceRelease(models.Model):
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     version = models.CharField(max_length=31)
     service_endpoint = models.URLField(blank=False, null=True)
-    #author = models.CharField(max_length=512, blank=True)
+    #submitter = models.CharField(max_length=512, blank=True)
     description = models.TextField(blank=True)
     citation = models.URLField(blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True)
     active = models.BooleanField(default=True)
     metadata = models.JSONField(null=True, blank=True)
-    
-class WebRelease(models.Model):
+
+"""
+class WEB_SUBMISSION_ORIGIN(models.TextChoices):
+    WEB_URL = 'web_url', 'Web URL',
+    WEB_BUNDLE = 'web_bundle', 'Web Bundle'
+"""
+"""
+class WebUrlStatus(models.TextChoices):
+    PENDING_BUILD = 'pending_build', 'Pending Artifact Build',
+    BUILD_FAILED = 'build_failed', 'Artifact Build Failed',
+    PENDING_AUTO = 'pending_auto', 'Pending Automated Test',
+    PENDING_REVIEW = 'pending_review', 'Pending Manual Review',
+    PUBLISHED = 'published', 'Published',
+
+class WebUrlRelease(models.Model):
     id = models.BigAutoField(primary_key=True)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     version = models.CharField(max_length=31)
-    github_url = models.URLField(blank=False, null=True)
+    status = models.CharField(max_length=31, choices=WebUrlStatus.choices)
+    submitter = models.CharField(max_length=512, blank=True)
+    #origin = models.CharField(max_length=31, choices=WEB_SUBMISSION_ORIGIN.choices)
+
+    repository_url = models.URLField(blank=False, null=True)
+    commit_ref = models.CharField(max_length=127, blank=False, null=True)
+
+
+    resolved_commit_ref = models.CharField(max_length=127, blank=True, null=True)
+
+    #for metadata from app-store.json
+    federation_name = models.CharField(max_length=127, blank=True)
+    exposed_module = models.CharField(max_length=127, blank=False, default="./AppConfig")
+    install_command = models.CharField(max_length=255, default="npm ci")
+    build_command = models.CharField(max_length=255, default="npm run build")
+    output_dir = models.CharField(max_length=255, default="dist")
+    raw_metadata = models.JSONField(default=dict, blank=True)
+
+"""
+
+class WebBundleRelease(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    app = models.ForeignKey(App, on_delete=models.CASCADE)
+    version = models.CharField(max_length=31)
+    author = models.CharField(max_length=127, blank=True)
+    description = models.TextField(blank=True)
+    citation = models.URLField(blank=True, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    active = models.BooleanField(default=False)
+
+    cdn_base_url = models.URLField()
+    remote_entry_url = models.URLField()
+    bundle_hash = models.CharField(max_length=64)
+    
+    bundle_id = models.CharField(max_length=128) #app_id
+    manifest_name = models.CharField(max_length=256, blank=True)
+    manifest_data = models.JSONField()
+
+    published_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['app', 'version'], name="unique_web_bundle_release_version")
+        ]

@@ -212,10 +212,8 @@
 					<div class="span8">
 						{# Release version #}
 						<h4>
-							<a href="{% url 'release_download' app.name release.version %}">
-								{{ release.version }}
-							</a>
-							<small><abbr class="timeago" title="{{ release.created_iso }}"></abbr></small>
+							{{ release.version }}
+							<small><abbr class="timeago"></abbr></small>
 						</h4>
 						{# End Release version #}
 
@@ -249,11 +247,11 @@
 		{% if app.has_releases %}
 		<div class="well">
 			<h6 class="panel-title muted">CYTOSCAPE WEB</h6>
-			<!--
+			
 			<button class="btn btn-large btn-block" id="cy-app-install-btn">
 				<i></i> {# <-- download button icon will go here #}
 				<h4></h4> {# <-- download button text will go here #}
-			</button> -->
+			</button> 
 			<p><strong>Version</strong> {{ service_latest_release.version }}</p>
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
 			<p><strong>Released</strong> {{ service_latest_release.created|date:'j M Y' }}</p>

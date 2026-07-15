@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block more_head %}
+<style type="text/css">
+  form { display: inline; }
+  #loading { display: none; }
+</style>
+{% endblock %}
+
+{% block title %}- Confirm Web App Submission {% endblock %}
+
+{% block content%}
+    <div class="row">
+        <div class="span12">
+            <div class="page-header">
+                <h1>Confirm Submission</h1>
+            </div>
+        </div>
+    </div>
+
+     <div class="row">
+        <div class="span6">
+            <p>We found the following information about your app:</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="span8">
+            <table class="table">
+              <tr>
+                <td><b>App Name</b></td>
+                <td>{{ pending.fullname }}</td>
+              </tr>
+              <tr>
+                <td><b>Version</b></td>
+                <td>{{ pending.version }}</td>
+              </tr>
+             <tr>
+                <td><b>Author</b></td>
+                <td>{{ pending.author }}</td>
+              </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="span12">
+            <p>
+              Is the above information correct? <i>It cannot be changed after submission.</i>
+            </p>
+            <div id="loading">
+              <img src="{% get_static_prefix %}common/img/loading.gif">
+            </div>
+            <form action="{% url 'confirm-web-bundle' pending.id %}" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="cancel">
+              <input type="submit" class="btn btn-danger" value="No, cancel it">
+            </form>
+            <form action="{% url 'confirm-web-bundle' pending.id %}" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="accept">
+              <input type="submit" class="btn btn-success" value="Yes, accept it">
+            </form>
+        </div>
+    </div>
+{% endblock %}

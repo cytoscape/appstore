@@ -153,3 +153,26 @@ class WebAppPending(models.Model):
 
     web_url = models.URLField(blank=False, null=True)
 """
+
+class WebBundlePending(models.Model):
+    class Status(models.TextChoices):
+        DEFAULT = 'default_status', 'Default Status'
+        PENDING_CONFIRMATION = 'pending_confirmation', 'Pending Submitter Confirmation'
+        PENDING_AUTOMATED_CHECKS = 'pending_automated_checks', 'Running Automated Checks'
+        CHECKS_FAILED         = 'checks_failed', 'Automated Checks Failed'
+        PENDING_REVIEW        = 'pending_review', 'Pending Manual Review'
+        PUBLISHED             = 'published', 'Published'
+        REJECTED              = 'rejected', 'Rejected'
+
+    id = models.BigAutoField(primary_key=True)
+    submitter = models.ForeignKey(App, on_delete=models.CASCADE)
+    fullname = models.CharField(max_length=128)
+    version = models.CharField(max_length=32)
+    created = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=32, choices=Status.choices, default=Status.DEFAULT)
+    description = models.TextField(blank=True)
+    licence = models.CharField(max_length=64, blank=True)
+
+    bundle_file = models.FileField(upload_to="web_bundles/pending")
+    bundle_hash = models.CharField(max_length=64)
+    bundle_id = models.CharField(max_length=128) #app_id

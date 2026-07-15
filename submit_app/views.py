@@ -7,9 +7,12 @@ import logging
 import socket
 import ipaddress
 import json
+import requests
+import zipfile
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
+from django.shortcuts import render
 from django.conf import settings
 from django.core.mail import send_mail
 from django.core.exceptions import ValidationError
@@ -20,7 +23,7 @@ from util.view_util import html_response, json_response, get_object_or_none, is_
 from util.id_util import fullname_to_name
 from apps.models import Release, ServiceRelease, App, Author, OrderedAuthor, Platform
 from apps.views import _parse_iso_date
-from .models import AppPending, ServiceAppPending
+from .models import AppPending, ServiceAppPending, WebBundlePending
 from .pomparse import PomAttrNames, parse_pom
 from .processjar import process_jar
 
@@ -37,7 +40,7 @@ LOGGER = logging.getLogger(__name__)
 def platform_select(request):
     platforms = [
         ('desktop', 'Cytoscape Desktop App'),
-        ('web-url', 'Cytoscape Web - Github/Repo URL'),
+        #('web-url', 'Cytoscape Web - Github/Repo URL'),
         ('web-bundle', 'Cytoscape Web - Bundle File/Manifest'),
         ('service', 'Cytoscape Web - Service App URL'),
     ]
@@ -63,6 +66,9 @@ def platform_select(request):
     }
 
     return html_response('platform_select.html', context, request)
+
+def platform_select_help(request):
+    return render(request, "platform_select_help.html")
 
 # Presents an app submission form and accepts app submissions.
 @login_required
@@ -669,52 +675,153 @@ def service_app_confirm(request, id):
 
     return html_response('confirm_service.html', {'pending': pending}, request)
 
-"""
-
-def _create_pending_service(submitter, fullname, version, service_endpoint, metadata):
-    name = fullname_to_name(fullname)
-    app = get_object_or_none(App, name=name)
-    if app:
-        if not app.is_editor(submitter):
-            raise ValueError('cannot be accepted because you are not '
-                             'an editor')
-        release = get_object_or_none(ServiceRelease, app=app, version=version)
-        if release and release.active:
-            raise ValueError('cannot be accepted because the app %s already'
-                             ' has a release with version %s. You can delete '
-                             'this version by going to the Release History '
-                             'tab in the app edit page' % (app.fullname,
-                                                           version))
-
-    pending = ServiceAppPending.objects.create(submitter=submitter,
-                                        fullname=fullname,
-                                        version=version,
-                                        service_endpoint=service_endpoint,
-                                        metadata=metadata)
-    return pending
-
-"""
 #---------------------- WEB APP URL SUBMISSION ----------------------
+"""
+def classify_ref(value):
+    if re.match(r'^[0-9a-f]{40}$', value):
+        return 'full-sha'
+    elif re.match(r'[0-9a-f]{7,39}$', value):
+        return 'short-sha'
+    elif re.match(r'^[\w\.\-]+$', value):
+        return 'tag_or_branch'
+    else:
+        return 'invalid'
+
 @login_required
 def submit_web_url(request):
     context = {}
     if request.method == 'POST':
-        url = request.POST.get('url')
-        if url:
-            context['message'] = 'URL received'
+        #url = request.POST.get('url')
+        form = web_submission_form(request.POST, request.FILES)
+        if form.is_valid():
+            repo_url = form.cleaned_data['repo_url']
+            commit_ref = form.cleaned_data['commit_ref']
+            app_version = form.cleaned_data['app_version']
+            app_store_json = form.cleaned_data['app_store_json']
+
+            try:
+                resolved_commit = resolve_commit_ref(repo_url, commit_ref)
+            except ValueError as e:
+                form.add_error('ref', str(e))
+                return html_response('web_url_upload_form.html', {'form': form}, request)
+
+            ref_type = classify_ref(commit_ref)
+            if ref_type == "full_sha" and resolved_commit != commit_ref:
+                form.add_error('commit_ref', f"The provided commit SHA does not match the resolved commit SHA. Please Retry.")
+                return html_response('web_url_upload_form.html', {'form': form}, request)
+
+    else:
+        form = web_submission_form(request.POST, request.FILES)
+
+    return html_response('web_url_upload_form.html', {'form': form}, request)
+
+
+class web_submission_form(forms.Form):
+    repo_url = forms.URLField(label='Web App Github URL*', required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'https://github.com/user/repo'}))
+    commit_ref = forms.CharField(label="Commit Reference/Tag*", required=True, error_messages={'required': ''},  help_text="A commit SHA is preferred for reproducibility. Tags and branches will be resolved to their current commit SHA at submission time.",widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'v1.2.0, main, or a1b2c3d...'}))
+    app_version = forms.CharField(label="App Version*", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1.0.0'}))
+    app_store_json = forms.FileField(label="app-store.json File", required=False,  widget=forms.FileInput(attrs={'class': 'form-control-file'}))
+
+
+def resolve_commit_ref(repo_url, commit_ref):
+
+    repo_path = urlparse(repo_url)
+    if repo_path.hostname not in ['github.com', 'www.github.com']:
+        raise ValueError("Only GitHub URLs are supported.")
+
+    url_segments = repo_path.path.strip('/').split('/')
+
+    if len(url_segments) < 2:
+        raise ValueError("Invalid GitHub repository URL.")
+
+    owner, repo = url_segments[0], url_segments[1].removesuffix('.git')
+
+    response = requests.get(f"https://api.github.com/repos/{owner}/{repo}/commits/{commit_ref}", timeout=10)
+
+    if response.status_code != 200:
+        if response.status_code == 404:
+            raise ValueError(f"Commit reference '{commit_ref}' not found in the repository.")
+        elif response.status_code == 403:
+            raise ValueError("Repository if private or inaccessable. Please check your access permissions.")
         else:
-            context['error'] = 'No URL received'
-    return html_response('web_url_upload_form.html', context, request)
+            raise ValueError(f"Failed to fetch commit information. Status code: {response.status_code}")
+    response.raise_for_status()
+
+    return response.json().get('sha')
+"""
+        
 
 
 #---------------------- WEB APP BUNDLE SUBMISSION ----------------------
 @login_required
 def submit_web_bundle(request):
-    context= {}
+    if request.method == "POST":
+        form = web_bundle_submission(request.POST, request.FILES)
+        if form.is_valid():
+            bundle = form.cleaned_data['bundle']
+        """
+            try:
+                _validate_bundle(bundle) #ALSO LOOK FOR APP-STORE.JSON
+            except ValidationError as e:
+                form.add_error(None, str(e))
+                return html_response('web_bundle_upload_form.html', {'form': form}, request)"""
+            
+    else:
+        form = web_bundle_submission()
+
+    return html_response('web_bundle_upload_form.html', {'form': form}, request)
+
+class web_bundle_submission(forms.Form):
+    bundle = forms.FileField(label="*Web App Bundle File", required=True, error_messages={'required': ''}, widget=forms.FileInput(attrs={'class': 'form-control-file'}))
+    app_fullname = forms.CharField(label="*App Name", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    version = forms.CharField(label="*Version", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    authors = forms.CharField(label="*Author(s)", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    description = forms.CharField(label="App Description", required=False, widget=forms.Textarea(attrs={'rows': 5, 'cols': 40}))
+    licence = forms.CharField(label="Licence", required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+
+
+def _validate_bundle(bundle):
+    max_bundle_size = 50 * 1024 * 1024  
+    if bundle.size > max_bundle_size:
+        raise ValidationError(f"Bundle file size exceeds the maximum limit of {max_bundle_size / (1024 * 1024)} MB.")
+
+    if not bundle.name.endswith('.zip'):
+        raise ValidationError("Bundle file must be a .zip file.")
+
+    try:
+        with zipfile.ZipFile(bundle) as zf:
+            if 'manifest.json' not in zf.namelist():
+                raise ValidationError("Bundle file must contain a manifest.json file.")
+
+            names = zf.namelist()
+
+            for name in names:
+                if name.startswith('/') or '..' in name.split('/'):
+                    raise ValidationError(f"Bundle file contains an unsafe path: {name}")
+                
+            if not any(n.endswith('remoteEntry.js') for n in names):
+                raise ValidationError("Bundle file must contain a remoteEntry.js file.")
+
+    except zipfile.BadZipFile:
+        raise ValidationError("Bundle file is not a valid zip file.")
+
+    finally:
+        bundle.seek(0)  # Reset the file pointer to the beginning of the file
+"""
+def web_bundle_confirm(request, id):
+    pending = get_object_or_404(WebBundlePending, id = int(id))
+    if not (request.user.is_staff or request.user == pending.submitter):
+        return HttpResponseForbidden('You are not authorized to view this page')
+
     if request.method == 'POST':
-        bundle = request.FILES.get('bundle')
-        if bundle:
-            context['message'] = 'Bundle received'
-        else:
-            context['error'] = 'No bundle received'
-    return html_response('web_bundle_upload_form.html', context, request)
+        action = request.POST.get('action')
+        if action == 'cancel':
+            return web_bundle_user_cancel(request, pending)
+        elif action == 'accept':
+            pending.status = WebBundlePending.Status.PENDING
+
+    else:
+
+
+"""
+        
