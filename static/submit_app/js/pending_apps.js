@@ -3,8 +3,8 @@ var PendingApps = (function() {
     function setup_accept_and_decline_btns() {
         $('[pending_id]').each(function() {
             var pending_tag = $(this);
-            var app_name = $(this).find('.cy-app-name, .cy-service-app-name, .cy-pending-name, .cy-pending-title').first().text().trim();
-            var app_version = $(this).find('.cy-app-version, .cy-service-app-version, .cy-pending-version').first().text().trim();
+            var app_name = $(this).find('.cy-app-name, .cy-service-app-name, .cy-web-app-name, .cy-pending-name, .cy-pending-title').first().text().trim();
+            var app_version = $(this).find('.cy-app-version, .cy-service-app-version, .cy-pending-version, .cy-web-app-version').first().text().trim();
             var app_version = $(this).find('.cy-app-version').text();
             var pending_id = $(this).attr('pending_id');
             var pending_platform = $(this).attr('pending_platform')

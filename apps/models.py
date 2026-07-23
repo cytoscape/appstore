@@ -4,7 +4,7 @@ import shutil
 import subprocess
 from os import mkdir, devnull
 import logging
-import os.path
+import os.path 
 from os.path import join as pathjoin
 from urllib.parse import urljoin
 from django.db import models
@@ -197,6 +197,10 @@ class App(models.Model):
     def servicereleases(self):
         return self.servicerelease_set.filter(active=True).all()
 
+    @property
+    def webbundlereleases(self):
+        return self.webbundlerelease_set.filter(active=True).all()
+
     def update_has_releases(self):
         self.has_releases = (self.release_set.filter(active=True).count() > 0)
         self.save()
@@ -205,6 +209,9 @@ class App(models.Model):
     def page_url(self):
         if self.platform == "Service":
             return reverse('service_page', args=[self.name])
+        
+        elif self.platform == 'Web':
+            return reverse('webapp_page', args=[self.name])
 
         return reverse('app_page', args=[self.name])
 
@@ -474,19 +481,33 @@ class WebBundleRelease(models.Model):
     version = models.CharField(max_length=31)
     author = models.CharField(max_length=127, blank=True)
     description = models.TextField(blank=True)
+    license = models.CharField(max_length=64, blank=True)
+    tags = models.JSONField(default=list, blank=True)
+    #icon = models.
     citation = models.URLField(blank=True, null=True)
-    created = models.DateTimeField(auto_now_add=True)
     active = models.BooleanField(default=False)
+    remote_entry = models.FileField(upload_to="web_bundles/", null=True)
 
-    cdn_base_url = models.URLField()
-    remote_entry_url = models.URLField()
-    bundle_hash = models.CharField(max_length=64)
-    
-    bundle_id = models.CharField(max_length=128) #app_id
-    manifest_name = models.CharField(max_length=256, blank=True)
-    manifest_data = models.JSONField()
-
+    created = models.DateTimeField(auto_now_add=True)
+    #bundle_hash = models.CharField(max_length=64)
+    remote_entry_hash = models.CharField(max_length=64)
     published_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def bundle_path(self):
+        return f"{self.app.name}/{self.version}/"
+
+    @property
+    def cdn_base_url(self):
+        return urljoin(settings.CDN_BASE_URL, self.bundle_path)
+
+    @property
+    def remote_entry_url(self):
+        return urljoin(self.cdn_base_url, "remoteEntry.js")
+
+    @property
+    def manifest_url(self):
+        return urljoin(self.cdn_base_url, "manifest.json")
 
     class Meta:
         constraints = [

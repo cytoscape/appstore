@@ -9,6 +9,7 @@ import ipaddress
 import json
 import requests
 import zipfile
+import hashlib
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
@@ -16,12 +17,15 @@ from django.shortcuts import render
 from django.conf import settings
 from django.core.mail import send_mail
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.core.files.storage import storages
 from django.shortcuts import get_object_or_404
 from django import forms
 
 from util.view_util import html_response, json_response, get_object_or_none, is_ajax
 from util.id_util import fullname_to_name
-from apps.models import Release, ServiceRelease, App, Author, OrderedAuthor, Platform
+from apps.models import Release, ServiceRelease, WebBundleRelease, App, Author, OrderedAuthor, Platform
 from apps.views import _parse_iso_date
 from .models import AppPending, ServiceAppPending, WebBundlePending
 from .pomparse import PomAttrNames, parse_pom
@@ -373,6 +377,28 @@ def _pending_app_decline(pending_app, request):
     pending_app.delete_files()
     pending_app.delete()
 
+
+@csrf_exempt
+def _pending_web_accept(pending, request):
+    name = fullname_to_name(pending.fullname)
+    # we always create a new app, because only new apps require accepting
+    app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.WEB)
+    app.active = True
+    app.editors.add(pending.submitter)
+    app.save()
+
+    try:
+        pending.make_bundle_release(app)
+    except Exception as e:
+        print(e)
+        raise  # re-raise so you still see it fail — just now with a full traceback in the console
+
+    pending.delete_files()
+    pending.delete()
+
+    server_url = _get_server_url(request)
+    #_send_email_for_accepted_app(pending.submitter.email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
+
 def _pending_service_accept(pending, request):
     name = fullname_to_name(pending.fullname)
     app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.SERVICE)
@@ -390,17 +416,22 @@ def _pending_service_accept(pending, request):
 def _pending_service_decline(pending_app, request):
     pending_app.delete()
 
+
 def _pending_instance_decline(pending_app, request):
     if isinstance(pending_app, AppPending):
         return _pending_app_decline(pending_app, request)
     if isinstance(pending_app, ServiceAppPending):
         return _pending_service_decline(pending_app, request)
+    if isinstance(pending_app, WebBundlePending):
+        return _pending_app_decline(pending_app, request)
 
 def _pending_instance_accept(pending_app, request):
     if isinstance(pending_app, AppPending):
         return _pending_app_accept(pending_app, request)
     if isinstance(pending_app, ServiceAppPending):
         return _pending_service_accept(pending_app, request)
+    if isinstance(pending_app, WebBundlePending):
+        return _pending_web_accept(pending_app, request)
 
 _PendingAppsActions = {
     'accept': _pending_instance_accept,
@@ -430,6 +461,7 @@ def pending_apps(request):
         platform_map = {
             'desktop' : AppPending,
             'service' : ServiceAppPending,
+            'web-bundle': WebBundlePending,
         } 
 
         model = platform_map.get(pending_platform)
@@ -451,7 +483,8 @@ def pending_apps(request):
 
     pending_apps = AppPending.objects.all()
     pending_service = ServiceAppPending.objects.all()
-    return html_response('pending_apps.html', {'pending_apps': pending_apps, 'pending_service': pending_service}, request)
+    pending_web_bundle = WebBundlePending.objects.all()
+    return html_response('pending_apps.html', {'pending_apps': pending_apps, 'pending_service': pending_service, 'pending_web_bundle': pending_web_bundle}, request)
 
 AppRepoUrl = 'http://code.cytoscape.org/nexus/content/repositories/apps'
 
@@ -755,31 +788,62 @@ def resolve_commit_ref(repo_url, commit_ref):
 #---------------------- WEB APP BUNDLE SUBMISSION ----------------------
 @login_required
 def submit_web_bundle(request):
-    if request.method == "POST":
-        form = web_bundle_submission(request.POST, request.FILES)
-        if form.is_valid():
-            bundle = form.cleaned_data['bundle']
-        """
-            try:
-                _validate_bundle(bundle) #ALSO LOOK FOR APP-STORE.JSON
-            except ValidationError as e:
-                form.add_error(None, str(e))
-                return html_response('web_bundle_upload_form.html', {'form': form}, request)"""
-            
-    else:
+    if request.method != "POST":
         form = web_bundle_submission()
+        return html_response('web_bundle_upload_form.html', {'form': form}, request)
+    
+    form = web_bundle_submission(request.POST, request.FILES)
+    if not form.is_valid():
+        return html_response('web_bundle_upload_form.html', {'form': form}, request)
 
-    return html_response('web_bundle_upload_form.html', {'form': form}, request)
+    remote_entry = form.cleaned_data['remote_entry']
+    
+    try:
+        _validate_remote_entry(remote_entry)
+    except ValidationError as e:
+        form.add_error(None, str(e))
+        return html_response('web_bundle_upload_form.html', {'form': form}, request)
+
+    pending = _create_web_bundle_pending(form, remote_entry, request.user)
+
+    return HttpResponseRedirect(reverse('confirm-web-bundle', args=[pending.id])) 
+    
 
 class web_bundle_submission(forms.Form):
-    bundle = forms.FileField(label="*Web App Bundle File", required=True, error_messages={'required': ''}, widget=forms.FileInput(attrs={'class': 'form-control-file'}))
+    #bundle = forms.FileField(label="*Web App Bundle File (.zip)", required=True, error_messages={'required': ''}, widget=forms.FileInput(attrs={'class': 'form-control-file'}))
+    remote_entry = forms.FileField(label="*Web App Bundle File (remoteEntry.js)", required=True, error_messages={'required': ''}, widget=forms.FileInput(attrs={'class': 'form-control-file'}))
     app_fullname = forms.CharField(label="*App Name", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
     version = forms.CharField(label="*Version", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
     authors = forms.CharField(label="*Author(s)", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
     description = forms.CharField(label="App Description", required=False, widget=forms.Textarea(attrs={'rows': 5, 'cols': 40}))
-    licence = forms.CharField(label="Licence", required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    license = forms.CharField(label="license", required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    tags = forms.CharField(label="Tags", required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
 
+    def clean_tags(self):
+        tags = self.cleaned_data['tags']
+        return [
+            tag.strip()
+            for tag in tags.split(',')
+            if tag.strip()
+        ]
 
+def _validate_remote_entry(remote_entry):
+    max_size = 10 * 1024 * 1024  # 10MB
+
+    if remote_entry.size > max_size:
+        raise ValidationError(
+            "remoteEntry.js exceeds the maximum size limit."
+        )
+
+    if remote_entry.name != "remoteEntry.js":
+        raise ValidationError(
+            "File must be named remoteEntry.js."
+        )
+
+    # reset pointer
+    remote_entry.seek(0)
+
+"""
 def _validate_bundle(bundle):
     max_bundle_size = 50 * 1024 * 1024  
     if bundle.size > max_bundle_size:
@@ -790,7 +854,7 @@ def _validate_bundle(bundle):
 
     try:
         with zipfile.ZipFile(bundle) as zf:
-            if 'manifest.json' not in zf.namelist():
+            if 'mf-manifest.json' not in zf.namelist():
                 raise ValidationError("Bundle file must contain a manifest.json file.")
 
             names = zf.namelist()
@@ -807,8 +871,30 @@ def _validate_bundle(bundle):
 
     finally:
         bundle.seek(0)  # Reset the file pointer to the beginning of the file
-"""
-def web_bundle_confirm(request, id):
+    """
+def _bundle_user_cancelled(request, pending):
+    pending.delete_files()
+    pending.delete()
+    return HttpResponseRedirect(reverse('submit-web-bundle'))
+
+def _bundle_user_accepted(request, pending):
+    app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
+    print(app)
+    if app:
+        if not app.is_editor(request.user):
+            return HttpResponseForbidden('You are not authorized to make changes or add new releases to this app')
+        if not app.active:
+            app.active = True
+            app.save()
+
+        pending.delete_files()
+        pending.delete()
+        return HttpResponseRedirect(reverse('app_page_edit', args=[app.name]) + '?upload_release=true')
+    else:
+        app_name = pending.fullname
+        return html_response('submit_done.html', {'app_name': app_name}, request)
+
+def confirm_web_bundle(request, id):
     pending = get_object_or_404(WebBundlePending, id = int(id))
     if not (request.user.is_staff or request.user == pending.submitter):
         return HttpResponseForbidden('You are not authorized to view this page')
@@ -816,12 +902,46 @@ def web_bundle_confirm(request, id):
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'cancel':
-            return web_bundle_user_cancel(request, pending)
+            return _bundle_user_cancelled(request, pending)
         elif action == 'accept':
-            pending.status = WebBundlePending.Status.PENDING
+            pending.status = WebBundlePending.Status.PENDING_REVIEW
+            pending.save()
+            return _bundle_user_accepted(request, pending)
 
-    else:
+    return html_response("confirm_web_bundle.html", {'pending':pending}, request)
 
 
-"""
-        
+def _hash_file(file) -> str:
+    bundle_sha = hashlib.sha256()
+    file.seek(0) #go back to start of file
+    for chunk in file.chunks():
+        bundle_sha.update(chunk)
+    file.seek(0)
+    return bundle_sha.hexdigest()
+
+def _create_web_bundle_pending(form, remote_entry, submitter) -> WebBundlePending:
+    pending = WebBundlePending(
+        submitter=submitter,
+        fullname=form.cleaned_data['app_fullname'],
+        version=form.cleaned_data['version'],
+        author=form.cleaned_data['authors'],
+        description=form.cleaned_data['description'],
+        license=form.cleaned_data['license'],        
+        tags=form.cleaned_data['tags'],
+        remote_entry = remote_entry,
+        remote_entry_hash=_hash_file(remote_entry),
+        #bundle_file=bundle_file,
+        #bundle_hash=_hash_file(bundle_file),
+        status=WebBundlePending.Status.PENDING_REVIEW, #CHANGE TO PENDING_AUTOMATED_CHECKS ONCE IMPLEMENTED
+    )
+    pending.save()
+    return pending
+
+def publish_web_bundle(pending: WebBundlePending) -> WebBundleRelease:
+    name = fullname_to_name(pending.fullname)
+    app, _ = App.objects.get_or_create(
+        name = name,
+        defaults = {'fullname': pending.fullname, 'platform': Platform.WEB}
+    )
+
+    return pending.make_bundle_release(app)

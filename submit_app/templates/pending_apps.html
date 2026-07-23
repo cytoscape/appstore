@@ -74,6 +74,28 @@
                         </td>
                     </tr>
                 {% endfor %}
+                {% for pending in pending_web_bundle %}
+                    <tr pending_id="{{pending.id}}" pending_platform="web-bundle">
+                        <td class="cy-web-app-name">{{ pending.fullname }}</td>
+                        <td class="cy-web-app-platform">Web</td>
+                        <td class="cy-web-app-version">{{ pending.version }}</td>
+                        <td>{{ pending.created|date:"j M, H:i:s" }}</td>
+                        <td>
+                            {{ pending.submitter.username }}
+                            {% if pending.submitter.email %}
+                                <a href="mailto:{{ pending.submitter.email }}">
+                                    &lt;{{ pending.submitter.email }}&gt;
+                                </a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class ="cy-try-web btn btn-info btn-mini">Try in Cytoscape Web</button>
+                            <button class="cy-accept btn btn-success btn-mini"><i class="icon icon-ok icon-white"></i> Accept</button>
+                            <button class="cy-decline btn btn-danger btn-mini"><i class="icon icon-remove icon-white"></i> Decline</button>
+                            <span class="cy-loading" style="display: none;"><img src="{% get_static_prefix %}/common/img/loading_small.gif"></span>
+                        </td>
+                    </tr>
+                {% endfor %}
             </table>
         </div>
     </div>

@@ -1,6 +1,7 @@
 import os
+from pathlib import Path
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+BASE_DIR = Path(os.path.dirname(os.path.dirname(__file__))) 
 DEBUG = False
 DJANGO_STATIC_AND_MEDIA = DEBUG
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', ]
@@ -168,4 +169,22 @@ FILE_UPLOAD_PERMISSIONS = 0o664
 
 # Starting with Django 3.2:
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+    "web_bundles": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "location": BASE_DIR / "web_bundle_storage",
+            "base_url": "/web/",
+        },
+    },
+}
+
+CDN_BASE_URL = "http://127.0.0.1:8000/web/"
 

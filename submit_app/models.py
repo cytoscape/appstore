@@ -5,11 +5,13 @@ from threading import Thread
 
 from django.db import models
 from django.contrib.auth.models import User
-from apps.models import App, ServiceRelease, Release, ReleaseAPI
+from apps.models import App, ServiceRelease, WebBundleRelease, Release, ReleaseAPI
 from util.id_util import fullname_to_name
 from util.view_util import get_object_or_none
 from django.core.mail import send_mail
 from django.conf import settings
+from submit_app.bundle_storage import write_manifest_json, _copy_remote_entry_to_storage
+from urllib.parse import urljoin
 
 
 class AppPending(models.Model):
@@ -157,7 +159,6 @@ class WebAppPending(models.Model):
 class WebBundlePending(models.Model):
     class Status(models.TextChoices):
         DEFAULT = 'default_status', 'Default Status'
-        PENDING_CONFIRMATION = 'pending_confirmation', 'Pending Submitter Confirmation'
         PENDING_AUTOMATED_CHECKS = 'pending_automated_checks', 'Running Automated Checks'
         CHECKS_FAILED         = 'checks_failed', 'Automated Checks Failed'
         PENDING_REVIEW        = 'pending_review', 'Pending Manual Review'
@@ -165,14 +166,45 @@ class WebBundlePending(models.Model):
         REJECTED              = 'rejected', 'Rejected'
 
     id = models.BigAutoField(primary_key=True)
-    submitter = models.ForeignKey(App, on_delete=models.CASCADE)
+    submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=128)
+    author = models.CharField(max_length=512, blank=True)
     version = models.CharField(max_length=32)
-    created = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=32, choices=Status.choices, default=Status.DEFAULT)
     description = models.TextField(blank=True)
-    licence = models.CharField(max_length=64, blank=True)
+    license = models.CharField(max_length=64, blank=True)
+    tags = models.JSONField(default=list, blank=True)
+    icon = models.URLField(blank=True)
 
-    bundle_file = models.FileField(upload_to="web_bundles/pending")
-    bundle_hash = models.CharField(max_length=64)
-    bundle_id = models.CharField(max_length=128) #app_id
+
+    #internal boundary
+    status = models.CharField(max_length=32, choices=Status.choices, default=Status.DEFAULT)
+    created = models.DateTimeField(auto_now_add=True)
+    remote_entry = models.FileField(upload_to="web_pending/", null=True)
+    remote_entry_hash = models.CharField(max_length=64)
+    #bundle_hash = models.CharField(max_length=64)
+
+    class Meta:
+        ordering = ['-created']
+
+    def delete_files(self):
+        self.remote_entry.delete()
+
+    def make_bundle_release(self, app: "App") -> "WebBundleRelease":
+        cdn_base_url = urljoin(settings.CDN_BASE_URL, f"{app.name}/{self.version}/")
+
+        release, _ = WebBundleRelease.objects.get_or_create(app=app, version=self.version)
+        release.author = self.author
+        release.description = self.description
+        release.license = self.license
+        release.tags = self.tags
+        release.remote_entry_hash = self.remote_entry_hash
+        #release.bundle_hash = self.bundle_hash
+        release.active = True
+        release.save()
+
+        if not app.has_releases:
+            app.has_releases = True
+
+        _copy_remote_entry_to_storage(self.remote_entry, destination=f"{app.name}/{self.version}/")
+        write_manifest_json(release)
+        return release

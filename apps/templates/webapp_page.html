@@ -51,13 +51,13 @@
 			</a>
 			<ul class="dropdown-menu pull-right">
 				<li><a href="{% url 'app_page_edit' app.name %}">Edit this page</a></li>
-				<li><a href="{% url 'submit-service-app' %}?expect_app_name={{ app.fullname }}">Submit a new service release</a></li>
+				<li><a href="{% url 'submit-web-bundle' %}?expect_app_name={{ app.fullname }}">Submit a new web release</a></li>
 				<li class="divider"></li>
 				<li><a data-toggle="modal" href="#delete_ratings_modal">Delete all ratings</a></li>
 			</ul>
 		</div>
 	</div>
-	{% endif %}
+	{% endif %} 
 	{# End editor menu #}
 </div>
 {# End app header #}
@@ -207,7 +207,7 @@
 			{# Releases tab #}
 			{% if app.has_releases %}
 			<div class="tab-pane" id="cy-app-releases-tab">
-				{% for release in app.servicereleases %}
+				{% for release in app.webbundlereleases %}
 				<div class="row">
 					<div class="span8">
 						{# Release version #}
@@ -252,10 +252,23 @@
 				<i></i> {# <-- download button icon will go here #}
 				<h4></h4> {# <-- download button text will go here #}
 			</button> -->
-			<p><a href={{ service_endpoint }}>{{app.fullname}} Endpoint</a></p>
-			<p><strong>Version</strong> {{ service_latest_release.version }}</p>
+			<p><strong>CDN Base:</strong> {{ bundle_latest_release.cdn_base_url }}</p>
+            <p>
+                <strong>Manifest:</strong>
+                <a href="{{ bundle_latest_release.manifest_url }}" target="_blank">
+                    {{ bundle_latest_release.manifest_url }}
+                </a>
+            </p>
+
+            <p>
+                <strong>Remote Entry:</strong>
+                <a href="{{ bundle_latest_release.remote_entry_url }}" target="_blank">
+                    {{ bundle_latest_release.remote_entry_url }}
+                </a>
+            </p>
+			<p><strong>Version</strong> {{ bundle_latest_release.version }}</p>
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
-			<p><strong>Released</strong> {{ service_latest_release.created|date:'j M Y' }}</p>
+			<p><strong>Released</strong> {{ bundle_latest_release.created|date:'j M Y' }}</p>
 			<p><strong>Works with</strong> <a href="http://web.cytoscape.org" target="_blank">Cytoscape Web</a></p>
 			<p><strong>Download Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
 			{#<span class="cytoscape-badge"></span>#}

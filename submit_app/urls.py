@@ -10,10 +10,11 @@ from submit_app.views import platform_select, platform_select_help
 from submit_app.views import submit_service_app
 from submit_app.views import service_app_confirm
 #from submit_app.views import submit_web_url
-from submit_app.views import submit_web_bundle
+from submit_app.views import submit_web_bundle, confirm_web_bundle
 
 
 urlpatterns = [
+    re_path(r'^$', platform_select),
     re_path(r'^submit_desktop_app$', submit_app, name='submit-app'),
     re_path(r'^select_platform$', platform_select, name='platform-select'),
     re_path(r'^select_platform_help$', platform_select_help, name='platform-select-help'),
@@ -24,7 +25,8 @@ urlpatterns = [
     re_path(r'^artifact_exists$', artifact_exists),
     re_path(r'^submit_service_app$', submit_service_app, name='submit-service-app'),
     re_path(r'^confirm_service/(\d{1,5})$', service_app_confirm, name='confirm-service'),
-    #re_path(r'^confirm_web_bundle/(\d{1,5}$', web_bundle_confirm, name="confirm-web-bundle"),
     #re_path(r'^submit_web_url$', submit_web_url, name='submit-web-url'),
     re_path(r'^submit_web_bundle$', submit_web_bundle, name='submit-web-bundle'),
+    re_path(r'^confirm_web_bundle/(\d{1,5})$', confirm_web_bundle, name='confirm-web-bundle'),
 ]
+

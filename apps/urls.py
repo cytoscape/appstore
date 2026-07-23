@@ -14,6 +14,7 @@ from apps.views import app_page_edit
 from apps.views import author_names
 from apps.views import institution_names
 from apps.views import service_page
+from apps.views import webapp_page
 from download.views import release_download
 
 urlpatterns = [
@@ -27,6 +28,7 @@ urlpatterns = [
     re_path(r"^platform/(?P<platform>[\w-]+)/$", apps_with_platform, name="platform_page"),
     re_path(r'^(\w{1,100})$', app_page, name='app_page'),
     re_path(r'^(\w{1,100})$', service_page, name='service_page'),
+    re_path(r'^(\w{1,100})$', webapp_page, name='webapp_page'),
     re_path(r'^(\w{1,100})/edit$', app_page_edit, name='app_page_edit'),
     re_path(r'^(\w{1,100})/author_names$', author_names),
     re_path(r'^(\w{1,100})/institution_names$', institution_names),

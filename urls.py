@@ -19,7 +19,7 @@ urlpatterns = [
     re_path(r'^apps/', include('apps.urls')),
     re_path(r'^search', include('haystack.urls')),
     re_path(r'^download/', include('download.urls')),
-    re_path(r'^submit_app/', include('submit_app.urls')),
+    re_path(r'^submit/', include('submit_app.urls')),
     re_path(r'^users/', include('users.urls')),
     re_path(r'^help/',  include('help.urls')),
     re_path(r'^backend/', include('backend.urls')),
@@ -36,3 +36,7 @@ if settings.DJANGO_STATIC_AND_MEDIA:
                 settings.MEDIA_ROOT)
     urlpatterns += static(settings.MEDIA_URL,
                           document_root=settings.MEDIA_ROOT)
+
+
+if settings.DEBUG:
+    urlpatterns += static("/web/", document_root=settings.BASE_DIR / "web_bundle_storage")
