@@ -486,11 +486,12 @@ class WebBundleRelease(models.Model):
     #icon = models.
     citation = models.URLField(blank=True, null=True)
     active = models.BooleanField(default=False)
-    remote_entry = models.FileField(upload_to="web_bundles/", null=True)
+    bundle = models.FileField(upload_to="web_bundles/", null=True)
+    #remote_entry = models.FileField(upload_to="web_bundles/", null=True)
 
     created = models.DateTimeField(auto_now_add=True)
-    #bundle_hash = models.CharField(max_length=64)
-    remote_entry_hash = models.CharField(max_length=64)
+    bundle_hash = models.CharField(max_length=64)
+    #remote_entry_hash = models.CharField(max_length=64)
     published_at = models.DateTimeField(auto_now_add=True)
 
     @property

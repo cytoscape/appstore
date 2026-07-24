@@ -385,7 +385,7 @@ def _pending_web_accept(pending, request):
     app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.WEB)
     app.active = True
     app.editors.add(pending.submitter)
-    app.save()
+    app.save()  
 
     try:
         pending.make_bundle_release(app)
@@ -791,27 +791,27 @@ def submit_web_bundle(request):
     if request.method != "POST":
         form = web_bundle_submission()
         return html_response('web_bundle_upload_form.html', {'form': form}, request)
-    
+
     form = web_bundle_submission(request.POST, request.FILES)
     if not form.is_valid():
         return html_response('web_bundle_upload_form.html', {'form': form}, request)
 
-    remote_entry = form.cleaned_data['remote_entry']
-    
+    bundle = form.cleaned_data['bundle']
+
     try:
-        _validate_remote_entry(remote_entry)
+        _validate_bundle(bundle)
     except ValidationError as e:
         form.add_error(None, str(e))
         return html_response('web_bundle_upload_form.html', {'form': form}, request)
 
-    pending = _create_web_bundle_pending(form, remote_entry, request.user)
+    pending = _create_web_bundle_pending(form, bundle, request.user)
 
-    return HttpResponseRedirect(reverse('confirm-web-bundle', args=[pending.id])) 
+    return HttpResponseRedirect(reverse('confirm-web-bundle', args=[pending.id]))
     
 
 class web_bundle_submission(forms.Form):
-    #bundle = forms.FileField(label="*Web App Bundle File (.zip)", required=True, error_messages={'required': ''}, widget=forms.FileInput(attrs={'class': 'form-control-file'}))
-    remote_entry = forms.FileField(label="*Web App Bundle File (remoteEntry.js)", required=True, error_messages={'required': ''}, widget=forms.FileInput(attrs={'class': 'form-control-file'}))
+    bundle = forms.FileField(label="*Web App Bundle File (.zip)", required=True, error_messages={'required': ''}, widget=forms.FileInput(attrs={'class': 'form-control-file'}))
+    #remote_entry = forms.FileField(label="*Web App Bundle File (remoteEntry.js)", required=True, error_messages={'required': ''}, widget=forms.FileInput(attrs={'class': 'form-control-file'}))
     app_fullname = forms.CharField(label="*App Name", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
     version = forms.CharField(label="*Version", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
     authors = forms.CharField(label="*Author(s)", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
@@ -827,23 +827,7 @@ class web_bundle_submission(forms.Form):
             if tag.strip()
         ]
 
-def _validate_remote_entry(remote_entry):
-    max_size = 10 * 1024 * 1024  # 10MB
 
-    if remote_entry.size > max_size:
-        raise ValidationError(
-            "remoteEntry.js exceeds the maximum size limit."
-        )
-
-    if remote_entry.name != "remoteEntry.js":
-        raise ValidationError(
-            "File must be named remoteEntry.js."
-        )
-
-    # reset pointer
-    remote_entry.seek(0)
-
-"""
 def _validate_bundle(bundle):
     max_bundle_size = 50 * 1024 * 1024  
     if bundle.size > max_bundle_size:
@@ -854,9 +838,10 @@ def _validate_bundle(bundle):
 
     try:
         with zipfile.ZipFile(bundle) as zf:
+            """
             if 'mf-manifest.json' not in zf.namelist():
                 raise ValidationError("Bundle file must contain a manifest.json file.")
-
+            """
             names = zf.namelist()
 
             for name in names:
@@ -871,7 +856,7 @@ def _validate_bundle(bundle):
 
     finally:
         bundle.seek(0)  # Reset the file pointer to the beginning of the file
-    """
+
 def _bundle_user_cancelled(request, pending):
     pending.delete_files()
     pending.delete()
@@ -921,7 +906,7 @@ def _hash_file(file) -> str:
     file.seek(0)
     return bundle_sha.hexdigest()
 
-def _create_web_bundle_pending(form, remote_entry, submitter) -> WebBundlePending:
+def _create_web_bundle_pending(form, bundle, submitter) -> WebBundlePending:
     pending = WebBundlePending(
         submitter=submitter,
         fullname=form.cleaned_data['app_fullname'],
@@ -930,8 +915,8 @@ def _create_web_bundle_pending(form, remote_entry, submitter) -> WebBundlePendin
         description=form.cleaned_data['description'],
         license=form.cleaned_data['license'],        
         tags=form.cleaned_data['tags'],
-        remote_entry = remote_entry,
-        remote_entry_hash=_hash_file(remote_entry),
+        bundle = bundle,
+        bundle_hash=_hash_file(bundle),
         #bundle_file=bundle_file,
         #bundle_hash=_hash_file(bundle_file),
         status=WebBundlePending.Status.PENDING_REVIEW, #CHANGE TO PENDING_AUTOMATED_CHECKS ONCE IMPLEMENTED

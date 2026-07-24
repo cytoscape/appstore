@@ -10,7 +10,7 @@ from util.id_util import fullname_to_name
 from util.view_util import get_object_or_none
 from django.core.mail import send_mail
 from django.conf import settings
-from submit_app.bundle_storage import write_manifest_json, _copy_remote_entry_to_storage
+from submit_app.bundle_storage import write_manifest_json, _copy_bundle_to_storage
 from urllib.parse import urljoin
 
 
@@ -178,26 +178,28 @@ class WebBundlePending(models.Model):
     #internal boundary
     status = models.CharField(max_length=32, choices=Status.choices, default=Status.DEFAULT)
     created = models.DateTimeField(auto_now_add=True)
-    remote_entry = models.FileField(upload_to="web_pending/", null=True)
-    remote_entry_hash = models.CharField(max_length=64)
-    #bundle_hash = models.CharField(max_length=64)
+    #remote_entry = models.FileField(upload_to="web_pending/", null=True)
+    #remote_entry_hash = models.CharField(max_length=64)
+    bundle = models.FileField(upload_to="web_pending/", null=True)
+    bundle_hash = models.CharField(max_length=64)
 
     class Meta:
         ordering = ['-created']
 
     def delete_files(self):
-        self.remote_entry.delete()
+        self.bundle.delete()
 
     def make_bundle_release(self, app: "App") -> "WebBundleRelease":
         cdn_base_url = urljoin(settings.CDN_BASE_URL, f"{app.name}/{self.version}/")
 
         release, _ = WebBundleRelease.objects.get_or_create(app=app, version=self.version)
+
         release.author = self.author
         release.description = self.description
         release.license = self.license
         release.tags = self.tags
-        release.remote_entry_hash = self.remote_entry_hash
-        #release.bundle_hash = self.bundle_hash
+        #release.remote_entry_hash = self.remote_entry_hash
+        release.bundle_hash = self.bundle_hash
         release.active = True
         release.save()
 
@@ -205,6 +207,6 @@ class WebBundlePending(models.Model):
             app.has_releases = True
 
         app.latest_release_date = release.created
-        _copy_remote_entry_to_storage(self.remote_entry, destination=f"{app.name}/{self.version}/")
+        _copy_bundle_to_storage(self.bundle, destination=f"{app.name}/{self.version}/")
         write_manifest_json(release)
         app.save()
