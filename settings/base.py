@@ -186,5 +186,5 @@ STORAGES = {
     },
 }
 
-CDN_BASE_URL = "http://127.0.0.1:8000/web/"
+CDN_BASE_URL = "http://apps-stage.cytoscape.org/web/"
 
