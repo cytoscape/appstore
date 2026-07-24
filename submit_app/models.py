@@ -207,6 +207,4 @@ class WebBundlePending(models.Model):
         app.latest_release_date = release.created
         _copy_remote_entry_to_storage(self.remote_entry, destination=f"{app.name}/{self.version}/")
         write_manifest_json(release)
-        print("Before save:", app.has_releases)
         app.save()
-        print("After save:", App.objects.get(pk=app.pk).has_releases)
