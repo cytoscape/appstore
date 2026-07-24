@@ -637,7 +637,7 @@ def _mk_web_page(app, user, request):
         'install_url': (
             "https://dev1.ndexbio.org/cytoscape/?installApp="
             + quote(
-                request.build_absolute_uri(f"/web/{app.name}/manifest.json"),
+                request.build_absolute_uri(f"/web/{app.name}/{release.version}/manifest.json"),
                 safe=""
             ))
     }
