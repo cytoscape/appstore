@@ -1,7 +1,7 @@
 import re
 import datetime
 import html
-from urllib.parse import unquote
+from urllib.parse import unquote, quote
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden
@@ -634,7 +634,14 @@ def _mk_web_page(app, user, request):
         'bundle_latest_release': _latest_bundle_release(app),
         'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
         'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
+        'install_url': (
+            "https://dev1.ndexbio.org/cytoscape/?installApp="
+            + quote(
+                request.build_absolute_uri(f"/web/{app.name}/manifest.json"),
+                safe=""
+            ))
     }
+
     return html_response('webapp_page.html', c, request)
 
 def webapp_page(request, app_name):

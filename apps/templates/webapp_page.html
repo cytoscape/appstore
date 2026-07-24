@@ -252,6 +252,10 @@
 				<i></i> {# <-- download button icon will go here #}
 				<h4></h4> {# <-- download button text will go here #}
 			</button> -->
+			<a class="btn btn-large btn-block btn-primary" style='margin-bottom: 15px;' href="{{ install_url }}">
+				<h4>Install in Cytoscape Web</h4>
+			</a>
+			<!--
 			<p><strong>CDN Base:</strong> {{ bundle_latest_release.cdn_base_url }}</p>
             <p>
                 <strong>Manifest:</strong>
@@ -260,12 +264,12 @@
                 </a>
             </p>
 
-            <p>
+            <p> 
                 <strong>Remote Entry:</strong>
                 <a href="{{ bundle_latest_release.remote_entry_url }}" target="_blank">
                     {{ bundle_latest_release.remote_entry_url }}
                 </a>
-            </p>
+            </p>-->
 			<p><strong>Version</strong> {{ bundle_latest_release.version }}</p>
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
 			<p><strong>Released</strong> {{ bundle_latest_release.created|date:'j M Y' }}</p>

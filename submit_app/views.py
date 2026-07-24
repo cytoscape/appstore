@@ -886,12 +886,14 @@ def _bundle_user_accepted(request, pending):
         if not app.active:
             app.active = True
             app.save()
+            print(app)
 
         pending.delete_files()
         pending.delete()
         return HttpResponseRedirect(reverse('app_page_edit', args=[app.name]) + '?upload_release=true')
     else:
         app_name = pending.fullname
+        print(app)
         return html_response('submit_done.html', {'app_name': app_name}, request)
 
 def confirm_web_bundle(request, id):

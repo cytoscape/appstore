@@ -144,7 +144,6 @@ class ServiceAppPending(models.Model):
         app.save()
 
 
-
 """
 class WebAppPending(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -205,6 +204,9 @@ class WebBundlePending(models.Model):
         if not app.has_releases:
             app.has_releases = True
 
+        app.latest_release_date = release.created
         _copy_remote_entry_to_storage(self.remote_entry, destination=f"{app.name}/{self.version}/")
         write_manifest_json(release)
-        return release
+        print("Before save:", app.has_releases)
+        app.save()
+        print("After save:", App.objects.get(pk=app.pk).has_releases)
