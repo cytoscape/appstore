@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import mimetypes
 
 BASE_DIR = Path(os.path.dirname(os.path.dirname(__file__))) 
 DEBUG = False
@@ -188,3 +189,5 @@ STORAGES = {
 
 CDN_BASE_URL = "https://apps-stage.cytoscape.org/web/"
 
+mimetypes.add_type("application/javascript", ".js", strict=True)
+mimetypes.add_type("application/javascript", ".mjs", strict=True)

@@ -155,6 +155,27 @@
               {% endfor %}
             {% endif %}
 
+            {% if app.platform == 'web'%}
+              {% for release in apps.webbundlerelease%} <!-- REMEMBER TO ACCOUNT FOR GITHUB URL SUBMISSIONS AS WELL-->
+               <div class="cy-release" release_id="{{ release.id }}">
+                <h4>
+                  {{ release.version }}
+                  <small><abbr class="timeago" title="{{ release.created_iso }}"></abbr></small>
+                  <button class="btn btn-small {% if release.dependents.count %}disabled{% endif %} cy-release-delete"><i class="icon icon-trash"></i> Delete</button>
+                </h4>
+                <p>
+                  <strong>Works with Cytoscape Web</strong>
+                  {{ release.works_with }}
+                </p>
+                <p><strong>Release Notes</strong></p>
+                <textarea class="cy-release-notes" rows="5">{% if release.notes %}{{ release.notes }}{% endif %}</textarea>
+                <h6 class="muted">PREVIEW</h6>
+                <div class="cy-release-notes-preview"></div>
+                <hr>
+              </div>
+              {% endfor %}
+            {% endif %}
+
             {% if app.platform == 'desktop' %}
               {% for release in app.releases %}
               <div class="cy-release" release_id="{{ release.id }}">
