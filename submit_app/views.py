@@ -113,7 +113,7 @@ def _user_cancelled(request, pending):
 
 def _user_accepted(request, pending):
     app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
-    if app:
+    if app and app.platform == 'desktop':
         if not app.is_editor(request.user):
             return HttpResponseForbidden('You are not authorized to add releases, because you are not an editor')
         if not app.active:
@@ -675,7 +675,7 @@ def _service_user_cancel(request, pending):
 
 def _service_user_accepted(request, pending):
     app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
-    if app:
+    if app and app.platform == 'service':
         if not app.is_editor(request.user):
             return HttpResponseForbidden('You are not authorized to make changes or add new releases to this app')
         if not app.active:
@@ -865,7 +865,7 @@ def _bundle_user_cancelled(request, pending):
 def _bundle_user_accepted(request, pending):
     app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
     print(app)
-    if app:
+    if app and app.platform == 'web':
         if not app.is_editor(request.user):
             return HttpResponseForbidden('You are not authorized to make changes or add new releases to this app')
         if not app.active:
