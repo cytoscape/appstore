@@ -1,39 +1,75 @@
 import * as __WEBPACK_EXTERNAL_MODULE_https_dev1_ndexbio_org_cytoscape_remoteEntry_js_3547a650__ from "https://dev1.ndexbio.org/cytoscape/remoteEntry.js";
 /******/ var __webpack_modules__ = ({
 
-/***/ 5857
-(__unused_webpack_module, exports, __webpack_require__) {
+/***/ 190
+(__unused_webpack_module, __unused_webpack___webpack_exports__, __webpack_require__) {
 
-var moduleMap = {
-	"./AppConfig": () => {
-		return __webpack_require__.e(/* __federation_expose_AppConfig */ 315).then(() => (() => ((__webpack_require__(190)))));
-	}
+
+// UNUSED EXPORTS: default
+
+// EXTERNAL MODULE: consume shared module (default) react@!=1.8...3...1 (singleton)
+var consume_shared_module_default_react_1_8_3_singleton_ = __webpack_require__(7309);
+;// ./package.json
+const package_namespaceObject = {"rE":"1.0.0"};
+;// ./src/MCODEApp.tsx
+/**
+ * Update:
+ *   1. `id`          → must match the Module Federation `name` in webpack.config.js
+ *   2. `name`        → human-readable name shown in the host's App Settings
+ *   3. `description` → one-line summary
+ *   4. `resources`   → add/remove panels and menu items
+ *   5. `mount()`     → register context menus, event listeners, etc.
+ *   6. `unmount()`   → clean up event listeners from mount()
+ *
+ * Resources (panels and menu items) are registered declaratively — the host
+ * renders them automatically. Context menus need `apis` access, so they are
+ * registered in mount() instead.
+ */
+
+
+const { /* version */ "rE": version } = package_namespaceObject;
+const MCODEApp = {
+    id: 'mcode', // must match the Module Federation `name` in webpack.config.js
+    name: 'MCODE Web',
+    description: 'MCODE finds clusters (highly interconnected regions) in a network',
+    version,
+    apiVersion: '1.0',
+    // ── Declarative resource registration ──────────────────────────────────
+    // Panels and menu items are declared here. The host registers them
+    // automatically — no mount() needed for these.
+    resources: [
+        {
+            slot: 'right-panel',
+            id: 'MCODEPanel',
+            title: 'MCODE', // Tab title shown in the right panel.
+            component: (0,consume_shared_module_default_react_1_8_3_singleton_.lazy)(() => Promise.all(/* import() */[__webpack_require__.e(978), __webpack_require__.e(762)]).then(__webpack_require__.bind(__webpack_require__, 9762))),
+        },
+    ],
+    // ── Lifecycle hooks ────────────────────────────────────────────────────
+    // mount() is called once after the app's resources are registered.
+    // Use it for context menus (handlers need api access) and event listeners.
+    mount(context) {
+        // Context menu items are registered here because their handlers need
+        // access to context.apis. The host auto-cleans all items when the app
+        // is disabled — no explicit removal in unmount() needed.
+        // registerSelectNeighbors(context)
+        // TODO: Add more context menu registrations or event listeners here.
+        // See src/contextMenus.ts for the pattern.
+    },
+    unmount() {
+        // Only manual cleanup (e.g. event listeners) goes here.
+        // Context menu items and resources are auto-cleaned by the host.
+        //
+        // if (_handler !== null) {
+        //   window.removeEventListener('network:switched', _handler)
+        //   _handler = null
+        // }
+    },
 };
-var get = (module, getScope) => {
-	__webpack_require__.R = getScope;
-	getScope = (
-		__webpack_require__.o(moduleMap, module)
-			? moduleMap[module]()
-			: Promise.resolve().then(() => {
-				throw new Error('Module "' + module + '" does not exist in container.');
-			})
-	);
-	__webpack_require__.R = undefined;
-	return getScope;
-};
-var init = (shareScope, initScope, remoteEntryInitOptions) => {
-	return __webpack_require__.federation.bundlerRuntime.initContainerEntry({	webpackRequire: __webpack_require__,
-		shareScope: shareScope,
-		initScope: initScope,
-		remoteEntryInitOptions: remoteEntryInitOptions,
-		shareScopeKey: "default"
-	})
-};
-// This exports getters to disallow modifications
-__webpack_require__.d(exports, {
-	get: () => (get),
-	init: () => (init)
-});
+
+;// ./src/index.ts
+
+
 
 /***/ },
 
@@ -5412,7 +5448,7 @@ var SharePlugin_exports = /* @__PURE__ */ (/* unused pure expression or super */
 /******/ 	// This function allow to reference async chunks
 /******/ 	__webpack_require__.u = (chunkId) => {
 /******/ 		// return url for filenames based on template
-/******/ 		return "" + ({"178":"mcode-worker","315":"__federation_expose_AppConfig"}[chunkId] || chunkId) + ".mjs";
+/******/ 		return "" + (chunkId === 178 ? "mcode-worker" : chunkId) + ".mjs";
 /******/ 	};
 /******/ })();
 /******/ 
@@ -5713,13 +5749,20 @@ var SharePlugin_exports = /* @__PURE__ */ (/* unused pure expression or super */
 /******/ 		}
 /******/ 	};
 /******/ 	var moduleToHandlerMapping = {};
-/******/ 	// no consumes in initial chunks
+/******/ 	__webpack_require__.consumesLoadingData.initialConsumes = [7309];
+/******/ 	__webpack_require__.federation.installInitialConsumes = (options) => (__webpack_require__.federation.bundlerRuntime.installInitialConsumes({
+/******/ 		initialConsumes: __webpack_require__.consumesLoadingData.initialConsumes,
+/******/ 		installedModules:installedModules,
+/******/ 		moduleToHandlerMapping,
+/******/ 		webpackRequire: __webpack_require__,
+/******/ 		asyncLoad: typeof options==='object' ? options.asyncLoad : undefined,
+/******/ 	}))
 /******/ 	__webpack_require__.consumesLoadingData.chunkMapping = {
-/******/ 		"315": [
-/******/ 			7309
-/******/ 		],
 /******/ 		"762": [
 /******/ 			7816
+/******/ 		],
+/******/ 		"792": [
+/******/ 			7309
 /******/ 		]
 /******/ 	};
 /******/ 	__webpack_require__.f.consumes = (chunkId, promises) => {
@@ -5759,7 +5802,8 @@ var SharePlugin_exports = /* @__PURE__ */ (/* unused pure expression or super */
 /******/ 	// undefined = chunk not loaded, null = chunk preloaded/prefetched
 /******/ 	// [resolve, Promise] = chunk loading, 0 = chunk loaded
 /******/ 	var installedChunks = {
-/******/ 		543: 0
+/******/ 		315: 0,
+/******/ 		792: 0
 /******/ 	};
 /******/ 	
 /******/ 	var installChunk = (data) => {
@@ -5823,8 +5867,5 @@ var SharePlugin_exports = /* @__PURE__ */ (/* unused pure expression or super */
 /******/ // module cache are used so entry inlining is disabled
 /******/ // startup
 /******/ // Load entry module and return exports
-/******/ var __webpack_exports__ = __webpack_require__(5857);
-/******/ const __webpack_exports__get = __webpack_exports__.get;
-/******/ const __webpack_exports__init = __webpack_exports__.init;
-/******/ export { __webpack_exports__get as get, __webpack_exports__init as init };
+/******/ var __webpack_exports__ = __webpack_require__(190);
 /******/ 

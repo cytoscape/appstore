@@ -4,7 +4,7 @@ import json
 import requests
 from urllib.parse import urlparse
 
-SUBMISSION_REQUIRED_FIELDS = ('name', 'version') #sumbitter or author here as required?
+SUBMISSION_REQUIRED_FIELDS = ('name', 'version', 'author') #sumbitter or author here as required?
 
 #-----------------------REMOVE BEFORE FLIGHT--------------------------------------
 import urllib3

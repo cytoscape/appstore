@@ -32,6 +32,7 @@ from .pomparse import PomAttrNames, parse_pom
 from .processjar import process_jar
 
 from .servicechecker import check_reachable, ServiceCheckError
+from .bundle_storage import _copy_bundle_to_storage, write_manifest_json
 
 
 from django.views.decorators.csrf import csrf_exempt
@@ -838,10 +839,6 @@ def _validate_bundle(bundle):
 
     try:
         with zipfile.ZipFile(bundle) as zf:
-            """
-            if 'mf-manifest.json' not in zf.namelist():
-                raise ValidationError("Bundle file must contain a manifest.json file.")
-            """
             names = zf.namelist()
 
             for name in names:
@@ -921,7 +918,11 @@ def _create_web_bundle_pending(form, bundle, submitter) -> WebBundlePending:
         #bundle_hash=_hash_file(bundle_file),
         status=WebBundlePending.Status.PENDING_REVIEW, #CHANGE TO PENDING_AUTOMATED_CHECKS ONCE IMPLEMENTED
     )
+
     pending.save()
+
+    _copy_bundle_to_storage(bundle, pending.bundle_path)
+
     return pending
 
 def publish_web_bundle(pending: WebBundlePending) -> WebBundleRelease:

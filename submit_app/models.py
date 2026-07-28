@@ -9,9 +9,10 @@ from apps.models import App, ServiceRelease, WebBundleRelease, Release, ReleaseA
 from util.id_util import fullname_to_name
 from util.view_util import get_object_or_none
 from django.core.mail import send_mail
+from django.core.files.storage import storages
 from django.conf import settings
 from submit_app.bundle_storage import write_manifest_json, _copy_bundle_to_storage
-from urllib.parse import urljoin
+from urllib.parse import urljoin, quote
 
 
 class AppPending(models.Model):
@@ -161,8 +162,8 @@ class WebBundlePending(models.Model):
         PENDING_AUTOMATED_CHECKS = 'pending_automated_checks', 'Running Automated Checks'
         CHECKS_FAILED         = 'checks_failed', 'Automated Checks Failed'
         PENDING_REVIEW        = 'pending_review', 'Pending Manual Review'
-        PUBLISHED             = 'published', 'Published'
-        REJECTED              = 'rejected', 'Rejected'
+        #PUBLISHED             = 'published', 'Published'
+        #REJECTED              = 'rejected', 'Rejected'
 
     id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -188,6 +189,32 @@ class WebBundlePending(models.Model):
 
     def delete_files(self):
         self.bundle.delete()
+        web_storage = storages['web_bundles']
+        for f in web_storage.listdir(self.bundle_path)[1]:
+            web_storage.delete(f"{self.bundle_path}{f}")
+
+    @property
+    def bundle_path(self):
+        return f"{self.fullname}/{self.version}/"
+
+    @property
+    def cdn_base_url(self):
+        return urljoin(settings.CDN_BASE_URL, self.bundle_path)
+
+    @property
+    def remote_entry_url(self):
+        return urljoin(self.cdn_base_url, "remoteEntry.js")
+
+    @property
+    def manifest_url(self):
+        return urljoin(self.cdn_base_url, "manifest.json")
+    
+    @property
+    def install_url(self):
+        return (
+        "https://dev1.ndexbio.org/cytoscape/?installApp="
+        + quote(self.manifest_url, safe="")
+    )
 
     def make_bundle_release(self, app: "App") -> "WebBundleRelease":
         cdn_base_url = urljoin(settings.CDN_BASE_URL, f"{app.name}/{self.version}/")

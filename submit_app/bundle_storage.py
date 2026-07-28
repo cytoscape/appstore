@@ -48,3 +48,21 @@ def _copy_bundle_to_storage(zip_file, destination: str):
                 web_storage.delete(path)
             with zf.open(member) as source:
                 web_storage.save(path, ContentFile(source.read()))
+
+
+def write_pending_manifest_json(pending):
+    web_storage = storages['web_bundles']
+    manifest_data = json.dumps([{
+        'id': fullname_to_name(pending.fullname),  # no App row yet, derive the same way accept does
+        'name': pending.fullname,
+        'version': pending.version,
+        'url': pending.remote_entry_url,
+        'author': pending.author,
+        'description': pending.description,
+        'license': pending.license,
+        'tags': pending.tags,
+    }]).encode()
+    path = f"{pending.bundle_path}manifest.json"
+    if web_storage.exists(path):
+        web_storage.delete(path)
+    web_storage.save(path, ContentFile(manifest_data))

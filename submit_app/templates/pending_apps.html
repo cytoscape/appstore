@@ -89,7 +89,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <button class ="cy-try-web btn btn-info btn-mini">Try in Cytoscape Web</button>
+                            <a class ="btn btn-info btn-mini" href="{{ pending.install_url }}" target="_blank">Try in Cytoscape Web</a>
                             <button class="cy-accept btn btn-success btn-mini"><i class="icon icon-ok icon-white"></i> Accept</button>
                             <button class="cy-decline btn btn-danger btn-mini"><i class="icon icon-remove icon-white"></i> Decline</button>
                             <span class="cy-loading" style="display: none;"><img src="{% get_static_prefix %}/common/img/loading_small.gif"></span>
