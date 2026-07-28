@@ -3,6 +3,7 @@ import zipfile
 from apps.models import WebBundleRelease
 from django.core.files.storage import storages
 from django.core.files.base import ContentFile
+from util.id_util import fullname_to_name
 
 
 def bundle_catalog_entry(release: WebBundleRelease) -> dict:
@@ -53,7 +54,7 @@ def _copy_bundle_to_storage(zip_file, destination: str):
 def write_pending_manifest_json(pending):
     web_storage = storages['web_bundles']
     manifest_data = json.dumps([{
-        'id': fullname_to_name(pending.fullname),  # no App row yet, derive the same way accept does
+        'id': fullname_to_name(pending.fullname),
         'name': pending.fullname,
         'version': pending.version,
         'url': pending.remote_entry_url,

@@ -32,7 +32,7 @@ from .pomparse import PomAttrNames, parse_pom
 from .processjar import process_jar
 
 from .servicechecker import check_reachable, ServiceCheckError
-from .bundle_storage import _copy_bundle_to_storage, write_manifest_json
+from .bundle_storage import _copy_bundle_to_storage, write_manifest_json, write_pending_manifest_json
 
 
 from django.views.decorators.csrf import csrf_exempt
@@ -922,6 +922,7 @@ def _create_web_bundle_pending(form, bundle, submitter) -> WebBundlePending:
     pending.save()
 
     _copy_bundle_to_storage(bundle, pending.bundle_path)
+    write_pending_manifest_json(pending)
 
     return pending
 
