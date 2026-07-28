@@ -195,7 +195,7 @@ class WebBundlePending(models.Model):
 
     @property
     def bundle_path(self):
-        return f"{self.fullname}/{self.version}/"
+        return f"{fullname_to_name(self.fullname)}/{self.version}/"
 
     @property
     def cdn_base_url(self):
