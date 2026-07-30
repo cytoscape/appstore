@@ -216,7 +216,7 @@ class WebBundlePending(models.Model):
     )
 
     def make_bundle_release(self, app: "App") -> "WebBundleRelease":
-        #cdn_base_url = urljoin(settings.CDN_BASE_URL, f"{app.name}/{self.version}/")
+        cdn_base_url = urljoin(settings.CDN_BASE_URL, f"{app.name}/{self.version}/")
 
         release, _ = WebBundleRelease.objects.get_or_create(app=app, version=self.version)
 
