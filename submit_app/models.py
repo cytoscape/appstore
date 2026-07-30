@@ -173,7 +173,6 @@ class WebBundlePending(models.Model):
     description = models.TextField(blank=True)
     license = models.CharField(max_length=64, blank=True)
     tags = models.JSONField(default=list, blank=True)
-    icon = models.URLField(blank=True)
 
 
     #internal boundary
