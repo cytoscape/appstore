@@ -188,9 +188,10 @@ class WebBundlePending(models.Model):
 
     def delete_files(self):
         self.bundle.delete()
+        """
         web_storage = storages['web_bundles']
         for f in web_storage.listdir(self.bundle_path)[1]:
-            web_storage.delete(f"{self.bundle_path}{f}")
+            web_storage.delete(f"{self.bundle_path}{f}")"""
 
     @property
     def bundle_path(self):
