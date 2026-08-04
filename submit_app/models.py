@@ -156,6 +156,9 @@ class WebAppPending(models.Model):
     web_url = models.URLField(blank=False, null=True)
 """
 
+def get_webbundles_storage():
+    return storages['webbundles']
+
 class WebBundlePending(models.Model):
     class Status(models.TextChoices):
         DEFAULT = 'default_status', 'Default Status'
@@ -178,9 +181,7 @@ class WebBundlePending(models.Model):
     #internal boundary
     status = models.CharField(max_length=32, choices=Status.choices, default=Status.DEFAULT)
     created = models.DateTimeField(auto_now_add=True)
-    #remote_entry = models.FileField(upload_to="web_pending/", null=True)
-    #remote_entry_hash = models.CharField(max_length=64)
-    bundle = models.FileField(upload_to="webpending/", null=True)
+    bundle = models.FileField(upload_to="webpending/", storage=get_webbundles_storage, null=True)
     bundle_hash = models.CharField(max_length=64)
 
     class Meta:
