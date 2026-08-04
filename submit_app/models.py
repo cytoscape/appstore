@@ -180,7 +180,7 @@ class WebBundlePending(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     #remote_entry = models.FileField(upload_to="web_pending/", null=True)
     #remote_entry_hash = models.CharField(max_length=64)
-    bundle = models.FileField(upload_to="web_pending/", null=True)
+    bundle = models.FileField(upload_to="webpending/", null=True)
     bundle_hash = models.CharField(max_length=64)
 
     class Meta:
@@ -188,7 +188,7 @@ class WebBundlePending(models.Model):
 
     def delete_files(self):
         self.bundle.delete()
-        web_storage = storages['web_bundles']
+        web_storage = storages['webbundles']
         assert self.bundle_path.startswith('pending/'),"refusing to delete outside pending/ namespace"
         for f in web_storage.listdir(self.bundle_path)[1]:
             web_storage.delete(f"{self.bundle_path}{f}")

@@ -19,7 +19,7 @@ def bundle_catalog_entry(release: WebBundleRelease) -> dict:
     }
 
 def write_manifest_json(release: WebBundleRelease):
-    web_storage = storages['web_bundles']
+    web_storage = storages['webbundles']
     manifest_data = json.dumps([bundle_catalog_entry(release)])
     path = f"{release.app.name}/{release.version}/manifest.json"
     if web_storage.exists(path):
@@ -28,7 +28,7 @@ def write_manifest_json(release: WebBundleRelease):
 """
 def _copy_remote_entry_to_storage(remote_entry, destination: str):
     remote_entry.seek(0)
-    web_storage = storages['web_bundles']
+    web_storage = storages['webbundles']
     path = f"{destination}remoteEntry.js"
     if web_storage.exists(path):
         web_storage.delete(path)
@@ -37,7 +37,7 @@ def _copy_remote_entry_to_storage(remote_entry, destination: str):
 def _copy_bundle_to_storage(zip_file, destination: str):
     """Copies every file in the validated bundle zip to storage,
     preserving relative paths (remoteEntry.js, chunks/, assets/, etc.)"""
-    web_storage = storages['web_bundles']
+    web_storage = storages['webbundles']
     zip_file.seek(0)
 
     with zipfile.ZipFile(zip_file) as zf:
@@ -52,7 +52,7 @@ def _copy_bundle_to_storage(zip_file, destination: str):
 
 
 def write_pending_manifest_json(pending):
-    web_storage = storages['web_bundles']
+    web_storage = storages['webbundles']
     manifest_data = json.dumps([{
         'id': fullname_to_name(pending.fullname),
         'name': pending.fullname,

@@ -178,10 +178,9 @@ STORAGES = {
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
-    "web_bundles": {
+    "webbundles": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
         "OPTIONS": {
-            "location": BASE_DIR / "web_bundle_storage",
             "base_url": "/web/",
         },
     },

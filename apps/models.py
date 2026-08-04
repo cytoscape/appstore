@@ -151,6 +151,7 @@ class App(models.Model):
         li = [usr.email for usr in self.editors.all()]
         return user.email in li
 
+
     @staticmethod
     def _camel_case_split(the_str):
         """
@@ -200,10 +201,22 @@ class App(models.Model):
     @property
     def webbundlereleases(self):
         return self.webbundlerelease_set.filter(active=True).all()
+    
+    def get_releases(self):
+        if self.platform == Platform.SERVICE:
+            return self.servicereleases
+        elif self.platform == Platform.WEB:
+            return self.webbundlereleases
+        return self.releases
+    
+    def update_has_releases(self):
+        self.has_releases = self.get_releases().count() > 0
+        self.save()
 
+    """
     def update_has_releases(self):
         self.has_releases = (self.release_set.filter(active=True).count() > 0)
-        self.save()
+        self.save()"""
 
     @property
     def page_url(self):
@@ -487,7 +500,7 @@ class WebBundleRelease(models.Model):
                              null=True)
     citation = models.URLField(blank=True, null=True)
     active = models.BooleanField(default=False)
-    bundle = models.FileField(upload_to="web_bundles/", null=True)
+    bundle = models.FileField(upload_to="webbundles/", null=True)
 
     created = models.DateTimeField(auto_now_add=True)
     bundle_hash = models.CharField(max_length=64)

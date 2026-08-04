@@ -252,7 +252,10 @@
 				<i></i> {# <-- download button icon will go here #}
 				<h4></h4> {# <-- download button text will go here #}
 			</button> -->
-			<p><a href={{ service_endpoint }}>{{app.fullname}} Endpoint</a></p>
+			<!--<p><a href={{ service_endpoint }}>{{app.fullname}} Endpoint</a></p>-->
+			<a class="btn btn-large btn-block btn-primary" style='margin-bottom: 15px;' href="{{ service_install }}" target="_blank">
+				<h4>Install in Cytoscape Web</h4>
+			</a>
 			<p><strong>Version</strong> {{ service_latest_release.version }}</p>
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
 			<p><strong>Released</strong> {{ service_latest_release.created|date:'j M Y' }}</p>

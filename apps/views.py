@@ -557,6 +557,9 @@ def _mk_service_page(app, user, request):
         'service_latest_release': _latest_service_release(app),
         'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
         'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
+        'service_install': (
+            "https://dev1.ndexbio.org/cytoscape?addserviceapp=" + quote(release.service_endpoint, safe="")
+        )
     }
     return html_response('service_page.html', c, request)
 
@@ -607,6 +610,7 @@ def service_page_edit(request, app_name):
     all_tags = [tag.fullname for tag in Tag.objects.all()]
     c = {
         'app': app,
+        'releases': app.get_releases(),
         'all_tags': all_tags,
         'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
         'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,
@@ -664,3 +668,37 @@ def webapp_page(request, app_name):
             return json_response(result)
 
     return _mk_web_page(app, user, request)
+
+@login_required
+@csrf_exempt
+def webapp_page_edit(request, app_name):
+    app = get_object_or_404(App, active = True, name = app_name)
+    if not app.is_editor(request.user):
+        return HttpResponseForbidden()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if not action:
+            return HttpResponseBadRequest('no action specified')
+        if not action in _AppEditActions:
+            return HttpResponseBadRequest('action "%s" invalid--must be: %s' % (action, ', '.join(_AppEditActions)))
+        try:
+            result = _AppEditActions[action](app, request)
+        except ValueError as e:
+            return HttpResponseBadRequest(str(e))
+        app.save()
+        if is_ajax(request):
+            return json_response(result)
+
+    all_tags = [tag.fullname for tag in Tag.objects.all()]
+    c = {
+        'app': app,
+        'releases': app.get_releases(),
+        'all_tags': all_tags,
+        'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
+        'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,
+        'thumbnail_height_px': _AppPageEditConfig.thumbnail_height_px,
+        'app_description_maxlength': _AppPageEditConfig.app_description_maxlength,
+        'release_uploaded': request.GET.get('upload_release') == 'true',
+    }
+    return html_response('app_page_edit.html', c, request)

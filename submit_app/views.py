@@ -397,7 +397,7 @@ def _pending_web_accept(pending, request):
     pending.delete_files()
     pending.delete()
 
-    server_url = _get_server_url(request)
+    #server_url = _get_server_url(request)
     #_send_email_for_accepted_app(pending.submitter.email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
 
 def _pending_service_accept(pending, request):
@@ -682,7 +682,8 @@ def _service_user_accepted(request, pending):
         if not app.active:
             app.active = True
             app.save()
-           
+        
+        pending.make_service_release(app)
         pending.delete()
         return HttpResponseRedirect(reverse('app_page_edit', args=[app.name]) + '?upload_release=true')
     else:
@@ -861,21 +862,19 @@ def _bundle_user_cancelled(request, pending):
 
 def _bundle_user_accepted(request, pending):
     app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
-    print(app)
     if app and app.platform == 'web':
         if not app.is_editor(request.user):
             return HttpResponseForbidden('You are not authorized to make changes or add new releases to this app')
         if not app.active:
             app.active = True
             app.save()
-            print(app)
 
+        pending.make_bundle_release(app)
         pending.delete_files()
         pending.delete()
         return HttpResponseRedirect(reverse('app_page_edit', args=[app.name]) + '?upload_release=true')
     else:
         app_name = pending.fullname
-        print(app)
         return html_response('submit_done.html', {'app_name': app_name}, request)
 
 def confirm_web_bundle(request, id):
@@ -925,13 +924,3 @@ def _create_web_bundle_pending(form, bundle, submitter) -> WebBundlePending:
     write_pending_manifest_json(pending)
 
     return pending
-
-def publish_web_bundle(pending: WebBundlePending) -> WebBundleRelease:
-    name = fullname_to_name(pending.fullname)
-    app, _ = App.objects.get_or_create(
-        name = name,
-        defaults = {'fullname': pending.fullname, 'platform': Platform.WEB}
-    )
-
-    return pending.make_bundle_release(app)
-

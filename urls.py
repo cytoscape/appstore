@@ -3,6 +3,7 @@ import logging
 from django.urls import include, re_path
 from django.conf.urls.static import static
 from django.conf import settings
+import os
 
 from apps.views import apps_default
 
@@ -39,4 +40,4 @@ if settings.DJANGO_STATIC_AND_MEDIA:
 
 
 if settings.DEBUG:
-    urlpatterns += static("/web/", document_root=settings.BASE_DIR / "web_bundle_storage")
+    urlpatterns += static("/web/", document_root=os.path.join(settings.MEDIA_ROOT, "webbundles"))
