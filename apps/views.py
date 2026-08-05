@@ -558,7 +558,7 @@ def _mk_service_page(app, user, request):
         'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
         'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
         'service_install': (
-            "https://dev1.ndexbio.org/cytoscape?addserviceapp=" + quote(release.service_endpoint, safe="")
+            "https://dev1.ndexbio.org/cytoscape?installApp=" + quote(release.service_endpoint, safe="")
         )
     }
     return html_response('service_page.html', c, request)
