@@ -451,6 +451,13 @@ class ServiceRelease(models.Model):
     active = models.BooleanField(default=True)
     metadata = models.JSONField(null=True, blank=True)
 
+    @property
+    def created_iso(self):
+        return self.created.isoformat()
+
+    class Meta:
+        ordering = ['-created']
+
 """
 class WEB_SUBMISSION_ORIGIN(models.TextChoices):
     WEB_URL = 'web_url', 'Web URL',
@@ -521,8 +528,13 @@ class WebBundleRelease(models.Model):
     @property
     def manifest_url(self):
         return urljoin(self.cdn_base_url, "manifest.json")
+    
+    @property
+    def created_iso(self):
+        return self.created.isoformat()
 
     class Meta:
+        ordering = ['-created']
         constraints = [
             models.UniqueConstraint(fields=['app', 'version'], name="unique_web_bundle_release_version")
         ]
