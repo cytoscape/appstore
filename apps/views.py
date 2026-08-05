@@ -531,6 +531,7 @@ def app_page_edit(request, app_name):
     all_tags = [tag.fullname for tag in Tag.objects.all()]
     c = {
         'app': app,
+        'releases': app.get_releases(),
         'all_tags': all_tags,
         'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
         'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,
