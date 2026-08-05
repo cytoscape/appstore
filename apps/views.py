@@ -201,7 +201,7 @@ def _app_ratings_delete_all(app, user, post):
 # -- General app stuff
 
 def _latest_release(app):
-    releases = app.releases
+    releases = app.get_releases()
     if not releases: return None
     return releases[0] # go by the ordering provided by Release.Meta
 
@@ -443,13 +443,14 @@ def _save_release_notes(app, request):
     except ValueError:
         raise ValueError('release_count is not an integer')
 
+    releases = app.get_releases()
     for i in range(release_count):
         key = 'release_id_' + str(i)
         release_id = request.POST.get(key)
         if not release_id:
             raise ValueError('expected ' + key)
         try:
-            release = Release.objects.get(id = int(release_id))
+            release = releases.get(id=int(release_id))
         except (Release.DoesNotExist, ValueError) as e:
             raise ValueError('release_id "%s" is invalid' % release_id)
         notes_key = 'notes_' + str(i)
@@ -468,13 +469,14 @@ def _delete_release(app, request):
     except ValueError:
         raise ValueError('release_count is not an integer')
 
+    releases = app.get_releases()
     for i in range(release_count):
         key = 'release_id_' + str(i)
         release_id = request.POST.get(key)
         if not release_id:
             raise ValueError('expected ' + key)
         try:
-            release = Release.objects.get(id = int(release_id))
+            release = releases.get(id=int(release_id))
         except (Release.DoesNotExist, ValueError) as e:
             raise ValueError('release_id "%s" is invalid' % release_id)
         release.active = False

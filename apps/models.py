@@ -450,6 +450,7 @@ class ServiceRelease(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     active = models.BooleanField(default=True)
     metadata = models.JSONField(null=True, blank=True)
+    notes = models.TextField(null=True, blank=True)
 
     @property
     def created_iso(self):
@@ -506,6 +507,7 @@ class WebBundleRelease(models.Model):
     icon = models.ImageField(upload_to=app_icon_path, blank=True,
                              null=True)
     citation = models.URLField(blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
     active = models.BooleanField(default=False)
     bundle = models.FileField(upload_to="webbundles/", null=True)
 
