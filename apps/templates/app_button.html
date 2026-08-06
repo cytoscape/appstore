@@ -11,8 +11,10 @@
   {% if app.has_releases %}
     {% if app.releases%}  
       <i class="cy3-sticker" style="background-image: url('{% get_static_prefix %}apps/img/cy3_sticker.png');"></i>
-    {% else %}
+    {% elif app.webbundlereleases %}
       <i class="cy3-sticker" style="background-image: url('{% get_static_prefix %}apps/img/cyweb_sticker.png');"></i>
+    {% else %}
+    <i class="cy3-sticker" style="background-image: url('{% get_static_prefix %}apps/img/cyservice_sticker.png');"></i>
     {% endif %}
   {% endif %}
   

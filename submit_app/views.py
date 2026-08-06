@@ -35,6 +35,7 @@ from .servicechecker import check_reachable, ServiceCheckError
 from .bundle_storage import _copy_bundle_to_storage, write_pending_manifest_json
 
 
+
 from django.views.decorators.csrf import csrf_exempt
 
 LOGGER = logging.getLogger('django')   
@@ -45,10 +46,14 @@ LOGGER = logging.getLogger(__name__)
 def platform_select(request):
     platforms = [
         ('desktop', 'Cytoscape Desktop App'),
-        #('web-url', 'Cytoscape Web - Github/Repo URL'),
-        ('web-bundle', 'Cytoscape Web - Bundle File/Manifest'),
         ('service', 'Cytoscape Web - Service App URL'),
     ]
+
+    if settings.WEB_SUBMISSION_METHODS.get('bundle'):
+        platforms.append(('web-bundle', 'Cytoscape Web - Bundle'))
+    if settings.WEB_SUBMISSION_METHODS.get('url'):
+        platforms.append(('web-url', 'Cytoscape Web - Github Repo URL'))
+
     if request.method == 'POST':
         platform = request.POST.get('platform')
         if not platform:

@@ -190,3 +190,8 @@ CDN_BASE_URL = "https://apps-stage.cytoscape.org/web/"
 
 mimetypes.add_type("application/javascript", ".js", strict=True)
 mimetypes.add_type("application/javascript", ".mjs", strict=True)
+
+WEB_SUBMISSION_METHODS = {
+    'bundle': True,
+    'url': False,   # build step not implemented yet
+}
