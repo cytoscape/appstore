@@ -27,7 +27,7 @@ from util.view_util import html_response, json_response, get_object_or_none, is_
 from util.id_util import fullname_to_name
 from apps.models import Release, ServiceRelease, WebBundleRelease, App, Author, OrderedAuthor, Platform
 from apps.views import _parse_iso_date
-from .models import AppPending, ServiceAppPending, WebBundlePending
+from .models import AppPending, ServiceAppPending, WebBundlePending, WebUrlPending
 from .pomparse import PomAttrNames, parse_pom
 from .processjar import process_jar
 
@@ -716,6 +716,39 @@ def service_app_confirm(request, id):
     return html_response('confirm_service.html', {'pending': pending}, request)
 
 #---------------------- WEB APP URL SUBMISSION ----------------------
+
+@login_required
+def submit_web_url(request):
+    if request.method != "POST":
+        form = web_url_form()
+        return html_response('web_url_upload_form.html', {'form': form}, request)
+
+    form = web_url_form(request.POST, request.FILES)
+    if not form.is_valid():
+        return html_response('web_url_upload_form.html', {'form': form}, request)
+
+    repo_url = form.cleaned_data['repo_url']
+
+    pending = _create_web_url_pending(form, repo_url, request.user)
+
+    return HttpResponseRedirect(reverse('confirm-web-bundle', args=[pending.id]))
+
+
+    
+
+
+class web_url_form(forms.Form):
+    repo_url = forms.URLField(label="Web App Github URL",  required = True, error_messages ={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'https://github.com/repo'}))
+    fullname = forms.CharField(label="App Name", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'App Name'}))
+    version = forms.CharField(label="App Version*", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '1.0.0'}))
+
+def _create_web_url_pending(form, repo, submitter):
+    pending = WebUrlPending(
+        submitter = submitter,
+        fullname = form.cleaned_data["fullname"],
+        version = form.cleaned_data['version'],
+        repo_url = form.cleaned_data['repo_url']
+    )
 """
 def classify_ref(value):
     if re.match(r'^[0-9a-f]{40}$', value):

@@ -103,7 +103,7 @@ class ViewsTest(TestCase):
                              'History tab in the app edit page', str(ve))
 
     def test_confirm_submission_pending_app_not_found(self):
-        response = self.client.post('/submit_app/confirm/12345',
+        response = self.client.post('/submit/confirm/12345',
                                     follow=True)
         self.assertEqual(404, response.status_code)
 
@@ -121,7 +121,7 @@ class ViewsTest(TestCase):
                                         'workswith', [], jarfile)
         res = self.client.login(username='joe', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id)
+        response = self.client.post('/submit/confirm/' + str(pending.id)
                                     ,follow=True)
         self.assertEqual(403, response.status_code)
 
@@ -136,7 +136,7 @@ class ViewsTest(TestCase):
                                         'workswith', [], jarfile)
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id),
+        response = self.client.post('/submit/confirm/' + str(pending.id),
                                     follow=True)
         self.assertEqual(200, response.status_code)
         self.assertTrue(b'Cytoscape App Store - '
@@ -163,7 +163,7 @@ class ViewsTest(TestCase):
 
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id),
+        response = self.client.post('/submit/confirm/' + str(pending.id),
                                     follow=True)
         self.assertEqual(200, response.status_code)
         self.assertTrue(b'Cytoscape App Store - '
@@ -183,7 +183,7 @@ class ViewsTest(TestCase):
                                         'workswith', [], jarfile)
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id),
+        response = self.client.post('/submit/confirm/' + str(pending.id),
                                     {'action': 'cancel'},
                                     follow=True)
         self.assertEqual(200, response.status_code)
@@ -202,7 +202,7 @@ class ViewsTest(TestCase):
                                         'workswith', [], jarfile)
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id),
+        response = self.client.post('/submit/confirm/' + str(pending.id),
                                     {'action': 'accept'},
                                     follow=True)
         self.assertEqual(200, response.status_code)
@@ -235,7 +235,7 @@ class ViewsTest(TestCase):
             res = self.client.login(username='bob', password='secret')
             self.assertTrue(res)
 
-            response = self.client.post('/submit_app/submit_api/' +
+            response = self.client.post('/submit/submit_api/' +
                                         str(pending.id),
                                         {'submit': 'true',
                                          'pom_xml': testpomfile,
@@ -261,7 +261,7 @@ class ViewsTest(TestCase):
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
 
-        response = self.client.post('/submit_app/submit_api/' +
+        response = self.client.post('/submit/submit_api/' +
                                     str(pending.id),
                                     {'submit': 'true',
                                      'pom_xml': testpomfile,
@@ -288,7 +288,7 @@ class ViewsTest(TestCase):
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
 
-        response = self.client.post('/submit_app/submit_api/' +
+        response = self.client.post('/submit/submit_api/' +
                                     str(pending.id),
                                     {'submit': 'true',
                                      'pom_xml': testpomfile,

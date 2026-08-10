@@ -208,6 +208,8 @@ def _latest_release(app):
 def _mk_app_page(app, user, request):
     c = {
         'app': app,
+        'releases': app.get_releases(),
+        'latest_release': app.get_releases().first(),
         'is_editor': (user and app.is_editor(user)),
         'cy3_latest_release': _latest_release(app),
         'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
@@ -224,13 +226,13 @@ _AppActions = {
 def app_page(request, app_name):
     app = get_object_or_404(App, active=True, name=app_name)
     user = request.user if request.user.is_authenticated else None
-
+    """
     if app.platform == Platform.SERVICE:
         return service_page(request, app_name)
     
     elif app.platform == Platform.WEB:
         return webapp_page(request, app_name)
-
+    """
     if request.method == 'POST':
         action = request.POST.get('action')
         if not action:
@@ -636,6 +638,8 @@ def _mk_web_page(app, user, request):
     release = _latest_bundle_release(app)
     c = {
         'app': app,
+        'releases': app.get_releases(),
+        'latest_release': app.get_releases().first(),
         'cdn_base_url': release.cdn_base_url if release else None,
         'is_editor': (user and app.is_editor(user)),
         'bundle_latest_release': _latest_bundle_release(app),
@@ -649,7 +653,7 @@ def _mk_web_page(app, user, request):
             ))
     }
 
-    return html_response('webapp_page.html', c, request)
+    return html_response('app_page.html', c, request)
 
 def webapp_page(request, app_name):
     app = get_object_or_404(App, active=True, name=app_name)

@@ -220,12 +220,6 @@ class App(models.Model):
 
     @property
     def page_url(self):
-        if self.platform == "Service":
-            return reverse('service_page', args=[self.name])
-        
-        elif self.platform == 'Web':
-            return reverse('webapp_page', args=[self.name])
-
         return reverse('app_page', args=[self.name])
 
     @property
@@ -480,7 +474,7 @@ class WebUrlRelease(models.Model):
     submitter = models.CharField(max_length=512, blank=True)
     #origin = models.CharField(max_length=31, choices=WEB_SUBMISSION_ORIGIN.choices)
 
-    repository_url = models.URLField(blank=False, null=True)
+    repo_url = models.URLField(blank=False, null=True)
     commit_ref = models.CharField(max_length=127, blank=False, null=True)
 
 

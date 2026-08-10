@@ -1,5 +1,6 @@
 import subprocess
 import datetime
+import os
 from os.path import basename, join as pathjoin
 from threading import Thread
 
@@ -84,7 +85,7 @@ def _deploy_artifact(api):
     pom_path = pathjoin(settings.MEDIA_ROOT, api.pom_xml_file.name)
     jar_path = pathjoin(settings.MEDIA_ROOT, api.release.release_file.name)
     deploy_cmd = (settings.MVN_BIN_PATH,
-        '-s', settings.MVN_SETTINGS_PATH,
+        '-s', settings.MVN_SETTINGS_PATH,   
         'deploy:deploy-file',
         '-Dpackaging=jar',
         '-Durl=http://code.cytoscape.org/nexus/content/repositories/apps',
@@ -144,17 +145,16 @@ class ServiceAppPending(models.Model):
         app.latest_release_date = release.created
         app.save()
 
-
-"""
-class WebAppPending(models.Model):
+class WebUrlPending(models.Model):
     id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=127)
     version = models.CharField(max_length=31)
     created = models.DateTimeField(auto_now_add=True)
+    repo_url = models.URLField(blank=False, null=True)
 
-    web_url = models.URLField(blank=False, null=True)
-"""
+    #commit_ref
+
 
 def get_webbundles_storage():
     return storages['webbundles']
@@ -193,6 +193,10 @@ class WebBundlePending(models.Model):
         assert self.bundle_path.startswith('pending/'),"refusing to delete outside pending/ namespace"
         for f in web_storage.listdir(self.bundle_path)[1]:
             web_storage.delete(f"{self.bundle_path}{f}")
+        try:
+            os.rmdir(web_storage.path(self.bundle_path))
+        except OSError:
+            pass
 
     @property
     def bundle_path(self):

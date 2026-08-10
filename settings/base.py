@@ -193,5 +193,5 @@ mimetypes.add_type("application/javascript", ".mjs", strict=True)
 
 WEB_SUBMISSION_METHODS = {
     'bundle': True,
-    'url': False,   # build step not implemented yet
+    'url': True,   # build step not implemented yet
 }
