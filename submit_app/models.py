@@ -145,15 +145,20 @@ class ServiceAppPending(models.Model):
         app.latest_release_date = release.created
         app.save()
 
+class WEB_SUBMISSION_ORIGIN(models.TextChoices):
+    WEB_URL = 'web_url', 'Web URL',
+    WEB_BUNDLE = 'web_bundle', 'Web Bundle'
+
 class WebUrlPending(models.Model):
     id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
-    fullname = models.CharField(max_length=127)
-    version = models.CharField(max_length=31)
+    fullname = models.CharField(max_length=128)
+    author = models.CharField(max_length=128, blank=True)
+    version = models.CharField(max_length=32)
     created = models.DateTimeField(auto_now_add=True)
     repo_url = models.URLField(blank=False, null=True)
-
-    #commit_ref
+    origin = models.CharField(max_length=32, choices=WEB_SUBMISSION_ORIGIN.choices, default=WEB_SUBMISSION_ORIGIN.WEB_URL)
+    
 
 
 def get_webbundles_storage():
@@ -183,6 +188,7 @@ class WebBundlePending(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     bundle = models.FileField(upload_to="webpending/", storage=get_webbundles_storage, null=True)
     bundle_hash = models.CharField(max_length=64)
+    origin = models.CharField(max_length=32, choices=WEB_SUBMISSION_ORIGIN.choices, default=WEB_SUBMISSION_ORIGIN.WEB_BUNDLE)
 
     class Meta:
         ordering = ['-created']

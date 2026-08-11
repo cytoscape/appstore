@@ -453,11 +453,11 @@ class ServiceRelease(models.Model):
     class Meta:
         ordering = ['-created']
 
-"""
+
 class WEB_SUBMISSION_ORIGIN(models.TextChoices):
     WEB_URL = 'web_url', 'Web URL',
     WEB_BUNDLE = 'web_bundle', 'Web Bundle'
-"""
+
 """
 class WebUrlStatus(models.TextChoices):
     PENDING_BUILD = 'pending_build', 'Pending Artifact Build',

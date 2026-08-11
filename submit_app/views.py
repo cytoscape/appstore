@@ -385,26 +385,30 @@ def _pending_app_decline(pending_app, request):
 
 
 @csrf_exempt
-def _pending_web_accept(pending, request):
-    name = fullname_to_name(pending.fullname)
-    # we always create a new app, because only new apps require accepting
-    app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.WEB)
-    app.active = True
-    app.editors.add(pending.submitter)
-    app.save()  
+def _pending_web_accept(pending, request): #INCLUDES PATH FOR REPO URL, MAY OR MAY NOT ADD SEPARATE FUNCTION LATER
+    if isinstance(pending, WebBundlePending):
+        name = fullname_to_name(pending.fullname)
+        app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.WEB)
+        app.active = True
+        app.editors.add(pending.submitter)
+        app.save()  
 
-    try:
-        pending.make_bundle_release(app)
-    except Exception as e:
-        print(e)
-        raise  # re-raise so you still see it fail — just now with a full traceback in the console
+        try:
+            pending.make_bundle_release(app)
+        except Exception as e:
+            print(e)
+            raise  # re-raise so you still see it fail — just now with a full traceback in the console
 
-    pending.delete_files()
-    pending.delete()
+        pending.delete_files()
+        pending.delete()
+    else:
+        pass #later configure to accept github url submissions
 
-    #server_url = _get_server_url(request)
-    #_send_email_for_accepted_app(pending.submitter.email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
+    server_url = _get_server_url(request)
+    _send_email_for_accepted_app(pending.submitter.email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
 
+
+@csrf_exempt
 def _pending_service_accept(pending, request):
     name = fullname_to_name(pending.fullname)
     app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.SERVICE)
@@ -419,16 +423,16 @@ def _pending_service_accept(pending, request):
     server_url = _get_server_url(request)
     _send_email_for_accepted_app(submitter_email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
 
-def _pending_service_decline(pending_app, request):
+def _pending_url_decline(pending_app, request): #originally _pending_service_decline, change to just url for repo url as well
     pending_app.delete()
 
 
 def _pending_instance_decline(pending_app, request):
     if isinstance(pending_app, AppPending):
         return _pending_app_decline(pending_app, request)
-    if isinstance(pending_app, ServiceAppPending):
-        return _pending_service_decline(pending_app, request)
-    if isinstance(pending_app, WebBundlePending):
+    elif isinstance(pending_app, ServiceAppPending) or isinstance(pending_app, WebUrlPending):
+        return _pending_url_decline(pending_app, request)
+    elif isinstance(pending_app, WebBundlePending):
         return _pending_app_decline(pending_app, request)
 
 def _pending_instance_accept(pending_app, request):
@@ -436,7 +440,7 @@ def _pending_instance_accept(pending_app, request):
         return _pending_app_accept(pending_app, request)
     if isinstance(pending_app, ServiceAppPending):
         return _pending_service_accept(pending_app, request)
-    if isinstance(pending_app, WebBundlePending):
+    if isinstance(pending_app, WebBundlePending) or isinstance(pending_app, WebUrlPending):
         return _pending_web_accept(pending_app, request)
 
 _PendingAppsActions = {
@@ -468,6 +472,7 @@ def pending_apps(request):
             'desktop' : AppPending,
             'service' : ServiceAppPending,
             'web-bundle': WebBundlePending,
+            'web-url': WebUrlPending
         } 
 
         model = platform_map.get(pending_platform)
@@ -490,7 +495,8 @@ def pending_apps(request):
     pending_apps = AppPending.objects.all()
     pending_service = ServiceAppPending.objects.all()
     pending_web_bundle = WebBundlePending.objects.all()
-    return html_response('pending_apps.html', {'pending_apps': pending_apps, 'pending_service': pending_service, 'pending_web_bundle': pending_web_bundle}, request)
+    pending_web_url = WebUrlPending.objects.all()
+    return html_response('pending_apps.html', {'pending_apps': pending_apps, 'pending_service': pending_service, 'pending_web_bundle': pending_web_bundle, 'pending_web_url': pending_web_url}, request)
 
 AppRepoUrl = 'http://code.cytoscape.org/nexus/content/repositories/apps'
 
@@ -729,13 +735,27 @@ def submit_web_url(request):
 
     repo_url = form.cleaned_data['repo_url']
 
-    pending = _create_web_url_pending(form, repo_url, request.user)
+    try:
+        pending = _create_web_url_pending(form, repo_url, request.user)
+    except ValidationError as e:
+        form.add_error(None, str(e))
+        return html_response('web_url_upload_form.html', {'form': form}, request)
 
-    return HttpResponseRedirect(reverse('confirm-web-bundle', args=[pending.id]))
+    return HttpResponseRedirect(reverse('confirm-web-url', args=[pending.id]))
+"""   
+def confirm_webapp(request, id):
+    pending_url = WebUrlPending.objects.filter(id=id).first()
+    pending_bundle = WebBundlePending.objects.filter(id=id).first()
 
-
-    
-
+    if pending_url and not pending_bundle:
+        return confirm_web_url(request, id)
+    elif pending_bundle and not pending_url:
+        return confirm_web_bundle(request, id)
+    elif pending_url and pending_bundle:
+        raise Http404("Ambiguous pending id")
+    else:
+        raise Http404("No such pending submission")
+"""
 
 class web_url_form(forms.Form):
     repo_url = forms.URLField(label="Web App Github URL",  required = True, error_messages ={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'https://github.com/repo'}))
@@ -749,6 +769,33 @@ def _create_web_url_pending(form, repo, submitter):
         version = form.cleaned_data['version'],
         repo_url = form.cleaned_data['repo_url']
     )
+
+    pending.save()
+    return pending
+
+def _url_user_cancelled(request, pending):
+    pending.delete()
+    return HttpResponseRedirect(reverse('submit-web-url'))
+
+def _url_user_accepted(request, pending):
+    pending.save()
+    app_name = pending.fullname
+    return html_response('submit_done.html', {'app_name': app_name}, request)
+
+def confirm_web_url(request, id):
+    pending = get_object_or_404(WebUrlPending, id = int(id))
+    if not (request.user.is_staff or request.user == pending.submitter):
+        return HttpResponseForbidden('You are not authorized to view this page')
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'cancel':
+            return _url_user_cancelled(request, pending)
+        elif action == 'accept':
+            pending.save()
+            return _url_user_accepted(request, pending)
+
+    return html_response("confirm_webapp.html", {'pending':pending}, request)
 """
 def classify_ref(value):
     if re.match(r'^[0-9a-f]{40}$', value):
@@ -929,7 +976,7 @@ def confirm_web_bundle(request, id):
             pending.save()
             return _bundle_user_accepted(request, pending)
 
-    return html_response("confirm_web_bundle.html", {'pending':pending}, request)
+    return html_response("confirm_webapp.html", {'pending':pending}, request)
 
 
 def _hash_file(file) -> str:

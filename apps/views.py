@@ -226,13 +226,13 @@ _AppActions = {
 def app_page(request, app_name):
     app = get_object_or_404(App, active=True, name=app_name)
     user = request.user if request.user.is_authenticated else None
-    """
+
     if app.platform == Platform.SERVICE:
         return service_page(request, app_name)
     
     elif app.platform == Platform.WEB:
         return webapp_page(request, app_name)
-    """
+
     if request.method == 'POST':
         action = request.POST.get('action')
         if not action:
@@ -566,7 +566,7 @@ def _mk_service_page(app, user, request):
             "https://dev1.ndexbio.org/cytoscape?installApp=" + quote(release.service_endpoint, safe="")
         )
     }
-    return html_response('service_page.html', c, request)
+    return html_response('app_page.html', c, request)
 
 
 def service_page(request, app_name):

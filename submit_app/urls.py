@@ -10,7 +10,9 @@ from submit_app.views import platform_select, platform_select_help
 from submit_app.views import submit_service_app
 from submit_app.views import service_app_confirm
 from submit_app.views import submit_web_url
-from submit_app.views import submit_web_bundle, confirm_web_bundle
+from submit_app.views import submit_web_bundle
+from submit_app.views import confirm_web_bundle
+from submit_app.views import confirm_web_url
 
 
 urlpatterns = [
@@ -28,5 +30,6 @@ urlpatterns = [
     re_path(r'^submit_web_url$', submit_web_url, name='submit-web-url'),
     re_path(r'^submit_web_bundle$', submit_web_bundle, name='submit-web-bundle'),
     re_path(r'^confirm_web_bundle/(\d{1,5})$', confirm_web_bundle, name='confirm-web-bundle'),
+    re_path(r'^confirm_web_url/(\d{1,5})$', confirm_web_url, name='confirm-web-url'),
 ]
 
