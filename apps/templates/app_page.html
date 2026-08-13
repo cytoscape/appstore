@@ -359,7 +359,7 @@
 			<a class="btn btn-large btn-block btn-primary" style='margin-bottom: 15px;' href="{{ install_url }}" target="_blank">
 				<h4>Install in Cytoscape Web</h4>
 			</a>
-			
+			<!--
 			<p><strong>CDN Base:</strong> {{ bundle_latest_release.cdn_base_url }}</p>
             <p>
                 <strong>Manifest:</strong>
@@ -374,11 +374,12 @@
                     {{ bundle_latest_release.remote_entry_url }}
                 </a>
             </p>
+			-->
 			<p><strong>Version</strong> {{ bundle_latest_release.version }}</p>
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
 			<p><strong>Released</strong> {{ bundle_latest_release.created|date:'j M Y' }}</p>
 			<p><strong>Works with</strong> <a href="http://web.cytoscape.org" target="_blank">Cytoscape Web</a></p>
-			<p><strong>Download Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
+			<!--<p><strong>Download Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>-->
 			{% elif app.platform == 'service' %}
 			<h6 class="panel-title muted">CYTOSCAPE WEB</h6>
 			<a class="btn btn-large btn-block btn-primary" style='margin-bottom: 15px;' href="{{ service_install }}" target="_blank">
@@ -388,7 +389,7 @@
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
 			<p><strong>Released</strong> {{ service_latest_release.created|date:'j M Y' }}</p>
 			<p><strong>Works with</strong> <a href="http://web.cytoscape.org" target="_blank">Cytoscape Web</a></p>
-			<p><strong>Download Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
+			<!--<p><strong>Download Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>-->
 			{% else %}
 			<h6 class="panel-title muted">CYTOSCAPE 3</h6>
 			<button class="btn btn-large btn-block" id="cy-app-install-btn">
