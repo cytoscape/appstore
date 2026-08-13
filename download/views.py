@@ -2,9 +2,10 @@ import datetime
 
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponseRedirect
+from django.http import Http404
 
 from util.view_util import html_response, json_response, ipaddr_str_to_long, ipaddr_long_to_str
-from apps.models import App, Release
+from apps.models import App, Release, ServiceRelease, WebBundleRelease, Platform
 from download.models import ReleaseDownloadsByDate, AppDownloadsByGeoLoc, Download, GeoLoc
 
 # ===================================
@@ -26,7 +27,20 @@ def _increment_count(klass, **args):
     obj.save()
 
 def release_download(request, app_name, version):
-    release = get_object_or_404(Release, app__name = app_name, version = version, active = True)
+    app = get_object_or_404(App, name=app_name)
+
+    if app.platform == Platform.DESKTOP:
+        release = get_object_or_404(Release, app__name = app_name, version = version, active = True)
+        target_url = release. release_file_url
+    elif app.plaftorm == Platform.SERVICE:
+        release = get_object_or_404(ServiceRelease, app=app, version=version, active=True)
+        target_url = release.service_endpoint
+    elif app.platform == Platform.WEB:
+        release = get_object_or_404(WebBundleRelease, app=app, version=version, active=True) #gonna have to change to a general webapp release model
+        target_url = release.install_url
+    else:
+        raise Http404
+
     ip4addr = _client_ipaddr(request)
     when    = datetime.date.today()
 
@@ -41,7 +55,7 @@ def release_download(request, app_name, version):
     _increment_count(ReleaseDownloadsByDate, release = release, when = when)
     _increment_count(ReleaseDownloadsByDate, release = None,    when = when)
 
-    return HttpResponseRedirect(release.release_file_url)
+    return HttpResponseRedirect(target_url)
 
 # ===================================
 #   Download statistics
