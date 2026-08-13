@@ -85,7 +85,3 @@ Make sure your service:
 | Update process | Upload a new version | Update your service directly |
 
 ---
-
-## Questions or issues?
-
-If your submission is stuck or rejected and the reason isn't clear, contact the App Store team with your submission ID.
