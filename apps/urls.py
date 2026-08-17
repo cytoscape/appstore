@@ -13,8 +13,6 @@ from apps.views import app_page
 from apps.views import app_page_edit
 from apps.views import author_names
 from apps.views import institution_names
-from apps.views import service_page
-from apps.views import webapp_page
 from download.views import release_download
 
 urlpatterns = [

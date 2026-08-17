@@ -82,11 +82,20 @@
 		{# End Ratings #}
 
 		{# Downloads #}
-		{% if app.has_releases %}
-		<span class="app-usage-info-divider"></span>
-		<a href="{% url 'app_stats' app.name %}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Click to view the download stats.">
-			{{ app.downloads }} downloads
-		</a>
+		{% if app.platform == 'desktop'%}
+			{% if app.has_releases %}
+			<span class="app-usage-info-divider"></span>
+			<a href="{% url 'app_stats' app.name %}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Click to view the download stats.">
+				{{ app.downloads }} downloads
+			</a>
+			{% endif %}
+		{% else %}
+			{% if app.has_releases %}
+			<span class="app-usage-info-divider"></span>
+			<a href="{% url 'app_stats' app.name %}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Click to view the download stats.">
+				{{ app.downloads }} installs
+			</a>
+			{% endif %}
 		{% endif %}
 		{# End Downloads #}
 
@@ -277,18 +286,19 @@
 				</div>
 				{% endfor %}
 				{% else %}
-				{% for release in app.releases %}
+				{% for release in app.get_releases %}
 				<div class="row">
 					<div class="span8">
 						{# Release version #}
 						<h4>
-							{% if app.platform == 'desktop' %}
+							{% if app.platform == 'desktop'%}
 							<a href="{% url 'release_download' app.name release.version %}">
 								{{ release.version }}
 							</a>
 							{% else %}
-							{{ release.version }}
+							<a href="{% url 'release_install' app.name release.version %}">
 							{% endif %}
+								{{ release.version }}
 							<small><abbr class="timeago" title="{{ release.created_iso }}"></abbr></small>
 						</h4>
 						{# End Release version #}
@@ -298,6 +308,7 @@
 							<strong>Works with</strong> Cytoscape
 							{{ release.works_with }}
 						</p>
+						
 						{# End Works with #}
 
 						{# Release #}
@@ -379,7 +390,7 @@
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
 			<p><strong>Released</strong> {{ bundle_latest_release.created|date:'j M Y' }}</p>
 			<p><strong>Works with</strong> <a href="http://web.cytoscape.org" target="_blank">Cytoscape Web</a></p>
-			<!--<p><strong>Download Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>-->
+			<p><strong>Install Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
 			{% elif app.platform == 'service' %}
 			<h6 class="panel-title muted">CYTOSCAPE WEB</h6>
 			<a class="btn btn-large btn-block btn-primary" style='margin-bottom: 15px;' href="{{ service_install }}" target="_blank">
@@ -389,7 +400,7 @@
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
 			<p><strong>Released</strong> {{ service_latest_release.created|date:'j M Y' }}</p>
 			<p><strong>Works with</strong> <a href="http://web.cytoscape.org" target="_blank">Cytoscape Web</a></p>
-			<!--<p><strong>Download Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>-->
+			<p><strong>Install Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
 			{% else %}
 			<h6 class="panel-title muted">CYTOSCAPE 3</h6>
 			<button class="btn btn-large btn-block" id="cy-app-install-btn">

@@ -7,7 +7,7 @@ from django.http import Http404
 from util.view_util import html_response, json_response, ipaddr_str_to_long, ipaddr_long_to_str
 from apps.models import App, Release, ServiceRelease, WebBundleRelease, Platform
 from download.models import ReleaseDownloadsByDate, AppDownloadsByGeoLoc, Download, GeoLoc, WebBundleDownload, ServiceDownload
-from download.models import ServiceReleaseDownloadsByDate, WebBundleReleaseDonwloadsByDate
+from download.models import ServiceReleaseDownloadsByDate, WebBundleReleaseDownloadsByDate
 
 # ===================================
 #   Download release
@@ -27,42 +27,35 @@ def _increment_count(klass, **args):
     obj.count += 1
     obj.save()
 
-def release_download(request, app_name, version):
-    app = get_object_or_404(App, name=app_name)
+def _record_download(app, release, download_model, by_date_model):
+    ip4addr = _client_ipaddr(request)
+    when = datetime.date.today()
+    app.downloads += 1
+    app.save()
+    download_model.objects.create(release=release, ip4addr=ip4addr, when=when)
+    _increment_count(by_date_model, release=release, when=when)
+    _increment_count(by_date_model, release=None, when=when)
 
-    if app.platform == Platform.DESKTOP:
-        release = get_object_or_404(Release, app__name = app_name, version = version, active = True)
-        target_url = release. release_file_url
-    elif app.plaftorm == Platform.SERVICE:
+def release_download(request, app_name, version):
+    """Desktop only — serves/redirects to an actual jar file."""
+    app = get_object_or_404(App, name=app_name, platform=Platform.DESKTOP)
+    release = get_object_or_404(Release, app=app, version=version, active=True)
+    _record_download(app, release, Download, ReleaseDownloadsByDate)
+    return HttpResponseRedirect(release.release_file_url)
+
+
+def release_install(request, app_name, version): #encompasses service and web apps since no external download is required
+    app = get_object_or_404(App, name=app_name)
+    if app.platform == 'service':
         release = get_object_or_404(ServiceRelease, app=app, version=version, active=True)
-        target_url = release.service_endpoint
-    elif app.platform == Platform.WEB:
-        release = get_object_or_404(WebBundleRelease, app=app, version=version, active=True) #gonna have to change to a general webapp release model
-        target_url = release.install_url
+        _record_download(app, release, ServiceDownload, ServiceReleaseDownloadsByDate)
+        return HttpResponseRedirect(release.service_endpoint)
+    elif app.platform == 'web':
+        release = get_object_or_404(WebBundleRelease, app=app, version=version, active=True)
+        _record_download(app, release, WebBundleDownload, WebBundleReleaseDownloadsByDate)
+        return HttpResponseRedirect(release.install_url)
     else:
         raise Http404
-
-    ip4addr = _client_ipaddr(request)
-    when    = datetime.date.today()
-
-    # Update the App object
-    release.app.downloads += 1
-    release.app.save()
-
-    # Record the download as a Download object
-    if app.platform == Platform.DESKTOP:
-        Download.objects.create(release = release, ip4addr = ip4addr, when = when)
-        _increment_count(ReleaseDownloadsByDate, release = release, when = when)
-        _increment_count(ReleaseDownloadsByDate, release = None,    when = when)
-    elif app.platform == Platform.WEB:
-        WebBundleDonwload.objects.create(release = release, ip4addr = ip4addr, when = when)
-        _increment_count(SServiceReleaseDownloadsByDate, release = release, when = when)
-        _increment_count(ReleaseDownloadsByDate, release = None,    when = when)
-    elif app.platform == Platform.SERVICE:
-        ServiceDonwload.objects.create(release=release, ip4addr=ip4addr, when=when)
-
-
-    return HttpResponseRedirect(target_url)
 
 # ===================================
 #   Download statistics

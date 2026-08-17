@@ -52,7 +52,7 @@ class ReleaseDownloadsByDate(Model):
 class ServiceReleaseDownloadsByDate(models.Model):
     release = ForeignKey(ServiceRelease, on_delete=models.CASCADE, null=True)
     when=DateField()
-    ip4addr =  PositiveIntegerField(default=0)
+    count =  PositiveIntegerField(default=0)
 
     class Meta:
         constraints = [
@@ -62,10 +62,10 @@ class ServiceReleaseDownloadsByDate(models.Model):
         return unicode(self.release) + u' ' + unicode(self.when) + u': ' +\
                 unicode(self.count)
 
-class WebBundleReleaseDonwloadsByDate(models.Model):
+class WebBundleReleaseDownloadsByDate(models.Model):
     release = ForeignKey(WebBundleRelease, on_delete=models.CASCADE, null=True)
     when=DateField()
-    ip4addr =  PositiveIntegerField(default=0)
+    count =  PositiveIntegerField(default=0)
 
     class Meta:
         constraints = [

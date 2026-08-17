@@ -438,7 +438,6 @@ class ServiceRelease(models.Model):
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     version = models.CharField(max_length=31)
     service_endpoint = models.URLField(blank=False, null=True)
-    #submitter = models.CharField(max_length=512, blank=True)
     description = models.TextField(blank=True)
     citation = models.URLField(blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True)
