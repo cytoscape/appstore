@@ -30,10 +30,8 @@ def _increment_count(klass, **args):
 def _record_download(request, app, release, download_model, by_date_model):
     ip4addr = _client_ipaddr(request)
     when = datetime.date.today()
-    print(f"BEFORE: {release.app.downloads}")
     app.downloads += 1
     app.save()
-    print(f"AFTER SAVE: {release.app.downloads}, DB CHECK: {App.objects.get(pk=release.app.pk).downloads}")
     download_model.objects.create(release=release, ip4addr=ip4addr, when=when)
     _increment_count(by_date_model, release=release, when=when)
     _increment_count(by_date_model, release=None, when=when)
