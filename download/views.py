@@ -6,7 +6,8 @@ from django.http import Http404
 
 from util.view_util import html_response, json_response, ipaddr_str_to_long, ipaddr_long_to_str
 from apps.models import App, Release, ServiceRelease, WebBundleRelease, Platform
-from download.models import ReleaseDownloadsByDate, AppDownloadsByGeoLoc, Download, GeoLoc
+from download.models import ReleaseDownloadsByDate, AppDownloadsByGeoLoc, Download, GeoLoc, WebBundleDownload, ServiceDownload
+from download.models import ServiceReleaseDownloadsByDate, WebBundleReleaseDonwloadsByDate
 
 # ===================================
 #   Download release
@@ -49,11 +50,17 @@ def release_download(request, app_name, version):
     release.app.save()
 
     # Record the download as a Download object
-    Download.objects.create(release = release, ip4addr = ip4addr, when = when)
+    if app.platform == Platform.DESKTOP:
+        Download.objects.create(release = release, ip4addr = ip4addr, when = when)
+        _increment_count(ReleaseDownloadsByDate, release = release, when = when)
+        _increment_count(ReleaseDownloadsByDate, release = None,    when = when)
+    elif app.platform == Platform.WEB:
+        WebBundleDonwload.objects.create(release = release, ip4addr = ip4addr, when = when)
+        _increment_count(SServiceReleaseDownloadsByDate, release = release, when = when)
+        _increment_count(ReleaseDownloadsByDate, release = None,    when = when)
+    elif app.platform == Platform.SERVICE:
+        ServiceDonwload.objects.create(release=release, ip4addr=ip4addr, when=when)
 
-    # Record the download in the timeline
-    _increment_count(ReleaseDownloadsByDate, release = release, when = when)
-    _increment_count(ReleaseDownloadsByDate, release = None,    when = when)
 
     return HttpResponseRedirect(target_url)
 

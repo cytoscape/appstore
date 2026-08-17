@@ -22,6 +22,7 @@ from django.core.files.storage import default_storage
 from django.core.files.storage import storages
 from django.shortcuts import get_object_or_404
 from django import forms
+from django.db import IntegrityError
 
 from util.view_util import html_response, json_response, get_object_or_none, is_ajax
 from util.id_util import fullname_to_name

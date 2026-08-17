@@ -1,8 +1,9 @@
 from django.db.models import Model, CharField, PositiveIntegerField
 from django.db.models import ForeignKey, DateField, UniqueConstraint
-from apps.models import App, Release
+from apps.models import App, Release, WebBundleRelease, ServiceRelease
 from django.db import models
 from util.view_util import ipaddr_long_to_str
+
 
 
 class Download(Model):
@@ -15,6 +16,23 @@ class Download(Model):
         return unicode(self.release) + u' ' + unicode(self.when) +\
                u' ' + ipaddr_long_to_str(self.ip4addr)
 
+class WebBundleDownload(models.Model):
+    release = ForeignKey(WebBundleRelease, related_name="app_download_stats", on_delete=models.CASCADE)
+    when = DateField()
+    ip4addr = PositiveIntegerField()
+
+    def __unicode__(self):
+        return unicode(self.release) + u' ' + unicode(self.when) +\
+            u' ' + ipaddr_long_to_str(self.ip4addr)
+
+class ServiceDownload(models.Model):
+    release = ForeignKey(ServiceRelease, related_name='app_download_stats', on_delete=models.CASCADE)
+    when = DateField()
+    ip4addr = PositiveIntegerField()
+
+    def __unicode__(self):
+        return unicode(self.release) + u' ' + unicode(self.when) +\
+            u' ' + ipaddr_long_to_str(self.ip4addr)
 
 class ReleaseDownloadsByDate(Model):
     release = ForeignKey(Release, on_delete=models.CASCADE,
@@ -24,13 +42,39 @@ class ReleaseDownloadsByDate(Model):
 
     class Meta:
         constraints = [
-            UniqueConstraint(fields=['release', 'when'], name='unique_by_date')
+            UniqueConstraint(fields=['release', 'when'], name='release_unique_by_date')
         ]
 
     def __unicode__(self):
         return unicode(self.release) + u' ' + unicode(self.when) + u': ' +\
                unicode(self.count)
 
+class ServiceReleaseDownloadsByDate(models.Model):
+    release = ForeignKey(ServiceRelease, on_delete=models.CASCADE, null=True)
+    when=DateField()
+    ip4addr =  PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(fields=['release', 'when'], name='service_release_unique_by_date')
+        ]
+    def __unicode__(self):
+        return unicode(self.release) + u' ' + unicode(self.when) + u': ' +\
+                unicode(self.count)
+
+class WebBundleReleaseDonwloadsByDate(models.Model):
+    release = ForeignKey(WebBundleRelease, on_delete=models.CASCADE, null=True)
+    when=DateField()
+    ip4addr =  PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(fields=['release', 'when'], name='web_release_unique_by_date')
+        ]
+
+    def __unicode__(self):
+        return unicode(self.release) + u' ' + unicode(self.when) + u': ' +\
+                unicode(self.count)
 
 class GeoLoc(Model):
     country = CharField(max_length=2)  # when region & city are empty, country contains the total

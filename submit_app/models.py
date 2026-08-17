@@ -127,6 +127,13 @@ class ServiceAppPending(models.Model):
     
     def __str__(self):
         return f'{self.app.fullname} {self.version}'
+    
+    @property
+    def install_url(self):
+        return (
+        "https://dev1.ndexbio.org/cytoscape/?installApp="
+        + quote(self.service_endpoint, safe="")
+    )
 
 
     def make_service_release(self, app):
