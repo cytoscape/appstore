@@ -11,6 +11,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.urls import reverse
+from urllib.parse import quote
 
 
 LOGGER = logging.getLogger(__name__)
@@ -448,6 +449,13 @@ class ServiceRelease(models.Model):
     @property
     def created_iso(self):
         return self.created.isoformat()
+    
+    @property
+    def install_url(self):
+        return (
+            "https://dev1.ndexbio.org/cytoscape/?installApp="
+            + quote(self.service_endpoint, safe="")
+        )
 
     class Meta:
         ordering = ['-created']
@@ -527,6 +535,13 @@ class WebBundleRelease(models.Model):
     @property
     def created_iso(self):
         return self.created.isoformat()
+    
+    @property
+    def install_url(self):
+        return (
+        "https://dev1.ndexbio.org/cytoscape/?installApp="
+        + quote(self.manifest_url, safe="")
+    )
 
     class Meta:
         ordering = ['-created']

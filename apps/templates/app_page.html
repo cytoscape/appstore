@@ -367,7 +367,10 @@
 				<i></i> {# <-- download button icon will go here #}
 				<h4></h4> {# <-- download button text will go here #}
 			</button> -->
-			<a class="btn btn-large btn-block btn-primary" style='margin-bottom: 15px;' href="{{ install_url }}" target="_blank">
+			<a class="btn btn-large btn-block btn-primary"
+			style='margin-bottom: 15px;'
+			href="{% url 'release_install' app.name bundle_latest_release.version %}"
+			target="_blank">
 				<h4>Install in Cytoscape Web</h4>
 			</a>
 			<!--
@@ -393,7 +396,10 @@
 			<p><strong>Install Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
 			{% elif app.platform == 'service' %}
 			<h6 class="panel-title muted">CYTOSCAPE WEB</h6>
-			<a class="btn btn-large btn-block btn-primary" style='margin-bottom: 15px;' href="{{ service_install }}" target="_blank">
+			<a class="btn btn-large btn-block btn-primary"
+			style='margin-bottom: 15px;'
+			href="{% url 'release_install' app.name service_latest_release.version %}"
+			target="_blank">
 				<h4>Install in Cytoscape Web</h4>
 			</a>
 			<p><strong>Version</strong> {{ service_latest_release.version }}</p>

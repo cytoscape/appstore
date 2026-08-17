@@ -27,20 +27,21 @@ def _increment_count(klass, **args):
     obj.count += 1
     obj.save()
 
-def _record_download(app, release, download_model, by_date_model):
+def _record_download(request, app, release, download_model, by_date_model):
     ip4addr = _client_ipaddr(request)
     when = datetime.date.today()
+    print(f"BEFORE: {release.app.downloads}")
     app.downloads += 1
     app.save()
+    print(f"AFTER SAVE: {release.app.downloads}, DB CHECK: {App.objects.get(pk=release.app.pk).downloads}")
     download_model.objects.create(release=release, ip4addr=ip4addr, when=when)
     _increment_count(by_date_model, release=release, when=when)
     _increment_count(by_date_model, release=None, when=when)
 
 def release_download(request, app_name, version):
-    """Desktop only — serves/redirects to an actual jar file."""
     app = get_object_or_404(App, name=app_name, platform=Platform.DESKTOP)
     release = get_object_or_404(Release, app=app, version=version, active=True)
-    _record_download(app, release, Download, ReleaseDownloadsByDate)
+    _record_download(request, app, release, Download, ReleaseDownloadsByDate)
     return HttpResponseRedirect(release.release_file_url)
 
 
@@ -48,11 +49,11 @@ def release_install(request, app_name, version): #encompasses service and web ap
     app = get_object_or_404(App, name=app_name)
     if app.platform == 'service':
         release = get_object_or_404(ServiceRelease, app=app, version=version, active=True)
-        _record_download(app, release, ServiceDownload, ServiceReleaseDownloadsByDate)
-        return HttpResponseRedirect(release.service_endpoint)
+        _record_download(request, app, release, ServiceDownload, ServiceReleaseDownloadsByDate)
+        return HttpResponseRedirect(release.install_url)
     elif app.platform == 'web':
         release = get_object_or_404(WebBundleRelease, app=app, version=version, active=True)
-        _record_download(app, release, WebBundleDownload, WebBundleReleaseDownloadsByDate)
+        _record_download(request, app, release, WebBundleDownload, WebBundleReleaseDownloadsByDate)
         return HttpResponseRedirect(release.install_url)
     else:
         raise Http404
