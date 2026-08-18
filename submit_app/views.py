@@ -670,15 +670,14 @@ def submit_service_app(request):
     except IntegrityError:
         context['error'] = 'A submission with that name is already pending review. Please wait for review.'
         return html_response('service_upload_form.html', context, request)
-
-    """
+    
     try:
-        pending = _create_pending_service(request.user, fullname, version, service_url, metadata)
+        server_url = _get_server_url(request)
+        _send_email_for_pending(pending, server_url=server_url)
     except ValueError as e:
-        context['error'] = str(e)
-        LOGGER.info("Created ServiceAppPending id=%s fullname=%r", pending.id, pending.fullname)
-        return html_response('service_upload_form.html', context, request)
-    """
+        context['error_msg'] = str(e)
+        return html_response('service_upload_form.html', context, request)    
+
 
     return HttpResponseRedirect(reverse('confirm-service', args=[pending.id])) 
 
@@ -876,6 +875,7 @@ def resolve_commit_ref(repo_url, commit_ref):
 #---------------------- WEB APP BUNDLE SUBMISSION ----------------------
 @login_required
 def submit_web_bundle(request):
+    context = []
     if request.method != "POST":
         form = web_bundle_submission()
         return html_response('web_bundle_upload_form.html', {'form': form}, request)
@@ -893,6 +893,13 @@ def submit_web_bundle(request):
         return html_response('web_bundle_upload_form.html', {'form': form}, request)
 
     pending = _create_web_bundle_pending(form, bundle, request.user)
+
+    try:
+        server_url = _get_server_url(request)
+        _send_email_for_pending(pending, server_url=server_url)
+    except ValueError as e:
+        context['error_msg'] = str(e)
+        return html_response('web_bundle_upload_form.html', context, request)  
 
     return HttpResponseRedirect(reverse('confirm-web-bundle', args=[pending.id]))
     
