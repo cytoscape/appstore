@@ -32,5 +32,5 @@ urlpatterns = [
     re_path(r'^(\w{1,100})/author_names$', author_names),
     re_path(r'^(\w{1,100})/institution_names$', institution_names),
     re_path(r'^(\w{1,100})/download/(.{1,31})$', release_download), # old url for downloads
-    re_path(r'^(\w{1,100})/download/(.{1,31})$', release_install),
+    re_path(r'^(\w{1,100})/install/(.{1,31})$', release_install),
 ]
