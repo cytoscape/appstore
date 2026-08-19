@@ -402,6 +402,7 @@ def _pending_web_accept(pending, request): #INCLUDES PATH FOR REPO URL, MAY OR M
 
         pending.delete_files()
         pending.delete()
+
     else:
         pass #later configure to accept github url submissions
 
