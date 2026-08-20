@@ -762,7 +762,7 @@ def confirm_webapp(request, id):
 """
 
 def web_bundle_upload_help(request):
-    return render(request, "web_bundle_guide.html")
+    return render(request, "web_bundle_upload_help.html")
 
 class web_url_form(forms.Form):
     repo_url = forms.URLField(label="Web App Github URL",  required = True, error_messages ={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'https://github.com/repo'}))
