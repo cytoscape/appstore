@@ -13,6 +13,8 @@ from submit_app.views import submit_web_url
 from submit_app.views import submit_web_bundle
 from submit_app.views import confirm_web_bundle
 from submit_app.views import confirm_web_url
+from submit_app.views import web_bundle_upload_help
+from submit_app.views import service_upload_help
 
 
 urlpatterns = [
@@ -29,6 +31,8 @@ urlpatterns = [
     re_path(r'^confirm_service/(\d{1,5})$', service_app_confirm, name='confirm-service'),
     re_path(r'^submit_web_url$', submit_web_url, name='submit-web-url'),
     re_path(r'^submit_web_bundle$', submit_web_bundle, name='submit-web-bundle'),
+    re_path(r'^web_bundle_help$', web_bundle_upload_help, name="web_bundle_upload_help"),
+    re_path(r'^service_upload_help$', service_upload_help, name="service_upload_help"),
     re_path(r'^confirm_web_bundle/(\d{1,5})$', confirm_web_bundle, name='confirm-web-bundle'),
     re_path(r'^confirm_web_url/(\d{1,5})$', confirm_web_url, name='confirm-web-url'),
 ]

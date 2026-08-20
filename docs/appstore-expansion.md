@@ -136,35 +136,6 @@ def make_bundle_release(self, app: "App") -> "WebBundleRelease":
 
 ### 4.5 Service — `ServiceAppPending` / `ServiceRelease`
 Lifecycle-bearing models for the Service pipeline (§3.3). No SSRF-relevant fields are exposed to the submitter beyond the endpoint URL itself — the private-IP check (§8.2) happens at request time, not as a stored/validated field constraint.
-
-### 4.6 Automated & human review (designed, not yet implemented)
-
-```python
-class AutomatedReview(models.Model):
-    pending = models.OneToOneField(WebBundlePending, on_delete=models.CASCADE)
-    status = models.CharField(choices=[('pending','Pending'),('running','Running'),
-                                        ('passed','Passed'),('failed','Failed')])
-    started_at = models.DateTimeField(null=True)
-    completed_at = models.DateTimeField(null=True)
-    report = models.JSONField(default=dict)
-
-class AutomatedCheck(models.Model):
-    review = models.ForeignKey(AutomatedReview, on_delete=models.CASCADE, related_name='checks')
-    name = models.CharField(max_length=64)
-    result = models.CharField(choices=[('pass','Pass'),('warning','Warning'),('fail','Fail')])
-    details = models.JSONField(default=dict)
-
-class HumanReview(models.Model):
-    pending = models.ForeignKey(WebBundlePending, on_delete=models.CASCADE, related_name='human_reviews')
-    reviewer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    decision = models.CharField(choices=[('approve','Approve'),('reject','Reject'),
-                                          ('request_changes','Request Changes')])
-    reviewed_at = models.DateTimeField(auto_now_add=True)
-    notes = models.TextField(blank=True)
-```
-
-`HumanReview` is a `ForeignKey`, not `OneToOne` — a `REQUEST_CHANGES` decision doesn't terminate the pending row's lifecycle, so one submission may accumulate multiple review rounds and the audit trail keeps all of them.
-
 ---
 
 ## 5. View Changes

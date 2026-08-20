@@ -47,7 +47,10 @@
 </form>
 
 <i class="danger">Fields marked with * are required</i> <br>
-<i>Your bundle upload should include: remoteEntry.js, </i>
+
+<br/>
+<span class="label label-warning"><i class="icon-info-sign icon-white"></i>Need Help?</span>
+<a href={% url 'web_bundle_upload_help' %} target="_blank">How To Upload a Web Bundle<a/>
 
 {% if error %} 
   <div class="alert alert-error">{{ error }}</div>

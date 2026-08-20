@@ -37,6 +37,9 @@
     </div>
 </form>
 
+<span class="label label-warning"><i class="icon-info-sign icon-white"></i>Need Help?</span>
+<a href={% url 'service_upload_help' %} target="_blank">How To Upload a Service App<a/>
+
 {% if error %} 
   <div class="alert alert-error">{{ error }}</div>
 {% endif %}

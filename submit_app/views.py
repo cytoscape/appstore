@@ -682,6 +682,9 @@ def submit_service_app(request):
 
     return HttpResponseRedirect(reverse('confirm-service', args=[pending.id])) 
 
+def service_upload_help(request):
+    return render(request, 'service_upload_help.html')
+
 def _service_user_cancel(request, pending):
     pending.delete()
     return HttpResponseRedirect(reverse('submit-service-app'))
@@ -757,6 +760,9 @@ def confirm_webapp(request, id):
     else:
         raise Http404("No such pending submission")
 """
+
+def web_bundle_upload_help(request):
+    return render(request, "web_bundle_guide.html")
 
 class web_url_form(forms.Form):
     repo_url = forms.URLField(label="Web App Github URL",  required = True, error_messages ={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'https://github.com/repo'}))
