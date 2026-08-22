@@ -580,6 +580,7 @@ AppPage.setup_install("{{ app.name|escapejs }}",
 {% else %}
 AppPage.setup_install("{{ app.name|escapejs}}",
 	"{{ app.fullname|escapejs}}",
+	"{% url 'release_install' app.name latest_release.version %}",
 	"{{ latest_release.version }}",
 	"{% url 'getstarted_app_install' %}");
 {% endif %}

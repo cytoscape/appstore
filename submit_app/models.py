@@ -130,8 +130,10 @@ class ServiceAppPending(models.Model):
     
     @property
     def install_url(self):
+        if not self.service_endpoint:
+            return None
         return (
-        "https://dev1.ndexbio.org/cytoscape/?installApp="
+        settings.CYTOSCAPE_WEB_INSTALL_URL
         + quote(self.service_endpoint, safe="")
     )
 
@@ -230,7 +232,7 @@ class WebBundlePending(models.Model):
     @property
     def install_url(self):
         return (
-        "https://dev1.ndexbio.org/cytoscape/?installApp="
+        settings.CYTOSCAPE_WEB_INSTALL_URL
         + quote(self.manifest_url, safe="")
     )
 

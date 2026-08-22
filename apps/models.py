@@ -104,7 +104,7 @@ class App(models.Model):
     editors = models.ManyToManyField(User, blank=True)
 
 
-    platform = models.CharField(max_length=31, choices=Platform.choices)
+    platform = models.CharField(max_length=31, choices=Platform.choices, default=Platform.DESKTOP)
 
     cy_2x_plugin_download = models.URLField(blank=True, null=True)
     cy_2x_plugin_version = models.CharField(max_length=31, blank=True,
@@ -452,8 +452,10 @@ class ServiceRelease(models.Model):
     
     @property
     def install_url(self):
+        if not self.service_endpoint:
+            return None
         return (
-            "https://dev1.ndexbio.org/cytoscape/?installApp="
+            settings.CYTOSCAPE_WEB_INSTALL_URL
             + quote(self.service_endpoint, safe="")
         )
 
@@ -539,7 +541,7 @@ class WebBundleRelease(models.Model):
     @property
     def install_url(self):
         return (
-        "https://dev1.ndexbio.org/cytoscape/?installApp="
+        settings.CYTOSCAPE_WEB_INSTALL_URL
         + quote(self.manifest_url, safe="")
     )
 

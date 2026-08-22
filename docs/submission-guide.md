@@ -40,8 +40,6 @@ If your submission is rejected or fails checks, you can resubmit the **same vers
 
 ### Common rejection reasons
 - App identity mismatch (`CyApp.id` / `AppConfig.id` / MF scope don't agree)
-- Missing or unloadable `./AppConfig` module
-- Unparsable `compatibleHostVersions`
 - Bundle exceeds 50 MB
 - Zip contains unsafe paths (e.g. `../`)
 - Zipped the wrong folder (source files, `node_modules`, or `dist` nested a level too deep instead of its contents)

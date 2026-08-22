@@ -11,6 +11,7 @@ from util.img_util import scale_img
 from util.id_util import fullname_to_name
 from apps.models import Tag, App, Platform, Author, OrderedAuthor, Screenshot, Release, ServiceRelease, WebBundleRelease
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 from util.view_util import is_ajax
 # Returns a unicode string encoded in a cookie
 def _unescape_and_unquote(s):
@@ -560,7 +561,7 @@ def _mk_service_page(app, user, request):
         'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
         'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
         'service_install': (
-            "https://dev1.ndexbio.org/cytoscape?installApp=" + quote(release.service_endpoint, safe="")
+            settings.CYTOSCAPE_WEB_INSTALL_URL + quote(release.service_endpoint, safe="")
         )
     }
     return html_response('app_page.html', c, request)
@@ -643,7 +644,7 @@ def _mk_web_page(app, user, request):
         'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
         'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
         'install_url': (
-            "https://dev1.ndexbio.org/cytoscape/?installApp="
+            settings.CYTOSCAPE_WEB_INSTALL_URL
             + quote(
                 request.build_absolute_uri(f"/web/{app.name}/{release.version}/manifest.json"),
                 safe=""

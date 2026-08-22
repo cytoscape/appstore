@@ -195,3 +195,6 @@ WEB_SUBMISSION_METHODS = {
     'bundle': True,
     'url': False,   # build step not implemented yet
 }
+
+
+CYTOSCAPE_WEB_INSTALL_URL = "https://dev1.ndexbio.org/cytoscape/?installApp="
