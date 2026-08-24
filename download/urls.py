@@ -24,6 +24,6 @@ urlpatterns = [
 	re_path(r'^stats/(\w{1,100})/geography/all$', app_stats_geography_all),
 	re_path(r'^stats/(\w{1,100})/geography/world$', app_stats_geography_world),
 	re_path(r'^stats/(\w{1,100})/geography/country/(\w{2})$', app_stats_country),
-	re_path(r'^download/(\w{1,100})/(.{1,31})$', release_download, name='release_download'),
     re_path(r'^install/(\w{1,100})/(.{1,31})$', release_install, name='release_install'),
+	re_path(r'^(\w{1,100})/(.{1,31})$', release_download, name='release_download'),
 ]

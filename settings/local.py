@@ -84,3 +84,5 @@ LOGGING['loggers']['appstore'] = {
 
 # put the whoosh_index directory under build/ directory
 HAYSTACK_CONNECTIONS['default']['PATH'] = os.path.join(BUILD_DIR, 'whoosh_index')
+
+CDN_BASE_URL = "https://apps-stage.cytoscape.org/web/"

@@ -1,5 +1,5 @@
 import datetime
-
+from collections import defaultdict
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponseRedirect
 from django.http import Http404
@@ -91,8 +91,16 @@ def all_stats_geography_country(request, country_code):
     return _country_downloads(None, country_code)
 
 def all_stats_timeline(request):
-    dls = ReleaseDownloadsByDate.objects.filter(release = None)
-    response = {'Total': [[dl.when.isoformat(), dl.count] for dl in dls]}
+    totals_by_date = defaultdict(int)
+
+    for by_date_model in (ReleaseDownloadsByDate, ServiceReleaseDownloadsByDate, WebBundleReleaseDownloadsByDate):
+        for dl in by_date_model.objects.filter(release=None):
+            totals_by_date[dl.when] += dl.count
+
+    response = {
+        'Total': [[when.isoformat(), count] for when, count in sorted(totals_by_date.items())]
+    }
+    
     return json_response(response)
 
 def app_stats(request, app_name):
@@ -109,8 +117,20 @@ def app_stats(request, app_name):
 
 def app_stats_timeline(request, app_name):
     app = get_object_or_404(App, active = True, name = app_name)
-    releases = app.release_set.all()
     response = dict()
+
+    if app.platform == 'desktop':
+        release = app.release_set.all()
+        by_date_model = ReleaseDownloadsByDate
+    elif app.platform == 'service':
+        release = app.servicereleases_set.all()
+        by_date_model = ServiceReleaseDownloadsByDate
+    elif app.platform == 'web':
+        release = app.webbundlereleases_set.all()
+        by_date_model = WebBundleReleaseDownloadsByDate
+    else:
+        raise Http404
+
     for release in releases:
         dls = ReleaseDownloadsByDate.objects.filter(release = release)
         response[release.version] = [[dl.when.isoformat(), dl.count] for dl in dls]

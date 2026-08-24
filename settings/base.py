@@ -186,7 +186,7 @@ STORAGES = {
     },
 }
 
-CDN_BASE_URL = "https://apps-stage.cytoscape.org/web/"
+CDN_BASE_URL = None #"https://apps-stage.cytoscape.org/web/"
 
 mimetypes.add_type("application/javascript", ".js", strict=True)
 mimetypes.add_type("application/javascript", ".mjs", strict=True)

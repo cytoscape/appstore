@@ -227,78 +227,20 @@
 				{# End Authors #}
 			</div>
 			{# End Details tab #}
-				
+
 			{# Releases tab #}
 			{% if app.has_releases %}
 			<div class="tab-pane" id="cy-app-releases-tab">
-				{% if app.platform == 'web' %}
-				{% for release in app.webbundlereleases %}
-				<div class="row">
-					<div class="span8">
-						{# Release version #}
-						<h4>
-							{{ release.version }}
-							<small><abbr class="timeago" title="{{ release.created_iso }}"></abbr></small>
-						</h4>
-						{# End Release version #}
-
-						{# Works with #}
-						<p>
-							<strong>Works with</strong> Cytoscape
-							{{ release.works_with }}
-						</p>
-						{# End Works with #}
-
-						{% if release.notes %}
-						<p><strong>Release Notes</strong></p>
-						<div class="cy-app-release-notes">{{ release.notes }}</div>
-						{% endif %}
-						{# End Release #}
-						<hr>
-					</div>
-				</div>
-				{% endfor %} {# end looping thru each release #}
-				{% elif app.platform == 'service'%}
-				{% for release in app.servicereleases %}
-				<div class="row">
-					<div class="span8">
-						{# Release version #}
-						<h4>
-							{{ release.version }}
-							<small><abbr class="timeago" title="{{ release.created_iso }}"></abbr></small>
-						</h4>
-						{# End Release version #}
-
-						{# Works with #}
-						<p>
-							<strong>Works with</strong> Cytoscape
-							{{ release.works_with }}
-						</p>
-						{# End Works with #}
-
-						{% if release.notes %}
-						<p><strong>Release Notes</strong></p>
-						<div class="cy-app-release-notes">{{ release.notes }}</div>
-						{% endif %}
-						{# End Release #}
-						<hr>
-					</div>
-				</div>
-				{% endfor %}
-				{% else %}
 				{% for release in app.get_releases %}
 				<div class="row">
 					<div class="span8">
 						{# Release version #}
 						<h4>
-							{% if app.platform == 'desktop'%}
-							<a href="{% url 'release_download' app.name release.version %}">
-								{{ release.version }}
-							</a>
+							{% if app.platform == 'desktop' %}
+							<a href="{% url 'release_download' app.name release.version %}">{{ release.version }}</a>
 							{% else %}
-							<a href="{% url 'release_install' app.name release.version %}">
+							{{ release.version }}
 							{% endif %}
-								{{ release.version }}
 							<small><abbr class="timeago" title="{{ release.created_iso }}"></abbr></small>
 						</h4>
 						{# End Release version #}
@@ -308,11 +250,10 @@
 							<strong>Works with</strong> Cytoscape
 							{{ release.works_with }}
 						</p>
-						
 						{# End Works with #}
 
-						{# Release #}
-						{% if release.releaseapi_set.count %}
+						{# Desktop-only: Java API artifacts #}
+						{% if app.platform == 'desktop' and release.releaseapi_set.count %}
 						{% with releaseapi=release.releaseapi_set.get %}
 						<p>
 							<strong>API</strong>
@@ -324,8 +265,8 @@
 						{% endwith %}
 						{% endif %}
 
-						{# Release dependencies #}
-						{% if release.dependents.count %}
+						{# Desktop-only: Release dependencies #}
+						{% if app.platform == 'desktop' and release.dependents.count %}
 						<p>
 							<strong>Apps that depend on this release</strong>
 							<ul>
@@ -346,7 +287,6 @@
 					</div>
 				</div>
 				{% endfor %} {# end looping thru each release #}
-				{% endif %}
 			</div>
 			{% endif %}
 			{# End Releases tab #}
@@ -580,7 +520,6 @@ AppPage.setup_install("{{ app.name|escapejs }}",
 {% else %}
 AppPage.setup_install("{{ app.name|escapejs}}",
 	"{{ app.fullname|escapejs}}",
-	"{% url 'release_install' app.name latest_release.version %}",
 	"{{ latest_release.version }}",
 	"{% url 'getstarted_app_install' %}");
 {% endif %}

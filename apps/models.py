@@ -12,6 +12,7 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from django.urls import reverse
 from urllib.parse import quote
+from django.core.exceptions import ImproperlyConfigured
 
 
 LOGGER = logging.getLogger(__name__)
@@ -524,6 +525,8 @@ class WebBundleRelease(models.Model):
 
     @property
     def cdn_base_url(self):
+        if not settings.CDN_BASE_URL:
+            raise ImproperlyConfigured("CDN BASE URL must be set for this environment")
         return urljoin(settings.CDN_BASE_URL, self.bundle_path)
 
     @property
