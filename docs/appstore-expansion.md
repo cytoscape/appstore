@@ -134,8 +134,12 @@ def make_bundle_release(self, app: "App") -> "WebBundleRelease":
     app.save()
 ```
 
+**4.4.1 - Intentions for Web Apps**
+Currently, the only release model for web applications is `WebBundleRelease`, however this is solely due to the fact that `WebUrlRelease` does not exist. Once the repository submission mechanism is implemented, `WebBundlePending` and `WebUrlPending` will converge on the same release model e.g. `WebAppRelease`.
+
 ### 4.5 Service — `ServiceAppPending` / `ServiceRelease`
 Lifecycle-bearing models for the Service pipeline (§3.3). No SSRF-relevant fields are exposed to the submitter beyond the endpoint URL itself — the private-IP check (§8.2) happens at request time, not as a stored/validated field constraint.
+
 ---
 
 ## 5. View Changes
@@ -261,7 +265,7 @@ The correct approach is to preserve the pipeline/origin in the URL or dispatch c
 
 or use an equivalent explicit origin parameter. The `origin` field already present on Web pending models is the schema hook for eventually consolidating the two mechanisms.
 
-ke_bundle_release(...)`, which copies the approved bundle into the published storage namespace, updates the application/release metadata, and generates the App-Store-owned `manifest.json` from the approved release record. The view must not trust an uploaded manifest as the source of publication metadata.
+`make_bundle_release(...)`, which copies the approved bundle into the published storage namespace, updates the application/release metadata, and generates the App-Store-owned `manifest.json` from the approved release record. The view must not trust an uploaded manifest as the source of publication metadata.
 
 The Web release URL structure is versioned and immutable:
 
@@ -360,6 +364,8 @@ Web release installation uses the release's `install_url` property rather than r
 For Service Apps, the installation target is the external service endpoint. If the Service pending model has an install URL helper that wraps the endpoint, the release model should expose the corresponding release-level property so the view does not depend on a pending-row object after publication.
 
 The important view-layer rule is that the redirect target is derived from the **published release**, not from the pending submission.
+
+Another thing to note is the future possiblity of service app support in Cytoscape 3, which requires a different install behavior from Cytoscape Web. This is still currently under development, however it should be noted that all data will be the same across both options `(version, release history, etc)`.
 
 ### 5.11 URL configuration requirements
 
