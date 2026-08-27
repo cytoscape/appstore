@@ -9,10 +9,8 @@
   onClick="window.location='{% url 'app_page' app.name %}';">
 
   {% if app.has_releases%}
-    {% if app.platform == 'web' %}
+    {% if app.platform == 'web'%}
       <i class="cy3-sticker" style="background-image: url('{% get_static_prefix %}apps/img/cyweb_sticker.png');"></i>
-    {% elif app.platform == 'service'%}
-      <i class="cy3-sticker" style="background-image: url('{% get_static_prefix %}apps/img/cyservice_sticker.png');"></i>
     {% else %}
       <i class="cy3-sticker" style="background-image: url('{% get_static_prefix %}apps/img/cy3_sticker.png');"></i>
     {% endif %}

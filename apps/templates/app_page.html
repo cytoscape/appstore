@@ -115,13 +115,7 @@
 		{# badges #}
 		{% if app.has_releases %}
 			{% if app.platform == 'web' %}
-			<a href="https://web.cytoscape.org" target="_blank">
-				<img src="{% get_static_prefix %}apps/img/cyweb_sticker.png" class="has-tooltip" data-toggle="tooltip" ata-title="This app is available for Cytoscape Web">
-			</a>
-			{% elif app.platform == 'service' %}
-			<a href="https://web.cytoscape.org" target="_blank">
-				<img src="{% get_static_prefix %}apps/img/cyservice_sticker.png" class="has-tooltip" data-toggle="tooltip" ata-title="This app is available for Cytoscape Web">
-			</a>
+			<img src="{% get_static_prefix %}apps/img/cyweb_sticker.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is available for Cytoscape Web">
 			{% else %}
 			<img src="{% get_static_prefix %}apps/img/cy3_sticker.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is available for Cytoscape 3.0 and above.">
 			{% endif %}	
@@ -340,8 +334,16 @@
 			style='margin-bottom: 15px;'
 			href="{% url 'release_install' app.name service_latest_release.version %}"
 			target="_blank">
-				<h4>Install in Cytoscape Web</h4>
+				<h4>Open in Cytoscape Web</h4>
 			</a>
+			<p><h6 class="panel-title muted">CYTOSCAPE 3.0</h6></p>
+			<button class="btn btn-large btn-block"
+			style='margin-bottom: 15px; opacity: 0.5; cursor: not-allowed; pointer-events: none;'
+			disabled="disabled"
+			aria-disabled="true"
+			title="Not yet supported">
+				<h4>Download for Cytoscape Desktop</h4>
+			</button>
 			<p><strong>Version</strong> {{ service_latest_release.version }}</p>
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
 			<p><strong>Released</strong> {{ service_latest_release.created|date:'j M Y' }}</p>

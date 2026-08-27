@@ -185,6 +185,7 @@ class WebBundlePending(models.Model):
     id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=128)
+    name = models.CharField(max_length=128, null=True)
     author = models.CharField(max_length=512, blank=True)
     version = models.CharField(max_length=32)
     description = models.TextField(blank=True)

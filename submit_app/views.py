@@ -33,7 +33,7 @@ from .pomparse import PomAttrNames, parse_pom
 from .processjar import process_jar
 
 from .servicechecker import check_reachable, ServiceCheckError
-from .bundle_storage import _copy_bundle_to_storage, write_pending_manifest_json
+from .bundle_storage import _copy_bundle_to_storage, write_pending_manifest_json, _extract_cy_manifest
 
 
 
@@ -895,11 +895,12 @@ def submit_web_bundle(request):
 
     try:
         _validate_bundle(bundle)
+        cy_manifest = _extract_cy_manifest(bundle)
     except ValidationError as e:
         form.add_error(None, str(e))
         return html_response('web_bundle_upload_form.html', {'form': form}, request)
 
-    pending = _create_web_bundle_pending(form, bundle, request.user)
+    pending = _create_web_bundle_pending(form, bundle, request.user, name=cy_manifest['id'],  fullname=cy_manifest['name'] , version=cy_manifest['version'])
 
     try:
         server_url = _get_server_url(request)
@@ -913,13 +914,14 @@ def submit_web_bundle(request):
 
 class web_bundle_submission(forms.Form):
     bundle = forms.FileField(label="*Web App Bundle File (.zip)", required=True, error_messages={'required': ''}, widget=forms.FileInput(attrs={'class': 'form-control-file'}))
+    #------------------Just in case a fallback option is chosen as part of the design----------------------------------
     #remote_entry = forms.FileField(label="*Web App Bundle File (remoteEntry.js)", required=True, error_messages={'required': ''}, widget=forms.FileInput(attrs={'class': 'form-control-file'}))
-    app_fullname = forms.CharField(label="*App Name", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    version = forms.CharField(label="*Version", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    authors = forms.CharField(label="*Author(s)", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    description = forms.CharField(label="App Description", required=False, widget=forms.Textarea(attrs={'rows': 5, 'cols': 40}))
-    license = forms.CharField(label="license", required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    tags = forms.CharField(label="Tags", required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    #app_fullname = forms.CharField(label="*App Name", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    #version = forms.CharField(label="*Version", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    #authors = forms.CharField(label="*Author(s)", required=True, error_messages={'required': ''}, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    #description = forms.CharField(label="App Description", required=False, widget=forms.Textarea(attrs={'rows': 5, 'cols': 40}))
+    #license = forms.CharField(label="license", required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    #tags = forms.CharField(label="Tags", required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
 
     def clean_tags(self):
         tags = self.cleaned_data['tags']
@@ -1002,15 +1004,16 @@ def _hash_file(file) -> str:
     file.seek(0)
     return bundle_sha.hexdigest()
 
-def _create_web_bundle_pending(form, bundle, submitter) -> WebBundlePending:
+def _create_web_bundle_pending(form, bundle, submitter, name, fullname, version) -> WebBundlePending:
     pending = WebBundlePending(
         submitter=submitter,
-        fullname=form.cleaned_data['app_fullname'],
-        version=form.cleaned_data['version'],
-        author=form.cleaned_data['authors'],
-        description=form.cleaned_data['description'],
-        license=form.cleaned_data['license'],        
-        tags=form.cleaned_data['tags'],
+        fullname=fullname,
+        version=version,
+        name=name,
+        #author=form.cleaned_data['authors'],
+        #description=form.cleaned_data['description'],
+        #license=form.cleaned_data['license'],        
+        #tags=form.cleaned_data['tags'],
         bundle = bundle,
         bundle_hash=_hash_file(bundle),
         #bundle_file=bundle_file,

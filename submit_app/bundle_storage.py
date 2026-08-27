@@ -4,6 +4,7 @@ from apps.models import WebBundleRelease
 from django.core.files.storage import storages
 from django.core.files.base import ContentFile
 from util.id_util import fullname_to_name
+from django.core.exceptions import ValidationError
 
 
 def bundle_catalog_entry(release: WebBundleRelease) -> dict:
@@ -67,3 +68,33 @@ def write_pending_manifest_json(pending):
     if web_storage.exists(path):
         web_storage.delete(path)
     web_storage.save(path, ContentFile(manifest_data))
+
+def _extract_cy_manifest(zip_file):
+    try:
+        with zipfile.ZipFile(zip_file) as zf:
+            print(zf.namelist())
+            names = zf.namelist()
+            cy_manifest_name = next((n for n in names if n.endswith('cy-manifest.json')), None)
+            if cy_manifest_name is None:
+                raise ValidationError(
+                    "Bundle is missing cy-manifest.json. Rebuild your app with a "
+                    "recent version of create-cytoscape-app to generate this file."
+                )
+            
+            with zf.open(cy_manifest_name) as f:
+                try:
+                    manifest = json.load(f)
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    raise ValidationError('cy-manifest is present but not a valid json')
+                
+                required_keys = {'id', 'name', 'version'}
+                missing = required_keys - manifest.keys()
+
+                if missing:
+                    raise ValidationError(f"cy-manifest.json is missing required field(s): {', '.join(sorted(missing))}")
+                
+                return manifest
+
+
+    except zipfile.BadZipFile:
+        raise ValidationError('Bundle is not a valid zip file')    
