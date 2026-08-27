@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    -Submitting a Web Bundle
+{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+
+            <h2 class="mb-3">Web Apps</h2>
+
+            <p>
+                Web Apps are bundles loaded dynamically by Cytoscape Web via
+                Module Federation.
+            </p>
+
+            <hr>
+
+            <h3 class="mt-4">Before you submit</h3>
+
+            <p>Make sure your build:</p>
+
+            <ul>
+                <li>
+                    Produces a <code>remoteEntry.js</code> file and exposes an
+                    <code>./AppConfig</code> module
+                </li>
+                <li>
+                    Has a consistent app identity across three places —
+                    these <strong>must match</strong>:
+                    <ul>
+                        <li><code>CyApp.id</code></li>
+                        <li><code>AppConfig.id</code></li>
+                        <li>Your Module Federation scope/name</li>
+                    </ul>
+                </li>
+                <li>
+                    Declares a valid
+                    <code>compatibleHostVersions</code> semver range
+                </li>
+            </ul>
+
+            <h3 class="mt-4">Steps</h3>
+
+            <ol>
+                <li class="mb-3">
+                    <strong>Build your app.</strong>
+                    Run your production build (e.g.
+                    <code>npm run build</code>).
+                    This should generate a <code>dist</code> folder containing
+                    <code>remoteEntry.js</code>, <code>main.mjs</code>, and
+                    any other assets your app needs.
+                </li>
+
+                <li class="mb-3">
+                    <strong>Package your bundle from the
+                    <code>dist</code> folder.</strong>
+                    Zip the <strong>contents</strong> of <code>dist</code>
+                    (not the <code>dist</code> folder itself, and not your
+                    source/<code>node_modules</code>).
+                    <code>remoteEntry.js</code> must sit at the root of the
+                    zip, not nested inside a subfolder.
+                    <strong>Max size: 50 MB.</strong>
+                </li>
+
+                <li class="mb-3">
+                    <strong>Go to the Web App submission form.</strong>
+                </li>
+
+                <li class="mb-3">
+                    <strong>Fill out the form:</strong>
+
+                    <ul class="mt-2">
+                        <li>App name</li>
+                        <li>Version</li>
+                        <li>Author(s)</li>
+                        <li>Description (optional)</li>
+                        <li>License</li>
+                        <li>Tags (optional, comma-separated)</li>
+                        <li>Upload your <code>.zip</code> bundle</li>
+                    </ul>
+                </li>
+
+                <li class="mb-3">
+                    <strong>Submit.</strong>
+                    The Store validates your bundle structure automatically
+                    (zip integrity, safe file paths, presence of
+                    <code>remoteEntry.js</code>).
+                    If validation fails, you'll see the specific error on the
+                    form — fix it and resubmit.
+                </li>
+
+                <li class="mb-3">
+                    <strong>Confirm your submission</strong>
+                    on the confirmation page that follows.
+                </li>
+
+                <li class="mb-3">
+                    <strong>Wait for review.</strong>
+                    Your submission enters the pending queue for review
+                    before publication. You'll be notified of the outcome.
+                </li>
+            </ol>
+
+            <h3 class="mt-4">If you need to resubmit</h3>
+
+            <p>
+                If your submission is rejected or fails checks, you can
+                resubmit the <strong>same version number</strong> — it isn't
+                permanently blocked. Only published versions are locked.
+            </p>
+
+            <h3 class="mt-4">Common rejection reasons</h3>
+
+            <ul>
+                <li>
+                    App identity mismatch
+                    (<code>CyApp.id</code> /
+                    <code>AppConfig.id</code> / MF scope don't agree)
+                </li>
+                <li>
+                    Missing or unloadable <code>./AppConfig</code> module
+                </li>
+                <li>
+                    Unparsable <code>compatibleHostVersions</code>
+                </li>
+                <li>
+                    Bundle exceeds 50 MB
+                </li>
+                <li>
+                    Zip contains unsafe paths (e.g. <code>../</code>)
+                </li>
+                <li>
+                    Zipped the wrong folder (source files,
+                    <code>node_modules</code>, or <code>dist</code> nested a
+                    level too deep instead of its contents)
+                </li>
+                <li>
+                    Missing <code>cy-manifest.json</code> file. This can be created with the <code>create-cytoscape-app</code> command or manully added to the bundle
+                </li>
+            </ul>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}

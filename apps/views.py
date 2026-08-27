@@ -1,7 +1,7 @@
 import re
 import datetime
 import html
-from urllib.parse import unquote
+from urllib.parse import unquote, quote
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden
@@ -9,8 +9,9 @@ from django.shortcuts import get_object_or_404
 from util.view_util import json_response, html_response, obj_to_dict, get_object_or_none
 from util.img_util import scale_img
 from util.id_util import fullname_to_name
-from apps.models import Tag, App, Author, OrderedAuthor, Screenshot, Release
+from apps.models import Tag, App, Platform, Author, OrderedAuthor, Screenshot, Release, ServiceRelease, WebBundleRelease
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 from util.view_util import is_ajax
 # Returns a unicode string encoded in a cookie
 def _unescape_and_unquote(s):
@@ -157,6 +158,18 @@ def apps_with_author(request, author_name):
     }
     return html_response('apps_with_author.html', c, request, processors = (_nav_panel_context, ))
 
+def apps_with_platform(request, platform):
+    apps = App.objects.filter(active=True, platform=platform)
+
+    c = {
+        'platform': platform,
+        'apps' : apps,
+        'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
+        'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
+    }
+
+    return html_response('apps_with_platform.html', c, request, processors = (_nav_panel_context, ))
+
 # ============================================
 #      App Pages
 # ============================================
@@ -186,13 +199,15 @@ def _app_ratings_delete_all(app, user, post):
 # -- General app stuff
 
 def _latest_release(app):
-    releases = app.releases
+    releases = app.get_releases()
     if not releases: return None
     return releases[0] # go by the ordering provided by Release.Meta
 
 def _mk_app_page(app, user, request):
     c = {
         'app': app,
+        'releases': app.get_releases(),
+        'latest_release': app.get_releases().first(),
         'is_editor': (user and app.is_editor(user)),
         'cy3_latest_release': _latest_release(app),
         'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
@@ -210,6 +225,12 @@ def app_page(request, app_name):
     app = get_object_or_404(App, active=True, name=app_name)
     user = request.user if request.user.is_authenticated else None
 
+    if app.platform == Platform.SERVICE:
+        return service_page(request, app_name)
+    
+    elif app.platform == Platform.WEB:
+        return webapp_page(request, app_name)
+
     if request.method == 'POST':
         action = request.POST.get('action')
         if not action:
@@ -224,6 +245,8 @@ def app_page(request, app_name):
             return result
         if is_ajax(request):
             return json_response(result)
+
+
     return _mk_app_page(app, user, request)
 
 # ============================================
@@ -420,13 +443,14 @@ def _save_release_notes(app, request):
     except ValueError:
         raise ValueError('release_count is not an integer')
 
+    releases = app.get_releases()
     for i in range(release_count):
         key = 'release_id_' + str(i)
         release_id = request.POST.get(key)
         if not release_id:
             raise ValueError('expected ' + key)
         try:
-            release = Release.objects.get(id = int(release_id))
+            release = releases.get(id=int(release_id))
         except (Release.DoesNotExist, ValueError) as e:
             raise ValueError('release_id "%s" is invalid' % release_id)
         notes_key = 'notes_' + str(i)
@@ -445,13 +469,14 @@ def _delete_release(app, request):
     except ValueError:
         raise ValueError('release_count is not an integer')
 
+    releases = app.get_releases()
     for i in range(release_count):
         key = 'release_id_' + str(i)
         release_id = request.POST.get(key)
         if not release_id:
             raise ValueError('expected ' + key)
         try:
-            release = Release.objects.get(id = int(release_id))
+            release = releases.get(id=int(release_id))
         except (Release.DoesNotExist, ValueError) as e:
             raise ValueError('release_id "%s" is invalid' % release_id)
         release.active = False
@@ -508,6 +533,172 @@ def app_page_edit(request, app_name):
     all_tags = [tag.fullname for tag in Tag.objects.all()]
     c = {
         'app': app,
+        'releases': app.get_releases(),
+        'all_tags': all_tags,
+        'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
+        'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,
+        'thumbnail_height_px': _AppPageEditConfig.thumbnail_height_px,
+        'app_description_maxlength': _AppPageEditConfig.app_description_maxlength,
+        'release_uploaded': request.GET.get('upload_release') == 'true',
+    }
+    return html_response('app_page_edit.html', c, request)
+
+#---------------------------SERVICE APPS----------------------------
+
+def _latest_service_release(app):
+    releases = app.servicereleases
+    if not releases:
+        return None
+    return releases[0]
+
+def _mk_service_page(app, user, request):
+    release = _latest_service_release(app)
+    c = {
+        'app': app,
+        'service_endpoint': release.service_endpoint,
+        'is_editor': (user and app.is_editor(user)),
+        'service_latest_release': _latest_service_release(app),
+        'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
+        'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
+        'service_install': (
+            settings.CYTOSCAPE_WEB_INSTALL_URL + quote(release.service_endpoint, safe="")
+        )
+    }
+    return html_response('app_page.html', c, request)
+
+
+def service_page(request, app_name):
+    app = get_object_or_404(App, active=True, name=app_name)
+    user = request.user if request.user.is_authenticated else None
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if not action:
+            return HttpResponseBadRequest('no action specified')
+        if not action in _AppActions:
+            return HttpResponseBadRequest('action "%s" invalid--must be: %s' % (action, ', '.join(_AppActions)))
+        try:
+            result = _AppActions[action](app, user, request.POST)
+        except ValueError as e:
+            return HttpResponseBadRequest(str(e))
+        if isinstance(result, HttpResponse):
+            return result
+        if is_ajax(request):
+            return json_response(result)
+
+    return _mk_service_page(app, user, request)
+
+
+@login_required
+@csrf_exempt
+def service_page_edit(request, app_name):
+    app = get_object_or_404(App, active = True, name = app_name)
+    if not app.is_editor(request.user):
+        return HttpResponseForbidden()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if not action:
+            return HttpResponseBadRequest('no action specified')
+        if not action in _AppEditActions:
+            return HttpResponseBadRequest('action "%s" invalid--must be: %s' % (action, ', '.join(_AppEditActions)))
+        try:
+            result = _AppEditActions[action](app, request)
+        except ValueError as e:
+            return HttpResponseBadRequest(str(e))
+        app.save()
+        if is_ajax(request):
+            return json_response(result)
+
+    all_tags = [tag.fullname for tag in Tag.objects.all()]
+    c = {
+        'app': app,
+        'releases': app.get_releases(),
+        'all_tags': all_tags,
+        'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
+        'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,
+        'thumbnail_height_px': _AppPageEditConfig.thumbnail_height_px,
+        'app_description_maxlength': _AppPageEditConfig.app_description_maxlength,
+        'release_uploaded': request.GET.get('upload_release') == 'true',
+    }
+    return html_response('app_page_edit.html', c, request)
+
+
+#---------------------------WEB APPS (BUNDLE)----------------------------
+
+def _latest_bundle_release(app):
+    releases = app.webbundlereleases
+    if not releases:
+        return None
+    return releases[0]
+
+def _mk_web_page(app, user, request):
+    release = _latest_bundle_release(app)
+    c = {
+        'app': app,
+        'releases': app.get_releases(),
+        'latest_release': app.get_releases().first(),
+        'cdn_base_url': release.cdn_base_url if release else None,
+        'is_editor': (user and app.is_editor(user)),
+        'bundle_latest_release': _latest_bundle_release(app),
+        'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
+        'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
+        'install_url': (
+            settings.CYTOSCAPE_WEB_INSTALL_URL
+            + quote(
+                request.build_absolute_uri(f"/web/{app.name}/{release.version}/manifest.json"),
+                safe=""
+            ))
+    }
+
+    return html_response('app_page.html', c, request)
+
+def webapp_page(request, app_name):
+    app = get_object_or_404(App, active=True, name=app_name)
+    user = request.user if request.user.is_authenticated else None
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if not action:
+            return HttpResponseBadRequest('no action specified')
+        if not action in _AppActions:
+            return HttpResponseBadRequest('action "%s" invalid--must be: %s' % (action, ', '.join(_AppActions)))
+        try:
+            result = _AppActions[action](app, user, request.POST)
+        except ValueError as e:
+            return HttpResponseBadRequest(str(e))
+        if isinstance(result, HttpResponse):
+            return result
+        if is_ajax(request):
+            return json_response(result)
+
+    return _mk_web_page(app, user, request)
+
+@login_required
+@csrf_exempt
+def webapp_page_edit(request, app_name):
+    app = get_object_or_404(App, active = True, name = app_name)
+    if not app.is_editor(request.user):
+        return HttpResponseForbidden()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if not action:
+            return HttpResponseBadRequest('no action specified')
+        if not action in _AppEditActions:
+            return HttpResponseBadRequest('action "%s" invalid--must be: %s' % (action, ', '.join(_AppEditActions)))
+        try:
+            result = _AppEditActions[action](app, request)
+        except ValueError as e:
+            return HttpResponseBadRequest(str(e))
+        app.save()
+        if is_ajax(request):
+            return json_response(result)
+
+    all_tags = [tag.fullname for tag in Tag.objects.all()]
+    c = {
+        'app': app,
+        'releases': app.get_releases(),
         'all_tags': all_tags,
         'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
         'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,

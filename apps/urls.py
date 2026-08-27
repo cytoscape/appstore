@@ -1,4 +1,5 @@
 from django.urls import re_path
+from django.urls import path
 
 from apps.views import apps_default
 from apps.views import all_apps_downloads
@@ -7,11 +8,13 @@ from apps.views import all_apps
 from apps.views import wall_of_apps
 from apps.views import apps_with_tag
 from apps.views import apps_with_author
+from apps.views import apps_with_platform
 from apps.views import app_page
 from apps.views import app_page_edit
 from apps.views import author_names
 from apps.views import institution_names
 from download.views import release_download
+from download.views import release_install
 
 urlpatterns = [
     re_path(r'^$', apps_default),
@@ -21,9 +24,13 @@ urlpatterns = [
     re_path(r'^wall$', wall_of_apps, name='wall_of_apps'),
     re_path(r'^with_tag/(\w{1,100})$', apps_with_tag, name='tag_page'),
     re_path(r'^with_author/(.{1,300})$', apps_with_author, name='author_page'),
+    re_path(r"^platform/(?P<platform>[\w-]+)/$", apps_with_platform, name="platform_page"),
     re_path(r'^(\w{1,100})$', app_page, name='app_page'),
+    #re_path(r'^(\w{1,100})$', service_page, name='service_page'),
+    #re_path(r'^(\w{1,100})$', webapp_page, name='webapp_page'),
     re_path(r'^(\w{1,100})/edit$', app_page_edit, name='app_page_edit'),
     re_path(r'^(\w{1,100})/author_names$', author_names),
     re_path(r'^(\w{1,100})/institution_names$', institution_names),
     re_path(r'^(\w{1,100})/download/(.{1,31})$', release_download), # old url for downloads
+    re_path(r'^(\w{1,100})/install/(.{1,31})$', release_install),
 ]

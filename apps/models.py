@@ -4,19 +4,22 @@ import shutil
 import subprocess
 from os import mkdir, devnull
 import logging
-import os.path
+import os.path 
 from os.path import join as pathjoin
 from urllib.parse import urljoin
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.urls import reverse
+from urllib.parse import quote
+from django.core.exceptions import ImproperlyConfigured
 
 
 LOGGER = logging.getLogger(__name__)
 
 
 class Author(models.Model):
+    id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=255)
     institution = models.CharField(max_length=255, null=True, blank=True)
 
@@ -81,8 +84,13 @@ def app_icon_path(app, filename):
     """
     return pathjoin(app.name, filename)
 
+class Platform(models.TextChoices):
+        DESKTOP = 'desktop', 'Desktop'
+        WEB = 'web', 'Web'
+        SERVICE = 'service', 'Service'
 
 class App(models.Model):
+    id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=127, unique=True)
     fullname = models.CharField(max_length=127, unique=True)
     description = models.CharField(max_length=255, blank=True, null=True)
@@ -95,6 +103,9 @@ class App(models.Model):
     authors = models.ManyToManyField(Author, blank=True,
                                      through='OrderedAuthor')
     editors = models.ManyToManyField(User, blank=True)
+
+
+    platform = models.CharField(max_length=31, choices=Platform.choices, default=Platform.DESKTOP)
 
     cy_2x_plugin_download = models.URLField(blank=True, null=True)
     cy_2x_plugin_version = models.CharField(max_length=31, blank=True,
@@ -142,6 +153,7 @@ class App(models.Model):
         li = [usr.email for usr in self.editors.all()]
         return user.email in li
 
+
     @staticmethod
     def _camel_case_split(the_str):
         """
@@ -184,9 +196,29 @@ class App(models.Model):
     def releases(self):
         return self.release_set.filter(active=True).all()
 
+    @property
+    def servicereleases(self):
+        return self.servicerelease_set.filter(active=True).all()
+
+    @property
+    def webbundlereleases(self):
+        return self.webbundlerelease_set.filter(active=True).all()
+    
+    def get_releases(self):
+        if self.platform == Platform.SERVICE:
+            return self.servicereleases
+        elif self.platform == Platform.WEB:
+            return self.webbundlereleases
+        return self.releases
+    
+    def update_has_releases(self):
+        self.has_releases = self.get_releases().count() > 0
+        self.save()
+
+    """
     def update_has_releases(self):
         self.has_releases = (self.release_set.filter(active=True).count() > 0)
-        self.save()
+        self.save()"""
 
     @property
     def page_url(self):
@@ -204,6 +236,7 @@ class App(models.Model):
 
 
 class OrderedAuthor(models.Model):
+    id = models.BigAutoField(primary_key=True)
     author = models.ForeignKey(Author, on_delete=models.CASCADE)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     author_order = models.PositiveSmallIntegerField(default=0)
@@ -238,6 +271,7 @@ def release_file_path(release, filename):
 
 
 class Release(models.Model):
+    id = models.BigAutoField(primary_key=True)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     version = models.CharField(max_length=31)
     works_with = models.CharField(max_length=31)
@@ -325,6 +359,7 @@ def thumbnail_path(screenshot, filename):
 
 
 class Screenshot(models.Model):
+    id = models.BigAutoField(primary_key=True)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     screenshot = models.ImageField(upload_to=screenshot_path)
     thumbnail = models.ImageField(upload_to=thumbnail_path)
@@ -356,6 +391,7 @@ def pom_xml_path(release_api, filename):
 
 
 class ReleaseAPI(models.Model):
+    id = models.BigAutoField(primary_key=True)
     release = models.ForeignKey(Release, on_delete=models.CASCADE)
     javadocs_jar_file = models.FileField(upload_to=javadocs_path)
     pom_xml_file = models.FileField(upload_to=pom_xml_path)
@@ -398,3 +434,122 @@ class ReleaseAPI(models.Model):
             shutil.rmtree(dirpath)
         self.javadocs_jar_file.delete()
         self.pom_xml_file.delete()
+
+class ServiceRelease(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    app = models.ForeignKey(App, on_delete=models.CASCADE)
+    version = models.CharField(max_length=31)
+    service_endpoint = models.URLField(blank=False, null=True)
+    description = models.TextField(blank=True)
+    citation = models.URLField(blank=True, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    active = models.BooleanField(default=True)
+    metadata = models.JSONField(null=True, blank=True)
+    notes = models.TextField(null=True, blank=True)
+
+    @property
+    def created_iso(self):
+        return self.created.isoformat()
+    
+    @property
+    def install_url(self):
+        if not self.service_endpoint:
+            return None
+        return (
+            settings.CYTOSCAPE_WEB_INSTALL_URL
+            + quote(self.service_endpoint, safe="")
+        )
+
+    class Meta:
+        ordering = ['-created']
+
+
+class WEB_SUBMISSION_ORIGIN(models.TextChoices):
+    WEB_URL = 'web_url', 'Web URL',
+    WEB_BUNDLE = 'web_bundle', 'Web Bundle'
+
+"""
+class WebUrlStatus(models.TextChoices):
+    PENDING_BUILD = 'pending_build', 'Pending Artifact Build',
+    BUILD_FAILED = 'build_failed', 'Artifact Build Failed',
+    PENDING_AUTO = 'pending_auto', 'Pending Automated Test',
+    PENDING_REVIEW = 'pending_review', 'Pending Manual Review',
+    PUBLISHED = 'published', 'Published',
+
+class WebUrlRelease(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    app = models.ForeignKey(App, on_delete=models.CASCADE)
+    version = models.CharField(max_length=31)
+    status = models.CharField(max_length=31, choices=WebUrlStatus.choices)
+    submitter = models.CharField(max_length=512, blank=True)
+    #origin = models.CharField(max_length=31, choices=WEB_SUBMISSION_ORIGIN.choices)
+
+    repo_url = models.URLField(blank=False, null=True)
+    commit_ref = models.CharField(max_length=127, blank=False, null=True)
+
+
+    resolved_commit_ref = models.CharField(max_length=127, blank=True, null=True)
+
+    #for metadata from app-store.json
+    federation_name = models.CharField(max_length=127, blank=True)
+    exposed_module = models.CharField(max_length=127, blank=False, default="./AppConfig")
+    install_command = models.CharField(max_length=255, default="npm ci")
+    build_command = models.CharField(max_length=255, default="npm run build")
+    output_dir = models.CharField(max_length=255, default="dist")
+    raw_metadata = models.JSONField(default=dict, blank=True)
+
+"""
+
+class WebBundleRelease(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    app = models.ForeignKey(App, on_delete=models.CASCADE)
+    version = models.CharField(max_length=31)
+    author = models.CharField(max_length=127, blank=True)
+    description = models.TextField(blank=True)
+    license = models.CharField(max_length=64, blank=True)
+    tags = models.JSONField(default=list, blank=True)
+    icon = models.ImageField(upload_to=app_icon_path, blank=True,
+                             null=True)
+    citation = models.URLField(blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    active = models.BooleanField(default=False)
+    bundle = models.FileField(upload_to="webbundles/", null=True)
+
+    created = models.DateTimeField(auto_now_add=True)
+    bundle_hash = models.CharField(max_length=64)
+    published_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def bundle_path(self):
+        return f"{self.app.name}/{self.version}/"
+
+    @property
+    def cdn_base_url(self):
+        if not settings.CDN_BASE_URL:
+            raise ImproperlyConfigured("CDN BASE URL must be set for this environment")
+        return urljoin(settings.CDN_BASE_URL, self.bundle_path)
+
+    @property
+    def remote_entry_url(self):
+        return urljoin(self.cdn_base_url, "remoteEntry.js")
+
+    @property
+    def manifest_url(self):
+        return urljoin(self.cdn_base_url, "manifest.json")
+    
+    @property
+    def created_iso(self):
+        return self.created.isoformat()
+    
+    @property
+    def install_url(self):
+        return (
+        settings.CYTOSCAPE_WEB_INSTALL_URL
+        + quote(self.manifest_url, safe="")
+    )
+
+    class Meta:
+        ordering = ['-created']
+        constraints = [
+            models.UniqueConstraint(fields=['app', 'version'], name="unique_web_bundle_release_version")
+        ]

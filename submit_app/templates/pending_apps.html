@@ -21,6 +21,7 @@
                 <thead>
                     <tr>
                         <th>Name</th>
+                        <th>Platform</th>
                         <th>Version</th>
                         <th>Submitted On</th>
                         <th>Submitter</th>
@@ -28,8 +29,9 @@
                     </tr>
                 </thead>
                 {% for pending_app in pending_apps %}
-                    <tr pending_id="{{ pending_app.id }}">
+                    <tr pending_id="{{ pending_app.id }}" pending_platform= "desktop">
                         <td class="cy-app-name">{{ pending_app.fullname }}</td>
+                        <td class="cy-app-platform">Desktop</td>
                         <td class="cy-app-version">{{ pending_app.version }}</td>
                         <td>{{ pending_app.created|date:"j M, H:i:s" }}</td>
                         <td>
@@ -50,11 +52,80 @@
                         </td>
                     </tr>
                 {% endfor %}
+                {% for pending in pending_service %}
+                    <tr pending_id="{{pending.id}}" pending_platform="service">
+                        <td class="cy-service-app-name">{{ pending.fullname }}</td>
+                        <td class="cy-service-app-platform">Service</td>
+                        <td class="cy-service-app-version">{{ pending.version }}</td>
+                        <td>{{ pending.created|date:"j M, H:i:s" }}</td>
+                        <td>
+                            {{ pending.submitter.username }}
+                            {% if pending.submitter.email %}
+                                <a href="mailto:{{ pending.submitter.email }}">
+                                    &lt;{{ pending.submitter.email }}&gt;
+                                </a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a class ="btn btn-info btn-mini" href="{{ pending.install_url }}" target="_blank">Try in Cytoscape Web</a>
+                            <button class="cy-accept btn btn-success btn-mini"><i class="icon icon-ok icon-white"></i> Accept</button>
+                            <button class="cy-decline btn btn-danger btn-mini"><i class="icon icon-remove icon-white"></i> Decline</button>
+                            <span class="cy-loading" style="display: none;"><img src="{% get_static_prefix %}/common/img/loading_small.gif"></span>
+                        </td>
+                    </tr>
+                {% endfor %}
+                {% for pending in pending_web_bundle %}
+                    <tr pending_id="{{pending.id}}" pending_platform="web-bundle">
+                        <td class="cy-web-app-name">{{ pending.fullname }}</td>
+                        <td class="cy-web-app-platform">Web</td>
+                        <td class="cy-web-app-version">{{ pending.version }}</td>
+                        <td>{{ pending.created|date:"j M, H:i:s" }}</td>
+                        <td>
+                            {{ pending.submitter.username }}
+                            {% if pending.submitter.email %}
+                                <a href="mailto:{{ pending.submitter.email }}">
+                                    &lt;{{ pending.submitter.email }}&gt;
+                                </a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a class ="btn btn-info btn-mini" href="{{ pending.install_url }}" target="_blank">Try in Cytoscape Web</a>
+                            <button class="cy-accept btn btn-success btn-mini"><i class="icon icon-ok icon-white"></i> Accept</button>
+                            <button class="cy-decline btn btn-danger btn-mini"><i class="icon icon-remove icon-white"></i> Decline</button>
+                            <span class="cy-loading" style="display: none;"><img src="{% get_static_prefix %}/common/img/loading_small.gif"></span>
+                        </td>
+                    </tr>
+                {% endfor %}
+                {% for pending in pending_web_url %}
+                    <tr pending_id="{{pending.id}}" pending_platform="web-url">
+                        <td class="cy-web-app-name">{{ pending.fullname }}</td>
+                        <td class="cy-web-app-platform">Web</td>
+                        <td class="cy-web-app-version">{{ pending.version }}</td>
+                        <td>{{ pending.created|date:"j M, H:i:s" }}</td>
+                        <td>
+                            {{ pending.submitter.username }}
+                            {% if pending.submitter.email %}
+                                <a href="mailto:{{ pending.submitter.email }}">
+                                    &lt;{{ pending.submitter.email }}&gt;
+                                </a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <!--<a class ="btn btn-info btn-mini" href="{{ pending.install_url }}" target="_blank">Try in Cytoscape Web</a>-->
+                            <button class="cy-accept btn btn-success btn-mini"><i class="icon icon-ok icon-white"></i> Does nothing</button>
+                            <button class="cy-decline btn btn-danger btn-mini"><i class="icon icon-remove icon-white"></i> Decline</button>
+                            <span class="cy-loading" style="display: none;"><img src="{% get_static_prefix %}/common/img/loading_small.gif"></span>
+                        </td>
+                    </tr>
+                {% endfor %}
             </table>
         </div>
     </div>
     
     <script type="text/javascript" src="{% get_static_prefix %}submit_app/js/pending_apps.js"></script>
+ <!--   <script>
+         var CYTOSCAPE_WEB_BASE = "{{ CYTOSCAPE_WEB_BASE|default:'https://web.cytoscape.org' }}";
+    </script>-->
     <script type="text/javascript">
         PendingApps.setup_accept_and_decline_btns();
     </script>

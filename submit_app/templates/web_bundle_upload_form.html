@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if expect_app_name %}
+        - Submit a New Release
+    {% else %}
+        - Submit a Web App (Bundle)
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="span12">
+    <div class="page-header">
+      {% if expect_app_name %}
+      <h1>
+        Submit a New Release
+        <small>{{ expect_app_name }}</small>
+      </h1>
+      {% else %}
+      <h1>Submit a Web App (Bundle)</h1>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  {% for field in form %}
+    <div>
+      {{ field.label_tag }}
+      {{ field }}
+      {% if field.help_text %}
+        <small class="form-text text-muted">{{ field.help_text }}</small>
+      {% endif %}
+    </div>
+  {% endfor %}
+  <button type="submit" class="btn btn-primary">Submit</button>
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger" style="margin-top: 10px;">
+      {% for error in form.non_field_errors %}
+        <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</form>
+
+<br/>
+<span class="label label-warning"><i class="icon-info-sign icon-white"></i>Need Help?</span>
+<a href={% url 'web_bundle_upload_help' %} target="_blank">How To Upload a Web Bundle<a/>
+
+{% if error %} 
+  <div class="alert alert-error">{{ error }}</div>
+{% endif %}
+{% endblock %}
+
