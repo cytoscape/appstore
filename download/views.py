@@ -43,7 +43,7 @@ def release_download(request, app_name, version):
     return HttpResponseRedirect(release.release_file_url)
 
 
-def release_install(request, app_name, version): #encompasses service and web apps since no external download is required
+def release_install(request, app_name, version): #need to add functionality for desktop apps as well or make new function (or use release_download)
     app = get_object_or_404(App, name=app_name)
     if app.platform == 'service':
         release = get_object_or_404(ServiceRelease, app=app, version=version, active=True)
@@ -100,7 +100,7 @@ def all_stats_timeline(request):
     response = {
         'Total': [[when.isoformat(), count] for when, count in sorted(totals_by_date.items())]
     }
-    
+
     return json_response(response)
 
 def app_stats(request, app_name):
