@@ -3,3 +3,5 @@ from submit_app.models import *
 
 admin.site.register(AppPending)
 admin.site.register(ServiceAppPending)
+admin.site.register(WebUrlPending)
+admin.site.register(WebBundlePending)
