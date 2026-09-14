@@ -242,6 +242,7 @@ class WebBundlePending(models.Model):
 
         release, _ = WebBundleRelease.objects.get_or_create(app=app, version=self.version)
 
+        release.cy_app_id = self.name or fullname_to_name(self.fullname)
         release.author = self.author
         release.description = self.description
         release.license = self.license

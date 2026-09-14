@@ -9,7 +9,11 @@ from django.core.exceptions import ValidationError
 
 def bundle_catalog_entry(release: WebBundleRelease) -> dict:
     return {
-        'id': release.app.name,
+        # NOT release.app.name. That is the store's URL slug; this must be the
+        # bundle's Module Federation container name or Cytoscape Web refuses to
+        # load the app. Releases published before cy_app_id existed fall back to
+        # the slug, which is what they already carry.
+        'id': release.cy_app_id or release.app.name,
         'name': release.app.fullname,
         'version': release.version,
         'url': release.remote_entry_url,
@@ -55,7 +59,7 @@ def _copy_bundle_to_storage(zip_file, destination: str):
 def write_pending_manifest_json(pending):
     web_storage = storages['webbundles']
     manifest_data = json.dumps([{
-        'id': fullname_to_name(pending.fullname),
+        'id': pending.name or fullname_to_name(pending.fullname),
         'name': pending.fullname,
         'version': pending.version,
         'url': pending.remote_entry_url,

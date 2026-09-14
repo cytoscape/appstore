@@ -503,6 +503,12 @@ class WebUrlRelease(models.Model):
 class WebBundleRelease(models.Model):
     id = models.BigAutoField(primary_key=True)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
+    # The app's Module Federation container name, taken verbatim from the
+    # bundle's cy-manifest.json. Cytoscape Web compares this against the
+    # CyApp.id inside the bundle and refuses the app if they differ, so it
+    # cannot be derived from App.name: that is the store's URL slug, which is
+    # case-folded and stripped of non-word characters.
+    cy_app_id = models.CharField(max_length=128, blank=True, default='')
     version = models.CharField(max_length=31)
     author = models.CharField(max_length=127, blank=True)
     description = models.TextField(blank=True)
