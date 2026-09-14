@@ -770,7 +770,7 @@ class WebBundleManifestIdTest(TestCase):
                                         password='password')
         pending = WebBundlePending.objects.create(submitter=user,
                                                   fullname='C3 App',
-                                                  name='c3App',
+                                                  cy_app_id='c3App',
                                                   version='0.1.0',
                                                   bundle_hash='abc')
         with patch.object(submit_models, '_copy_bundle_to_storage'), \
@@ -785,7 +785,7 @@ class WebBundleManifestIdTest(TestCase):
                                         password='password')
         pending = WebBundlePending.objects.create(submitter=user,
                                                   fullname='C3 App',
-                                                  name=None,
+                                                  cy_app_id=None,
                                                   version='0.2.0',
                                                   bundle_hash='abc')
         with patch.object(submit_models, '_copy_bundle_to_storage'), \
@@ -800,7 +800,7 @@ class WebBundleManifestIdTest(TestCase):
                                         password='password')
         pending = WebBundlePending.objects.create(submitter=user,
                                                   fullname='C3 App',
-                                                  name='c3App',
+                                                  cy_app_id='c3App',
                                                   version='0.1.0',
                                                   bundle_hash='abc')
         saved = {}

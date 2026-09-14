@@ -185,7 +185,10 @@ class WebBundlePending(models.Model):
     id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=128)
-    name = models.CharField(max_length=128, null=True)
+    # The bundle's Module Federation container name, from cy-manifest.json.
+    # NOT a slug of fullname: App.name is that, and conflating the two is how
+    # issue #144 shipped. Carried onto WebBundleRelease.cy_app_id on approval.
+    cy_app_id = models.CharField(max_length=128, null=True)
     author = models.CharField(max_length=512, blank=True)
     version = models.CharField(max_length=32)
     description = models.TextField(blank=True)
@@ -242,7 +245,7 @@ class WebBundlePending(models.Model):
 
         release, _ = WebBundleRelease.objects.get_or_create(app=app, version=self.version)
 
-        release.cy_app_id = self.name or fullname_to_name(self.fullname)
+        release.cy_app_id = self.cy_app_id or fullname_to_name(self.fullname)
         release.author = self.author
         release.description = self.description
         release.license = self.license

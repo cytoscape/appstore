@@ -59,9 +59,9 @@ def _copy_bundle_to_storage(zip_file, destination: str):
 def write_pending_manifest_json(pending):
     web_storage = storages['webbundles']
     manifest_data = json.dumps([{
-        # WebBundlePending.name is this model's cy_app_id: the upload view
-        # sets it from cy-manifest.json, which _extract_cy_manifest requires.
-        'id': pending.name,
+        # Set from cy-manifest.json by the upload view, which refuses a bundle
+        # without an id. Never a slug of fullname — see issue #144.
+        'id': pending.cy_app_id,
         'name': pending.fullname,
         'version': pending.version,
         'url': pending.remote_entry_url,
