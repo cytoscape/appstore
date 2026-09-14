@@ -3,7 +3,6 @@ import zipfile
 from apps.models import WebBundleRelease
 from django.core.files.storage import storages
 from django.core.files.base import ContentFile
-from util.id_util import fullname_to_name
 from django.core.exceptions import ValidationError
 
 
@@ -60,7 +59,9 @@ def _copy_bundle_to_storage(zip_file, destination: str):
 def write_pending_manifest_json(pending):
     web_storage = storages['webbundles']
     manifest_data = json.dumps([{
-        'id': pending.name or fullname_to_name(pending.fullname),
+        # WebBundlePending.name is this model's cy_app_id: the upload view
+        # sets it from cy-manifest.json, which _extract_cy_manifest requires.
+        'id': pending.name,
         'name': pending.fullname,
         'version': pending.version,
         'url': pending.remote_entry_url,
