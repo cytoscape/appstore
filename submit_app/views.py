@@ -1010,7 +1010,7 @@ def _create_web_bundle_pending(form, bundle, submitter, cy_app_id, fullname, ver
         fullname=fullname,
         version=version,
         cy_app_id=cy_app_id,
-        #author=form.cleaned_data['authors'],
+        author=submitter.get_full_name() or submitter.username,
         #description=form.cleaned_data['description'],
         #license=form.cleaned_data['license'],        
         #tags=form.cleaned_data['tags'],

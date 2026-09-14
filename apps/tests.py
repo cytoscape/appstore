@@ -449,6 +449,38 @@ class ReleaseAPITestCase(TestCase):
         self.assertEqual([], os.listdir(extract_dir))
 
 
+class ViewsAppPageTestCase(TestCase):
+
+    def setUp(self):
+        App.objects.all().delete()
+        Release.objects.all().delete()
+        clear_media_root()
+
+    def tearDown(self):
+        App.objects.all().delete()
+        Release.objects.all().delete()
+        clear_media_root()
+
+    def test_legacy_app_download_button_uses_release_download_url(self):
+        appobj = App.objects.create(name='myapp', fullname='MyApp',
+                                    active=True, has_releases=True)
+        uploaded = SimpleUploadedFile('my.jar',
+                                      ReleaseTestCase.FILE_CONTENT,
+                                      content_type='text/plain')
+        Release.objects.create(app=appobj,
+                               version='1.0',
+                               release_file=uploaded,
+                               active=True)
+
+        response = self.client.get('/apps/myapp')
+
+        self.assertEqual(200, response.status_code)
+        content = str(response.content, 'utf-8')
+        self.assertIn('"/download/myapp/1.0"', content)
+        self.assertNotIn('AppPage.setup_install("myapp",\n\t"MyApp",\n\t"1.0"',
+                         content)
+
+
 class ViewsAppPageEditTestCase(TestCase):
 
     def setUp(self):
