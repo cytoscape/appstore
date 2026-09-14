@@ -11,9 +11,10 @@ def bundle_catalog_entry(release: WebBundleRelease) -> dict:
     return {
         # NOT release.app.name. That is the store's URL slug; this must be the
         # bundle's Module Federation container name or Cytoscape Web refuses to
-        # load the app. Releases published before cy_app_id existed fall back to
-        # the slug, which is what they already carry.
-        'id': release.cy_app_id or release.app.name,
+        # load the app. make_bundle_release always sets cy_app_id, so there is
+        # no fallback here on purpose: a slug-shaped id that is wrong looks
+        # exactly like a correct one until the install fails.
+        'id': release.cy_app_id,
         'name': release.app.fullname,
         'version': release.version,
         'url': release.remote_entry_url,

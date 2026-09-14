@@ -750,10 +750,13 @@ class WebBundleManifestIdTest(TestCase):
         self.assertEqual('c3App', entry['id'])
         self.assertEqual('C3 App', entry['name'])
 
-    def test_catalog_entry_falls_back_to_the_slug_when_unset(self):
+    def test_catalog_entry_never_substitutes_the_slug(self):
+        # An empty cy_app_id means make_bundle_release did not run, which is a
+        # bug. Publishing the slug instead would hide it behind an id that is
+        # wrong but well-formed.
         release = WebBundleRelease.objects.create(app=self.app, version='0.1.0')
         entry = bundle_storage.bundle_catalog_entry(release)
-        self.assertEqual('c3app', entry['id'])
+        self.assertNotEqual('c3app', entry['id'])
 
     def test_slug_would_not_match_the_container_name(self):
         # The regression this guards: the slug is derived from the display
