@@ -900,7 +900,7 @@ def submit_web_bundle(request):
         form.add_error(None, str(e))
         return html_response('web_bundle_upload_form.html', {'form': form}, request)
 
-    pending = _create_web_bundle_pending(form, bundle, request.user, name=cy_manifest['id'],  fullname=cy_manifest['name'] , version=cy_manifest['version'])
+    pending = _create_web_bundle_pending(form, bundle, request.user, cy_app_id=cy_manifest['id'],  fullname=cy_manifest['name'] , version=cy_manifest['version'])
 
     try:
         server_url = _get_server_url(request)
@@ -1004,12 +1004,12 @@ def _hash_file(file) -> str:
     file.seek(0)
     return bundle_sha.hexdigest()
 
-def _create_web_bundle_pending(form, bundle, submitter, name, fullname, version) -> WebBundlePending:
+def _create_web_bundle_pending(form, bundle, submitter, cy_app_id, fullname, version) -> WebBundlePending:
     pending = WebBundlePending(
         submitter=submitter,
         fullname=fullname,
         version=version,
-        name=name,
+        cy_app_id=cy_app_id,
         #author=form.cleaned_data['authors'],
         #description=form.cleaned_data['description'],
         #license=form.cleaned_data['license'],        

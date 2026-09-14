@@ -10,7 +10,9 @@ import io
 import tempfile
 import shutil
 
-from unittest.mock import MagicMock
+import json
+
+from unittest.mock import MagicMock, patch
 from django.test import TestCase
 
 from django.conf import settings
@@ -20,8 +22,14 @@ from django.core.files.uploadedfile import TemporaryUploadedFile
 from django.http import HttpRequest
 from django.contrib.auth.models import User
 from apps.models import App
+from apps.models import Platform
 from apps.models import Release
+from apps.models import WebBundleRelease
 from submit_app.models import AppPending
+from submit_app.models import WebBundlePending
+from submit_app import bundle_storage
+from submit_app import models as submit_models
+from util.id_util import fullname_to_name
 from submit_app import processjar
 from submit_app import mfparse
 from submit_app import views
@@ -724,3 +732,85 @@ class MFParseTestCase(TestCase):
                   '=optional;version="[3.16,4)"'
         res = mfparse.max_of_lower_cytoscape_pkg_versions(the_str)
         self.assertEqual(('3', '27', None, None), res)
+
+
+class WebBundleManifestIdTest(TestCase):
+    """The published manifest id must be the bundle's Module Federation
+    container name, not the store's URL slug (issue #144)."""
+
+    def setUp(self):
+        self.app = App.objects.create(fullname='C3 App', name='c3app',
+                                      platform=Platform.WEB)
+
+    def test_catalog_entry_uses_cy_app_id_not_the_slug(self):
+        release = WebBundleRelease.objects.create(app=self.app,
+                                                  cy_app_id='c3App',
+                                                  version='0.1.0')
+        entry = bundle_storage.bundle_catalog_entry(release)
+        self.assertEqual('c3App', entry['id'])
+        self.assertEqual('C3 App', entry['name'])
+
+    def test_catalog_entry_never_substitutes_the_slug(self):
+        # An empty cy_app_id means make_bundle_release did not run, which is a
+        # bug. Publishing the slug instead would hide it behind an id that is
+        # wrong but well-formed.
+        release = WebBundleRelease.objects.create(app=self.app, version='0.1.0')
+        entry = bundle_storage.bundle_catalog_entry(release)
+        self.assertNotEqual('c3app', entry['id'])
+
+    def test_slug_would_not_match_the_container_name(self):
+        # The regression this guards: the slug is derived from the display
+        # name and cannot round-trip a camelCase id.
+        self.assertEqual('c3app', fullname_to_name('C3 App'))
+        self.assertEqual('cytoscapewebsubmissiontest',
+                         fullname_to_name('Cytoscape Web Submission Test'))
+
+    def test_make_bundle_release_carries_the_pending_id(self):
+        user = User.objects.create_user(username='submitter',
+                                        password='password')
+        pending = WebBundlePending.objects.create(submitter=user,
+                                                  fullname='C3 App',
+                                                  cy_app_id='c3App',
+                                                  version='0.1.0',
+                                                  bundle_hash='abc')
+        with patch.object(submit_models, '_copy_bundle_to_storage'), \
+             patch.object(submit_models, 'write_manifest_json'):
+            pending.make_bundle_release(self.app)
+
+        release = WebBundleRelease.objects.get(app=self.app, version='0.1.0')
+        self.assertEqual('c3App', release.cy_app_id)
+
+    def test_make_bundle_release_falls_back_for_pre_cy_manifest_uploads(self):
+        user = User.objects.create_user(username='submitter2',
+                                        password='password')
+        pending = WebBundlePending.objects.create(submitter=user,
+                                                  fullname='C3 App',
+                                                  cy_app_id=None,
+                                                  version='0.2.0',
+                                                  bundle_hash='abc')
+        with patch.object(submit_models, '_copy_bundle_to_storage'), \
+             patch.object(submit_models, 'write_manifest_json'):
+            pending.make_bundle_release(self.app)
+
+        release = WebBundleRelease.objects.get(app=self.app, version='0.2.0')
+        self.assertEqual('c3app', release.cy_app_id)
+
+    def test_pending_manifest_uses_the_stored_id(self):
+        user = User.objects.create_user(username='submitter3',
+                                        password='password')
+        pending = WebBundlePending.objects.create(submitter=user,
+                                                  fullname='C3 App',
+                                                  cy_app_id='c3App',
+                                                  version='0.1.0',
+                                                  bundle_hash='abc')
+        saved = {}
+        storage = MagicMock()
+        storage.exists.return_value = False
+        storage.save.side_effect = lambda path, content: saved.update(
+            path=path, body=json.loads(content.read()))
+
+        with patch.object(bundle_storage, 'storages',
+                          {'webbundles': storage}):
+            bundle_storage.write_pending_manifest_json(pending)
+
+        self.assertEqual('c3App', saved['body'][0]['id'])

@@ -3,13 +3,17 @@ import zipfile
 from apps.models import WebBundleRelease
 from django.core.files.storage import storages
 from django.core.files.base import ContentFile
-from util.id_util import fullname_to_name
 from django.core.exceptions import ValidationError
 
 
 def bundle_catalog_entry(release: WebBundleRelease) -> dict:
     return {
-        'id': release.app.name,
+        # NOT release.app.name. That is the store's URL slug; this must be the
+        # bundle's Module Federation container name or Cytoscape Web refuses to
+        # load the app. make_bundle_release always sets cy_app_id, so there is
+        # no fallback here on purpose: a slug-shaped id that is wrong looks
+        # exactly like a correct one until the install fails.
+        'id': release.cy_app_id,
         'name': release.app.fullname,
         'version': release.version,
         'url': release.remote_entry_url,
@@ -55,7 +59,9 @@ def _copy_bundle_to_storage(zip_file, destination: str):
 def write_pending_manifest_json(pending):
     web_storage = storages['webbundles']
     manifest_data = json.dumps([{
-        'id': fullname_to_name(pending.fullname),
+        # Set from cy-manifest.json by the upload view, which refuses a bundle
+        # without an id. Never a slug of fullname — see issue #144.
+        'id': pending.cy_app_id,
         'name': pending.fullname,
         'version': pending.version,
         'url': pending.remote_entry_url,
