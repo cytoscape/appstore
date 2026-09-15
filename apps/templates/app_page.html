@@ -108,7 +108,7 @@
 		{# End Citations #}
 		{# discussions #}
 		<a> | </a>
-		<a href="https://www.biostars.org/local/search/page/?q=cytoscape+{{ app.fullname }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search BioStar for discussions about this app.">{% trans "discussions" %}</a>
+		<a href="https://www.biostars.org/post/search?query=cytoscape+{{ app.fullname }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search BioStar for discussions about this app.">{% trans "discussions" %}</a>
 		{# End Discussions #}
 		<span class="app-usage-info-divider"></span>
 
@@ -122,7 +122,7 @@
 		{% endif %}
 
 		{% if app.competition_winner_dec_2012 %}
-		<a href="http://nrnb.org/competitions.html" target="_blank">
+		<a href="https://nrnb.org/competitions.html" target="_blank">
 			<img src="{% get_static_prefix %}apps/img/trophy.png" class="has-tooltip" data-toggle="tooltip" data-title="This app won the December 2012 App Competition.">
 		</a>
 		{% endif %}
@@ -413,7 +413,7 @@
 					Ask a question
 				</a></li>
 
-				<li><a href="https://www.biostars.org/local/search/page/?q=cytoscape+{{ app.fullname }}" target="_blank"><i class="icon-comment"></i> Search BioStars</a></li>
+				<li><a href="https://www.biostars.org/post/search?query=cytoscape+{{ app.fullname }}" target="_blank"><i class="icon-comment"></i> Search BioStars</a></li>
 				<li class="divider"></li>
 
 				{% if app.website %}
