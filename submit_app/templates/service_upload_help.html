@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title%}
+    -Submitting a Service App
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+
+            <h2 class="mb-3">Service Apps</h2>
+
+            <p>
+                Service Apps provide backend functionality that can be
+                accessed by Cytoscape through exposed service endpoints.
+            </p>
+
+            <hr>
+
+            <h3 class="mt-4">Before you submit</h3>
+
+            <p>Make sure your app:</p>
+
+            <ul>
+                <li>
+                    Provides a valid service entry point and exposes the
+                    endpoints required by the app.
+                </li>
+                <li>
+                    Has a consistent app identity across your application
+                    configuration and service definition.
+                </li>
+                <li>
+                    Defines the required service metadata and configuration.
+                </li>
+                <li>
+                    Uses valid endpoint paths and HTTP methods for all
+                    exposed services.
+                </li>
+                <li>
+                    Does not include unnecessary source files, development
+                    dependencies, or other files that are not required to
+                    run the service.
+                </li>
+            </ul>
+
+            <h3 class="mt-4">Steps</h3>
+
+            <ol>
+                <li class="mb-3">
+                    <strong>Build your service app.</strong>
+                    Prepare your production-ready service and make sure all
+                    required endpoints are available.
+                </li>
+
+                <li class="mb-3">
+                    <strong>Package your service.</strong>
+                    Create the required application bundle containing your
+                    service files and configuration.
+                    Make sure the required entry point and configuration
+                    files are located at the expected paths.
+                </li>
+
+                <li class="mb-3">
+                    <strong>Go to the Service App submission form.</strong>
+                </li>
+
+                <li class="mb-3">
+                    <strong>Fill out the form:</strong>
+
+                    <ul class="mt-2">
+                        <li>App name</li>
+                        <li>Version</li>
+                        <li>Author(s)</li>
+                        <li>Description (optional)</li>
+                        <li>License</li>
+                        <li>Tags (optional, comma-separated)</li>
+                        <li>Upload your service bundle</li>
+                    </ul>
+                </li>
+
+                <li class="mb-3">
+                    <strong>Submit.</strong>
+                    The Store validates your service bundle and its
+                    configuration automatically.
+                    If validation fails, you'll see the specific error on
+                    the form — fix it and resubmit.
+                </li>
+
+                <li class="mb-3">
+                    <strong>Confirm your submission</strong>
+                    on the confirmation page that follows.
+                </li>
+
+                <li class="mb-3">
+                    <strong>Wait for review.</strong>
+                    Your submission enters the pending queue for review
+                    before publication. You'll be notified of the outcome.
+                </li>
+            </ol>
+
+            <h3 class="mt-4">If you need to resubmit</h3>
+
+            <p>
+                If your submission is rejected or fails validation, you can
+                resubmit the <strong>same version number</strong>.
+                The version is not permanently blocked by a rejected
+                submission. Only published versions are locked.
+            </p>
+
+            <h3 class="mt-4">Common rejection reasons</h3>
+
+            <ul>
+                <li>
+                    Invalid or inconsistent app identity
+                </li>
+                <li>
+                    Missing or invalid service entry point
+                </li>
+                <li>
+                    Missing or invalid service configuration
+                </li>
+                <li>
+                    Invalid endpoint definitions
+                </li>
+                <li>
+                    Service endpoints do not match the declared configuration
+                </li>
+                <li>
+                    Missing required files from the service bundle
+                </li>
+                <li>
+                    Bundle contains unnecessary or unsupported files
+                </li>
+                <li>
+                    Bundle contains unsafe paths (e.g. <code>../</code>)
+                </li>
+                <li>
+                    Bundle exceeds the maximum allowed size
+                </li>
+            </ul>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -69,6 +69,7 @@ var AppPage = (function($) {
             },
             callback);
     }
+
     var install_btn = $('#cy-app-install-btn');
     var install_btn_last_class = [];
 

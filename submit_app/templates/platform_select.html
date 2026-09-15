@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="row">
+  <div class="span12">
+    <div class="page-header">
+      <h1>Select a Platform</h1>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <select name="platform">
+          <option value="">Select a platform</option>
+          {% for value, label in platforms %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Confirm</button>
+      </form>
+      <i>Unsure Which Platform to Choose?</i>
+      <a href={% url 'platform-select-help' %}><i>Click the Guide Here</i></a>
+  </div>
+</div>  
+{% endblock %}
+

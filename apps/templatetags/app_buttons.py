@@ -34,7 +34,7 @@ def app_buttons(apps):
 
 
 @register.inclusion_tag('list_of_apps_search.html')
-def list_of_apps_search(apps, include_relevancy = False):
+def list_of_apps_search(apps, platform=None, include_relevancy = False):
     apps = filter(lambda a: hasattr(a.object, 'has_releases'), apps)
     apps_with_releases = filter(lambda a: a.object.has_releases, apps)
     apps_without_releases = filter(lambda a: not a.object.has_releases, apps)
@@ -47,7 +47,8 @@ def list_of_apps_search(apps, include_relevancy = False):
 #    if (include_relevancy):
 #        sort_criteria = (('relevancy',  'order_index',  'int'), ) + sort_criteria
     return {'apps_with_releases': apps_with_releases,
-            'apps_without_releases': apps_without_releases}
+            'apps_without_releases': apps_without_releases,
+            'platform': platform}
 
 
 @register.inclusion_tag('list_of_apps.html')
