@@ -39,6 +39,17 @@ def _copy_remote_entry_to_storage(remote_entry, destination: str):
         web_storage.delete(path)
     web_storage.save(path, ContentFile(remote_entry.read()))
     """
+
+def _find_build_root_prefix(zf: zipfile.ZipFile) -> str:
+    matches = [n for n in zf.namelist() if n.endswith('remoteEntry.js') and not n.endswith('/')]
+    if not matches:
+        raise ValidationError("No remoteEntry.js instance was found")
+    if len(matches) > 1:
+        raise ValidationError("Multiple instances of remoteEntry.js were found")
+    
+    remote_entry_path = matches[0]
+    return remote_entry_path.split('/', 1)[0] + '/' if '/' in remote_entry_path else ''
+
 def _copy_bundle_to_storage(zip_file, destination: str):
     """Copies every file in the validated bundle zip to storage,
     preserving relative paths (remoteEntry.js, chunks/, assets/, etc.)"""
@@ -46,10 +57,15 @@ def _copy_bundle_to_storage(zip_file, destination: str):
     zip_file.seek(0)
 
     with zipfile.ZipFile(zip_file) as zf:
+        prefix = _find_build_root_prefix(zf)
         for member in zf.namelist():
             if member.endswith('/'):
-                continue  # skip directory entries
-            path = f"{destination}{member}"
+                continue
+            if not member.startswith(prefix):
+                continue
+
+            relative = member[len(prefix):]
+            path=f"{destination}{relative}"
             if web_storage.exists(path):
                 web_storage.delete(path)
             with zf.open(member) as source:

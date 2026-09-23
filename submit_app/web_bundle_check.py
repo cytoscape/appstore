@@ -67,6 +67,8 @@ class CheckResult:
     
 #-----------UTIL FUNCTIONS----------------
     
+
+
 def _extract_zip(bundle_path: str, dest: Path):
     with zipfile.ZipFile(bundle_path) as zf:
         zf.extractall(dest)
@@ -107,7 +109,7 @@ def check_bundle_size(bundle_path: str, prev_size_bytes) -> CheckResult:
         return CheckResult(
             name="bundle_size",
             status="pass",
-            summary=f"Bundle size: {size:,} bytes (no previous release to compare against)"
+            summary=f"Bundle size: {size:,} bytes (no previous release to compare against)",
             details = details,
         )
     details['prev_size_bytes'] = prev_size_bytes
@@ -120,13 +122,20 @@ def check_bundle_size(bundle_path: str, prev_size_bytes) -> CheckResult:
         return CheckResult(
             name="bundle_size",
             status="warning",
-            summary=f"Bundle grew {relative:.0%} vs previous releases ({prev_size_bytes:,} -> {size:,} bytes)."
+            summary=f"Bundle grew {relative:.0%} vs previous releases ({prev_size_bytes:,} -> {size:,} bytes).",
             details=details,
         )
     
-
+    return CheckResult(
+        name="bundle_size",
+        status="pass",
+        summary=f"Bundle size: {size:,} bytes ({relative:+.0%} vs previous release).",
+        details=details,
+    )
+    
+"""
 def check_compatible_host_versions(range_str: str):
-    return 'none'
+    return 'none' """
 
 def check_dangerous_patterns(js_files) -> CheckResult:
     patterns = {

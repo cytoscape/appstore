@@ -444,6 +444,7 @@ def _save_release_notes(app, request):
         raise ValueError('release_count is not an integer')
 
     releases = app.get_releases()
+    release_model = releases.model
     for i in range(release_count):
         key = 'release_id_' + str(i)
         release_id = request.POST.get(key)
@@ -451,7 +452,7 @@ def _save_release_notes(app, request):
             raise ValueError('expected ' + key)
         try:
             release = releases.get(id=int(release_id))
-        except (Release.DoesNotExist, ValueError) as e:
+        except (release_model.DoesNotExist, ValueError) as e:
             raise ValueError('release_id "%s" is invalid' % release_id)
         notes_key = 'notes_' + str(i)
         notes = request.POST.get(notes_key)
@@ -470,6 +471,7 @@ def _delete_release(app, request):
         raise ValueError('release_count is not an integer')
 
     releases = app.get_releases()
+    release_model = releases.model
     for i in range(release_count):
         key = 'release_id_' + str(i)
         release_id = request.POST.get(key)
@@ -477,7 +479,7 @@ def _delete_release(app, request):
             raise ValueError('expected ' + key)
         try:
             release = releases.get(id=int(release_id))
-        except (Release.DoesNotExist, ValueError) as e:
+        except (release_model.DoesNotExist, ValueError) as e:
             raise ValueError('release_id "%s" is invalid' % release_id)
         release.active = False
         release.save()

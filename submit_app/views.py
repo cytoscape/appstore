@@ -616,7 +616,7 @@ def cy2x_plugins(request):
 #---------------------- SERVICE APP SUBMISSION ----------------------
 @login_required
 def submit_service_app(request):
-    LOGGER.info("submit_service_app called, method=%s POST=%s", request.method, dict(request.POST))
+    LOGGER.info("submit_service_app called, method=%s", request.method)
     context = {}
 
     if request.method != 'POST':
