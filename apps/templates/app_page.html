@@ -232,6 +232,11 @@
 						<h4>
 							{% if app.platform == 'desktop' %}
 							<a href="{% url 'release_download' app.name release.version %}">{{ release.version }}</a>
+							{% elif app.platform == 'web' %}
+							<a href="{% url 'release_install' app.name release.version %}"
+							   target="_blank"
+							   rel="noopener"
+							   title="Install version {{ release.version }} in Cytoscape Web">{{ release.version }}</a>
 							{% else %}
 							{{ release.version }}
 							{% endif %}
