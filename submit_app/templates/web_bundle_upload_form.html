@@ -25,6 +25,11 @@
   </div>
 </div>
 
+<div class="alert alert-info">
+  The Cytoscape Web App API is still in beta and may change.
+  Please <a href="{% url 'contact' %}">contact us</a> when submitting an app.
+</div>
+
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
   {% for field in form %}
@@ -54,4 +59,3 @@
   <div class="alert alert-error">{{ error }}</div>
 {% endif %}
 {% endblock %}
-
