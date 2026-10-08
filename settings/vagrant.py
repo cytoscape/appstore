@@ -39,6 +39,8 @@ MEDIA_ROOT = os.path.join(STATIC_BASE_DIR, 'media')
 # Examples: "http://media.lawrence.com/media/", "http://example.com/media/"
 MEDIA_URL = parse.urljoin(SITE_URL, 'media/')
 
+STORAGES['webbundles']['OPTIONS']['location'] = os.path.join(MEDIA_ROOT, 'webbundles')
+
 # Absolute path to the directory static files should be collected to.
 # Don't put anything in this directory yourself; store your static files
 # in apps' "static/" subdirectories and in STATICFILES_DIRS.

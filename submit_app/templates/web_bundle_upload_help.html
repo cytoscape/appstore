@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}- Submitting a Web Bundle{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Submitting a Web App Bundle</h1>
+    </div>
+
+    <p>
+        Web apps run in the user's browser inside Cytoscape Web.
+        Submit a ZIP file containing your app's production build.
+        Submission via GitHub repository is not supported yet.
+    </p>
+
+    <div class="alert alert-info">
+        The Cytoscape Web App API is still in beta and may change.
+        Please <a href="{% url 'contact' %}">contact us</a> when submitting an app.
+    </div>
+
+    <h3>Prepare your bundle</h3>
+    <p>
+        To learn how to build a web app, explore the
+        <a href="https://github.com/cytoscape/cytoscape-web-app-examples"
+           target="_blank" rel="noopener">Cytoscape Web app examples</a>.
+    </p>
+    <ol>
+        <li>
+            Build your app using your project's production build command,
+            such as <code>npm run build</code>.
+        </li>
+        <li>
+            Check that the build includes <code>remoteEntry.js</code>,
+            <code>cy-manifest.json</code>, and all JavaScript chunks and assets
+            needed by your app. If the manifest is missing, rebuild with a
+            recent version of <code>create-cytoscape-app</code> or add it to
+            your build output.
+        </li>
+        <li>
+            ZIP the contents of your build output folder (usually
+            <code>dist</code>). Keep <code>remoteEntry.js</code> and
+            <code>cy-manifest.json</code> at the ZIP root, with chunks and
+            assets in their original relative paths. A single enclosing build
+            folder, such as <code>dist/</code>, is also supported.
+            Include only one <code>remoteEntry.js</code>.
+        </li>
+        <li>
+            Use a <code>.zip</code> filename and keep the bundle at or below
+            50 MB. Do not include source files or <code>node_modules</code>.
+        </li>
+    </ol>
+
+    <h3>App identity and version</h3>
+    <p>
+        The Store reads the app's identity, display name, and version from
+        <code>cy-manifest.json</code>. It must be valid JSON containing
+        <code>id</code>, <code>name</code>, and <code>version</code>, for example:
+    </p>
+    <pre>{
+  "id": "myApp",
+  "name": "My App",
+  "version": "1.0.0"
+}</pre>
+    <ul>
+        <li>
+            <code>id</code> must match your bundle's Module Federation
+            container name and <code>CyApp.id</code>, including capitalization.
+        </li>
+        <li>
+            <code>name</code> is displayed on the app page with its original
+            capitalization. The Store derives a lowercase identifier from it
+            for URLs, removing spaces, punctuation, and underscores.
+        </li>
+        <li>
+            <code>version</code> identifies this release. Use a new version
+            number for each new release and keep the display name consistent
+            when submitting updates to an existing app.
+        </li>
+    </ul>
+
+    <h3>Submit and confirm</h3>
+    <ol>
+        <li>
+            Sign in and open the
+            <a href="{% url 'submit-web-bundle' %}">Submit Web App form</a>.
+        </li>
+        <li>
+            Upload your ZIP file and click <strong>Submit</strong>.
+            The form requires only the bundle; the app name and version come
+            from the manifest, and the author comes from your account.
+        </li>
+        <li>
+            Review the app name, version, and author on the confirmation page.
+            Accept the submission if they are correct, or cancel and upload
+            a corrected bundle.
+        </li>
+    </ol>
+    <p>
+        New apps require manual review before publication. If you are an editor
+        of an existing web app, accepting the submission publishes the release
+        to that app directly.
+    </p>
+
+    <h3>Troubleshooting</h3>
+    <ul>
+        <li>Make sure the file is a valid ZIP and does not exceed 50 MB.</li>
+        <li>Include <code>remoteEntry.js</code> and all of its required assets.</li>
+        <li>
+            Include a valid <code>cy-manifest.json</code> with all three
+            required fields: <code>id</code>, <code>name</code>, and
+            <code>version</code>.
+        </li>
+        <li>
+            Avoid absolute paths and parent directory paths such as
+            <code>../</code> inside the ZIP.
+        </li>
+        <li>
+            If the app fails to load in Cytoscape Web, check that the manifest
+            ID matches the bundle's app ID and Module Federation container name.
+        </li>
+    </ul>
+</div>
+{% endblock %}

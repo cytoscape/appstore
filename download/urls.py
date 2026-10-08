@@ -11,6 +11,7 @@ from download.views import app_stats_geography_all
 from download.views import app_stats_geography_world
 from download.views import app_stats_country
 from download.views import release_download
+from download.views import release_install
 
 urlpatterns = [
 	re_path(r'^stats/$', all_stats, name='all_stats'),
@@ -23,5 +24,6 @@ urlpatterns = [
 	re_path(r'^stats/(\w{1,100})/geography/all$', app_stats_geography_all),
 	re_path(r'^stats/(\w{1,100})/geography/world$', app_stats_geography_world),
 	re_path(r'^stats/(\w{1,100})/geography/country/(\w{2})$', app_stats_country),
+    re_path(r'^install/(\w{1,100})/(.{1,31})$', release_install, name='release_install'),
 	re_path(r'^(\w{1,100})/(.{1,31})$', release_download, name='release_download'),
 ]

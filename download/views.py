@@ -1,11 +1,13 @@
 import datetime
-
+from collections import defaultdict
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponseRedirect
+from django.http import Http404
 
 from util.view_util import html_response, json_response, ipaddr_str_to_long, ipaddr_long_to_str
-from apps.models import App, Release
-from download.models import ReleaseDownloadsByDate, AppDownloadsByGeoLoc, Download, GeoLoc
+from apps.models import App, Release, ServiceRelease, WebBundleRelease, Platform
+from download.models import ReleaseDownloadsByDate, AppDownloadsByGeoLoc, Download, GeoLoc, WebBundleDownload, ServiceDownload
+from download.models import ServiceReleaseDownloadsByDate, WebBundleReleaseDownloadsByDate
 
 # ===================================
 #   Download release
@@ -25,23 +27,34 @@ def _increment_count(klass, **args):
     obj.count += 1
     obj.save()
 
-def release_download(request, app_name, version):
-    release = get_object_or_404(Release, app__name = app_name, version = version, active = True)
+def _record_download(request, app, release, download_model, by_date_model):
     ip4addr = _client_ipaddr(request)
-    when    = datetime.date.today()
+    when = datetime.date.today()
+    app.downloads += 1
+    app.save()
+    download_model.objects.create(release=release, ip4addr=ip4addr, when=when)
+    _increment_count(by_date_model, release=release, when=when)
+    _increment_count(by_date_model, release=None, when=when)
 
-    # Update the App object
-    release.app.downloads += 1
-    release.app.save()
-
-    # Record the download as a Download object
-    Download.objects.create(release = release, ip4addr = ip4addr, when = when)
-
-    # Record the download in the timeline
-    _increment_count(ReleaseDownloadsByDate, release = release, when = when)
-    _increment_count(ReleaseDownloadsByDate, release = None,    when = when)
-
+def release_download(request, app_name, version):
+    app = get_object_or_404(App, name=app_name, platform=Platform.DESKTOP)
+    release = get_object_or_404(Release, app=app, version=version, active=True)
+    _record_download(request, app, release, Download, ReleaseDownloadsByDate)
     return HttpResponseRedirect(release.release_file_url)
+
+
+def release_install(request, app_name, version): #need to add functionality for desktop apps as well or make new function (or use release_download)
+    app = get_object_or_404(App, name=app_name)
+    if app.platform == 'service':
+        release = get_object_or_404(ServiceRelease, app=app, version=version, active=True)
+        _record_download(request, app, release, ServiceDownload, ServiceReleaseDownloadsByDate)
+        return HttpResponseRedirect(release.install_url)
+    elif app.platform == 'web':
+        release = get_object_or_404(WebBundleRelease, app=app, version=version, active=True)
+        _record_download(request, app, release, WebBundleDownload, WebBundleReleaseDownloadsByDate)
+        return HttpResponseRedirect(release.install_url)
+    else:
+        raise Http404
 
 # ===================================
 #   Download statistics
@@ -78,8 +91,16 @@ def all_stats_geography_country(request, country_code):
     return _country_downloads(None, country_code)
 
 def all_stats_timeline(request):
-    dls = ReleaseDownloadsByDate.objects.filter(release = None)
-    response = {'Total': [[dl.when.isoformat(), dl.count] for dl in dls]}
+    totals_by_date = defaultdict(int)
+
+    for by_date_model in (ReleaseDownloadsByDate, ServiceReleaseDownloadsByDate, WebBundleReleaseDownloadsByDate):
+        for dl in by_date_model.objects.filter(release=None):
+            totals_by_date[dl.when] += dl.count
+
+    response = {
+        'Total': [[when.isoformat(), count] for when, count in sorted(totals_by_date.items())]
+    }
+
     return json_response(response)
 
 def app_stats(request, app_name):
@@ -96,8 +117,20 @@ def app_stats(request, app_name):
 
 def app_stats_timeline(request, app_name):
     app = get_object_or_404(App, active = True, name = app_name)
-    releases = app.release_set.all()
     response = dict()
+
+    if app.platform == 'desktop':
+        release = app.release_set.all()
+        by_date_model = ReleaseDownloadsByDate
+    elif app.platform == 'service':
+        release = app.servicereleases_set.all()
+        by_date_model = ServiceReleaseDownloadsByDate
+    elif app.platform == 'web':
+        release = app.webbundlereleases_set.all()
+        by_date_model = WebBundleReleaseDownloadsByDate
+    else:
+        raise Http404
+
     for release in releases:
         dls = ReleaseDownloadsByDate.objects.filter(release = release)
         response[release.version] = [[dl.when.isoformat(), dl.count] for dl in dls]
