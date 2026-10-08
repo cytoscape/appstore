@@ -64,23 +64,22 @@
 
                 <hr>
 
-                <h4>GitHub Repository <small>(Recommended)</small></h4>
+                <h4>GitHub Repository <small>(Not supported yet)</small></h4>
 
                 <p>
-                    Submit a public GitHub repository and an immutable version
-                    reference (tag or commit SHA).
+                    Submission via GitHub repository is not supported yet.
+                    Please use Bundle Upload to submit your web app.
                 </p>
 
                 <ul>
-                    <li>App Store builds the application</li>
-                    <li>Automatic validation</li>
-                    <li>Hosted by the App Store</li>
+                    <li>Planned: App Store builds the application</li>
+                    <li>Planned: Automatic validation</li>
+                    <li>Planned: Hosted by the App Store</li>
                 </ul>
 
-                <a class="btn btn-primary btn-block"
-                   href="{% url 'platform-select' %}">
+                <button type="button" class="btn btn-block disabled" disabled>
                     Submit via GitHub Repo
-                </a>
+                </button>
 
                 <hr>
 
@@ -96,9 +95,9 @@
                     <li>Reviewed before publication</li>
                 </ul>
 
-                <a class="btn btn-default btn-block"
+                <a class="btn btn-primary btn-block"
                    href="{% url 'submit-web-bundle' %}">
-                    Upload Bundle
+                    Submit Web App
                 </a>
             </div>
         </div>
@@ -161,14 +160,14 @@
             <tr>
                 <th>Developer Submits</th>
                 <td>JAR File</td>
-                <td>GitHub Repository or Bundle</td>
+                <td>Bundle (GitHub repository submission not supported yet)</td>
                 <td>Service Endpoint</td>
             </tr>
 
             <tr>
                 <th>Built by App Store</th>
                 <td>No</td>
-                <td>GitHub submissions only</td>
+                <td>No (GitHub builds not supported yet)</td>
                 <td>No</td>
             </tr>
 
