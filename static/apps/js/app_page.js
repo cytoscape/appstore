@@ -24,24 +24,42 @@ var AppPage = (function($) {
                 button.disabled = false;
             }
 
+            function copied() {
+                status.textContent = 'URL copied!';
+                button.disabled = false;
+                button.focus();
+            }
+
+            function fallback_copy() {
+                // The Clipboard API is unavailable on HTTP and may be denied
+                // by browser permissions. Try copying the selected field too.
+                select_url();
+                try {
+                    if (document.execCommand('copy')) {
+                        copied();
+                        return;
+                    }
+                } catch (error) {
+                    // Keep the URL selected if both clipboard methods fail.
+                }
+                manual_copy();
+            }
+
             field.addEventListener('focus', function() { field.select(); });
             field.addEventListener('click', function() { field.select(); });
             button.hidden = false;
             status.textContent = '';
             button.addEventListener('click', function() {
                 if (!navigator.clipboard || !navigator.clipboard.writeText) {
-                    manual_copy();
+                    fallback_copy();
                     return;
                 }
                 button.disabled = true;
                 status.textContent = 'Copying URL…';
                 try {
-                    navigator.clipboard.writeText(field.value).then(function() {
-                        status.textContent = 'URL copied!';
-                        button.disabled = false;
-                    }, manual_copy);
+                    navigator.clipboard.writeText(field.value).then(copied, fallback_copy);
                 } catch (error) {
-                    manual_copy();
+                    fallback_copy();
                 }
             });
         });
