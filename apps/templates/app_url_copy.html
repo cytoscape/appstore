@@ -1,5 +1,22 @@
 <div class="cy-app-url-copy">
-    <label for="cy-app-url"><strong>{{ url_label }}</strong></label>
+    <div class="cy-app-url-heading">
+        <label for="cy-app-url"><strong>{{ url_label }}</strong></label>
+        {% if url_label == 'Manifest URL' %}
+        <details class="cy-app-url-help">
+            <summary aria-label="How to add this app using its manifest URL">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 11v6M12 7v2"></path>
+                </svg>
+            </summary>
+            <div class="cy-app-url-help-text">
+                To add this app directly in Cytoscape Web, open Apps &rarr; Manage Apps,
+                select the Install from URL tab, and paste this manifest URL.
+            </div>
+        </details>
+        {% endif %}
+    </div>
     <div class="cy-app-url-line">
         <input id="cy-app-url" type="text" value="{{ app_url }}" readonly
                aria-describedby="cy-app-url-status">

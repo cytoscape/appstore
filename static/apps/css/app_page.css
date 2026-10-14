@@ -82,6 +82,55 @@
     gap: 6px;
 }
 
+.cy-app-url-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
+.cy-app-url-help {
+    position: relative;
+    color: #005580;
+}
+
+.cy-app-url-help summary {
+    display: block;
+    cursor: pointer;
+    line-height: 14px;
+    list-style: none;
+}
+
+.cy-app-url-help summary::-webkit-details-marker {
+    display: none;
+}
+
+.cy-app-url-help summary:focus-visible {
+    outline: 2px solid #005580;
+    outline-offset: 2px;
+}
+
+.cy-app-url-help-text {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: -100px;
+    z-index: 103;
+    width: 200px;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    color: #333;
+    font-size: 12px;
+    line-height: 18px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.cy-app-url-help[open] .cy-app-url-help-text,
+.cy-app-url-help:hover .cy-app-url-help-text {
+    display: block;
+}
+
 .cy-app-url-copy input {
     box-sizing: border-box;
     flex: 1;
