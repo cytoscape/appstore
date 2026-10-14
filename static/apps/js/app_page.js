@@ -7,6 +7,64 @@ var AppPage = (function($) {
 
     var AppManagerURL = 'http://127.0.0.1:1234/v1';
 
+    function setup_url_copy() {
+        $('.cy-app-url-copy').each(function() {
+            var field = this.querySelector('input');
+            var button = this.querySelector('button');
+            var status = this.querySelector('[role="status"]');
+
+            function select_url() {
+                field.focus();
+                field.select();
+            }
+
+            function manual_copy() {
+                select_url();
+                status.textContent = 'Press Ctrl+C (Windows/Linux) or Command+C (Mac) to copy the URL.';
+                button.disabled = false;
+            }
+
+            function copied() {
+                status.textContent = 'URL copied!';
+                button.disabled = false;
+                button.focus();
+            }
+
+            function fallback_copy() {
+                // The Clipboard API is unavailable on HTTP and may be denied
+                // by browser permissions. Try copying the selected field too.
+                select_url();
+                try {
+                    if (document.execCommand('copy')) {
+                        copied();
+                        return;
+                    }
+                } catch (error) {
+                    // Keep the URL selected if both clipboard methods fail.
+                }
+                manual_copy();
+            }
+
+            field.addEventListener('focus', function() { field.select(); });
+            field.addEventListener('click', function() { field.select(); });
+            button.hidden = false;
+            status.textContent = '';
+            button.addEventListener('click', function() {
+                if (!navigator.clipboard || !navigator.clipboard.writeText) {
+                    fallback_copy();
+                    return;
+                }
+                button.disabled = true;
+                status.textContent = 'Copying URL…';
+                try {
+                    navigator.clipboard.writeText(field.value).then(copied, fallback_copy);
+                } catch (error) {
+                    fallback_copy();
+                }
+            });
+        });
+    }
+
     function is_manager_running(callback) {
         $.ajax(AppManagerURL, {
             'type': 'GET',
@@ -69,6 +127,7 @@ var AppPage = (function($) {
             },
             callback);
     }
+
     var install_btn = $('#cy-app-install-btn');
     var install_btn_last_class = [];
 
@@ -299,6 +358,7 @@ var AppPage = (function($) {
     */
 
     return {
+        'setup_url_copy': setup_url_copy,
         'setup_install': setup_install,
         'setup_cy_2x_download_popover': setup_cy_2x_download_popover,
         'setup_stars': setup_stars,
