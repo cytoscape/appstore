@@ -312,6 +312,7 @@
 			target="_blank">
 				<h4>Install in Cytoscape Web</h4>
 			</a>
+			{% include 'app_url_copy.html' with url_label='Manifest URL' app_url=bundle_latest_release.manifest_url %}
 			<!--
 			<p><strong>CDN Base:</strong> {{ bundle_latest_release.cdn_base_url }}</p>
             <p>
@@ -341,6 +342,9 @@
 			target="_blank">
 				<h4>Open in Cytoscape Web</h4>
 			</a>
+			{% if service_latest_release.service_endpoint %}
+			{% include 'app_url_copy.html' with url_label='Service URL' app_url=service_latest_release.service_endpoint %}
+			{% endif %}
 			<p><h6 class="panel-title muted">CYTOSCAPE 3.0</h6></p>
 			<!-- remove pointer-events/aria-disabled/tabindex/opacity and the title
 				attribute below once Desktop install support ships — the href/target
@@ -537,6 +541,7 @@ AppPage.setup_install("{{ app.name|escapejs}}",
 {% endif %}
 {% endif %}
 AppPage.setup_cy_2x_download_popover('{% get_static_prefix %}apps/img/plugins_dir.png');
+AppPage.setup_url_copy();
 
 {% if app.details %}
 AppPage.setup_details();
