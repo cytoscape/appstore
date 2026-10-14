@@ -244,6 +244,12 @@
 						</h4>
 						{# End Release version #}
 
+						{% if app.platform == 'web' %}
+						{% include 'app_url_copy.html' with url_label='Manifest URL' app_url=release.manifest_url url_id=release.pk %}
+						{% elif app.platform == 'service' and release.service_endpoint %}
+						{% include 'app_url_copy.html' with url_label='Service URL' app_url=release.service_endpoint url_id=release.pk %}
+						{% endif %}
+
 						{# Works with #}
 						<p>
 							<strong>Works with</strong> Cytoscape

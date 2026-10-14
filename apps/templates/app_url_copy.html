@@ -1,6 +1,6 @@
 <div class="cy-app-url-copy">
     <div class="cy-app-url-heading">
-        <label for="cy-app-url"><strong>{{ url_label }}</strong></label>
+        <label for="cy-app-url-{{ url_id|default:'latest' }}"><strong>{{ url_label }}</strong></label>
         {% if url_label == 'Manifest URL' or url_label == 'Service URL' %}
         <details class="cy-app-url-help">
             <summary aria-label="How to add this app using its {{ url_label|lower }}">
@@ -23,8 +23,8 @@
         {% endif %}
     </div>
     <div class="cy-app-url-line">
-        <input id="cy-app-url" type="text" value="{{ app_url }}" readonly
-               aria-describedby="cy-app-url-status">
+        <input id="cy-app-url-{{ url_id|default:'latest' }}" type="text" value="{{ app_url }}" readonly
+               aria-describedby="cy-app-url-status-{{ url_id|default:'latest' }}">
         <button type="button" class="cy-app-copy-url-btn" title="Copy {{ url_label }}"
                 aria-label="Copy {{ url_label }}" hidden>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -34,5 +34,5 @@
             </svg>
         </button>
     </div>
-    <p id="cy-app-url-status" class="muted" role="status" aria-live="polite">Select the URL to copy it manually.</p>
+    <p id="cy-app-url-status-{{ url_id|default:'latest' }}" class="muted" role="status" aria-live="polite">Select the URL to copy it manually.</p>
 </div>
