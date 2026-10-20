@@ -26,7 +26,7 @@ urlpatterns = [
     re_path(r'^cy2xplugins$', cy2x_plugins, name='cy2x-plugins'),
     re_path(r'^confirm/(\d{1,5})$', confirm_submission, name='confirm-submission'),
     re_path(r'^submit_api/(\d{1,5})$', submit_api, name='submit-api'),
-    re_path(r'^artifact_exists$', artifact_exists),
+    re_path(r'^artifact_exists$', artifact_exists, name='artifact-exists'),
     re_path(r'^submit_service_app$', submit_service_app, name='submit-service-app'),
     re_path(r'^confirm_service/(\d{1,5})$', service_app_confirm, name='confirm-service'),
     re_path(r'^submit_web_url$', submit_web_url, name='submit-web-url'),

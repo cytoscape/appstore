@@ -14,6 +14,8 @@ import json
 
 from unittest.mock import MagicMock, patch
 from django.test import TestCase
+from django.urls import reverse
+from django.contrib.staticfiles import finders
 
 from django.conf import settings
 
@@ -306,6 +308,47 @@ class ViewsTest(TestCase):
         self.assertTrue(b'Submit an API' in response.content)
         self.assertTrue(b'pom.xml is not valid; '
                         b'it must have' in response.content)
+
+    def test_submit_api_page_passes_artifact_exists_url_to_js(self):
+        userobj = User.objects.create_user(username='bob', password='secret',
+                                           is_superuser=True)
+        userobj.save()
+        jarfile = SimpleUploadedFile('SomeApp-1.0.0.jar', b'data',
+                                     content_type='application/zip')
+        pending = views._create_pending(userobj, 'SomeApp', '1.0.0',
+                                        'workswith', [], jarfile)
+        res = self.client.login(username='bob', password='secret')
+        self.assertTrue(res)
+
+        response = self.client.get('/submit/submit_api/' + str(pending.id))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('/submit/artifact_exists', reverse('artifact-exists'))
+        self.assertTrue(b"SubmitAPI.setupInputFiles('/submit/artifact_exists')"
+                        in response.content)
+
+    def test_artifact_exists_url_is_routed(self):
+        with patch('submit_app.views._url_exists', return_value=False) as mock_exists:
+            response = self.client.post(reverse('artifact-exists'),
+                                        {'groupId': 'es.imim',
+                                         'artifactId': 'DisGeNET-app',
+                                         'version': '8.2.6'})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(False, json.loads(response.content))
+        mock_exists.assert_called_once_with(
+            views.AppRepoUrl + '/es/imim/DisGeNET-app/8.2.6')
+
+    def test_artifact_exists_missing_coordinates(self):
+        response = self.client.post(reverse('artifact-exists'),
+                                    {'groupId': 'es.imim'})
+        self.assertEqual(400, response.status_code)
+
+    def test_submit_api_js_does_not_hardcode_artifact_exists_url(self):
+        js_path = finders.find('submit_app/js/submit_api.js')
+        self.assertIsNotNone(js_path)
+        with open(js_path, 'r') as f:
+            js = f.read()
+        self.assertFalse('artifact_exists' in js)
+        self.assertFalse('verifyFailed(' in js)
 
 
 class ViewsHelperMethodsTest(TestCase):
