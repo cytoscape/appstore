@@ -350,6 +350,15 @@ class ViewsTest(TestCase):
         self.assertFalse('artifact_exists' in js)
         self.assertFalse('verifyFailed(' in js)
 
+    def test_submit_api_js_accepts_xml_mime_types_and_escapes_filename(self):
+        js_path = finders.find('submit_app/js/submit_api.js')
+        self.assertIsNotNone(js_path)
+        with open(js_path, 'r') as f:
+            js = f.read()
+        self.assertTrue("'application/xml'" in js)
+        self.assertFalse('verifyPomFailed(file.name' in js)
+        self.assertTrue("$('<span>').text(file.name).html()" in js)
+
 
 class ViewsHelperMethodsTest(TestCase):
 

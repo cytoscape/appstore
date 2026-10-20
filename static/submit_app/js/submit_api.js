@@ -153,8 +153,13 @@ var SubmitAPI = (function($) {
 
       $('#pom-verifying').show();
 
-      if (file.type !== 'text/xml') {
-        return verifyPomFailed(file.name + " is not an XML file");
+      /* Browsers report .xml files as text/xml, application/xml, or no type at all.
+         The content itself is validated by extractPomAttrs. */
+      var isXml = file.type === 'text/xml' || file.type === 'application/xml' ||
+                  (file.type === '' && /\.xml$/i.test(file.name));
+      if (!isXml) {
+        /* escape file name since status messages are inserted as HTML */
+        return verifyPomFailed($('<span>').text(file.name).html() + " is not an XML file");
       }
 
       var reader = new FileReader();
