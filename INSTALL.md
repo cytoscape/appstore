@@ -1,4 +1,13 @@
 # Install overview
+
+## Running the tests
+Host prerequisites: [uv](https://docs.astral.sh/uv/) (it provides Python 3.12 and the virtualenv).
+```
+make test
+```
+This creates `.venv/` with uv from `requirements.txt`, builds `build/` (migrations, search index) and runs `manage.py test`.
+
+## Legacy setup
 This project currently only works with `python 2` and very old django version `django < 1.9`.
 This instructions show how to setup a local virtual environment.
 

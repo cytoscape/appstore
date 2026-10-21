@@ -26,6 +26,10 @@ export PRINT_HELP_PYSCRIPT
 
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
 
+# project virtualenv, managed with uv (host prerequisite, like the python runtime)
+VENV := .venv
+PYTHON := $(VENV)/bin/python
+
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
@@ -58,7 +62,7 @@ nopyc: clean-pyc
 	find . -name "*.pyc" -exec rm -vf {} \;
 
 test: build ## run tests via python manage.py test
-	python manage.py test
+	$(PYTHON) manage.py test
 
 coverage: build ## check code coverage
 	coverage run --source '.' --omit=*/tests.py,*/migrations/*,build/*,wsgi.py manage.py test
@@ -66,24 +70,29 @@ coverage: build ## check code coverage
 	coverage html
 	$(BROWSER) htmlcov/index.html
 
-build: ## Build app database and static content in build directory
+$(VENV): requirements.txt ## create the virtualenv with uv and install requirements
+	uv venv --allow-existing --python 3.12 $(VENV)
+	uv pip install --python $(PYTHON) -r requirements.txt
+	touch $(VENV)
+
+build: $(VENV) ## Build app database and static content in build directory
 	mkdir -p build/whoosh_index
 	mkdir -p build/media
 	# should fix errors upon calling python manage.py commands
-	pip uninstall python-openid -y
-	pip uninstall python3-openid -y
-	pip install python3-openid
-	python manage.py makemigrations apps --noinput
-	python manage.py makemigrations backend --noinput
-	python manage.py makemigrations download --noinput
-	python manage.py makemigrations help --noinput
-	python manage.py makemigrations search --noinput
-	python manage.py makemigrations submit_app --noinput
-	python manage.py makemigrations users --noinput
-	python manage.py makemigrations --noinput
-	python manage.py migrate --noinput
-	python manage.py rebuild_index --noinput
+	-uv pip uninstall --python $(PYTHON) python-openid
+	-uv pip uninstall --python $(PYTHON) python3-openid
+	uv pip install --python $(PYTHON) python3-openid
+	$(PYTHON) manage.py makemigrations apps --noinput
+	$(PYTHON) manage.py makemigrations backend --noinput
+	$(PYTHON) manage.py makemigrations download --noinput
+	$(PYTHON) manage.py makemigrations help --noinput
+	$(PYTHON) manage.py makemigrations search --noinput
+	$(PYTHON) manage.py makemigrations submit_app --noinput
+	$(PYTHON) manage.py makemigrations users --noinput
+	$(PYTHON) manage.py makemigrations --noinput
+	$(PYTHON) manage.py migrate --noinput
+	$(PYTHON) manage.py rebuild_index --noinput
 
 
 runserver: build ## Runs server locally
-	python manage.py runserver
+	$(PYTHON) manage.py runserver
