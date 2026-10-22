@@ -225,7 +225,7 @@
 			{# Releases tab #}
 			{% if app.has_releases %}
 			<div class="tab-pane" id="cy-app-releases-tab">
-				{% for release in app.get_releases %}
+				{% for release in app.releases_for_display %}
 				<div class="row">
 					<div class="span8">
 						{# Release version #}

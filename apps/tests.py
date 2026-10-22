@@ -4,6 +4,7 @@ when you run "manage.py test".
 
 Replace this with more appropriate tests for your application.
 """
+import datetime
 import io
 import os
 import shutil
@@ -24,8 +25,10 @@ from apps.models import ReleaseAPI
 from apps.models import Tag
 from apps import models as apps_models
 from apps.models import Release
+from apps.models import ServiceRelease
 from apps.views import _AppPageEditConfig
 from apps.templatetags import app_buttons
+from submit_app.models import ServiceAppPending
 
 SMALL_GIF = (
     b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x00\x00\x00\x21\xf9\x04'
@@ -709,3 +712,84 @@ class AppButtonsTestCase(TestCase):
         appobj.save()
         res = app_buttons.app_button_by_name('myapp')
         self.assertEqual('myapp', res['app'].name)
+
+
+class ServiceReleaseOrderingTestCase(TestCase):
+
+    def setUp(self):
+        self.app = App.objects.create(name='svcapp', fullname='Service App',
+                                      platform=apps_models.Platform.SERVICE,
+                                      active=True, has_releases=True)
+        self.base_time = datetime.datetime(2026, 1, 1)
+
+    def make_release(self, version, days_old, active=True):
+        release = ServiceRelease.objects.create(
+            app=self.app, version=version, active=active,
+            service_endpoint='https://service.example.org/v' + version)
+        # created is auto_now_add, so set it after the insert
+        ServiceRelease.objects.filter(pk=release.pk).update(
+            created=self.base_time - datetime.timedelta(days=days_old))
+        return release
+
+    def versions(self):
+        return [release.version for release in self.app.servicereleases_by_version]
+
+    def test_service_version_key(self):
+        key = apps_models._service_version_key
+        self.assertGreater(key('1.10'), key('1.9'))
+        self.assertGreater(key('2.0.1'), key('2.0'))
+        self.assertEqual(key('1.0'), key('1.0.0'))
+        self.assertEqual((1, 2, 3), key('1.2.3'))
+        for unparseable in ('abc', '1.x', '1.0-beta', '', None):
+            self.assertIsNone(key(unparseable), unparseable)
+
+    def test_latest_version_first_regardless_of_created(self):
+        self.make_release('1.10', days_old=5)
+        self.make_release('1.9', days_old=1)
+        self.make_release('1.2.3', days_old=0)
+        self.assertEqual(['1.10', '1.9', '1.2.3'], self.versions())
+
+    def test_unparseable_version_sorts_last(self):
+        self.make_release('custom', days_old=0)
+        self.make_release('0.1', days_old=9)
+        self.assertEqual(['0.1', 'custom'], self.versions())
+
+    def test_equal_versions_tie_broken_by_newest_created(self):
+        self.make_release('1.0', days_old=3)
+        self.make_release('1.0.0', days_old=1)
+        self.assertEqual(['1.0.0', '1.0'], self.versions())
+
+    def test_inactive_releases_excluded(self):
+        self.make_release('2.0', days_old=0, active=False)
+        self.make_release('1.0', days_old=1)
+        self.assertEqual(['1.0'], self.versions())
+
+    def test_releases_for_display_by_platform(self):
+        self.make_release('1.9', days_old=0)
+        self.make_release('1.10', days_old=1)
+        self.assertEqual(['1.10', '1.9'], [r.version for r in self.app.releases_for_display])
+        desktop_app = App.objects.create(name='jarapp', fullname='Jar App', active=True)
+        self.assertQuerySetEqual(desktop_app.get_releases(), desktop_app.releases_for_display)
+
+    def test_resubmitted_old_version_does_not_become_latest(self):
+        self.make_release('1.10', days_old=1)
+        self.make_release('1.9', days_old=5)
+        submitter = User.objects.create_user('submitter', 'submitter@example.org', 'secret')
+        pending = ServiceAppPending.objects.create(
+            submitter=submitter, fullname='Service App', version='1.9',
+            service_endpoint='https://service.example.org/v1.9-again')
+        pending.make_service_release(self.app)
+        # the resubmission resets created to now, newer than 1.10
+        self.assertGreater(ServiceRelease.objects.get(app=self.app, version='1.9').created,
+                           ServiceRelease.objects.get(app=self.app, version='1.10').created)
+        self.assertEqual(['1.10', '1.9'], self.versions())
+
+    def test_service_page_uses_latest_version(self):
+        self.make_release('1.10', days_old=5)
+        self.make_release('1.9', days_old=1)
+        response = self.client.get('/apps/svcapp')
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('1.10', response.context['service_latest_release'].version)
+        releases_tab = response.content.decode().split('id="cy-app-releases-tab"', 1)[1]
+        self.assertLess(releases_tab.index('https://service.example.org/v1.10'),
+                        releases_tab.index('https://service.example.org/v1.9'))

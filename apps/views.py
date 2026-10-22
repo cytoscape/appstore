@@ -548,7 +548,7 @@ def app_page_edit(request, app_name):
 #---------------------------SERVICE APPS----------------------------
 
 def _latest_service_release(app):
-    releases = app.servicereleases
+    releases = app.servicereleases_by_version
     if not releases:
         return None
     return releases[0]

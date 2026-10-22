@@ -84,6 +84,21 @@ def app_icon_path(app, filename):
     """
     return pathjoin(app.name, filename)
 
+ServiceVersionRE = re.compile(r'^\d+(?:\.\d+)*$')
+
+def _service_version_key(version):
+    """
+    Numeric sort key for a service release version such as 1.10 or 2.0.1,
+    with trailing zeros dropped so 1.0 and 1.0.0 compare equal.
+    Returns None for versions that aren't dot-separated numbers.
+    """
+    if not version or not ServiceVersionRE.match(version):
+        return None
+    parts = [int(part) for part in version.split('.')]
+    while len(parts) > 1 and parts[-1] == 0:
+        parts.pop()
+    return tuple(parts)
+
 class Platform(models.TextChoices):
         DESKTOP = 'desktop', 'Desktop'
         WEB = 'web', 'Web'
@@ -204,12 +219,26 @@ class App(models.Model):
     def webbundlereleases(self):
         return self.webbundlerelease_set.filter(active=True).all()
     
+    @property
+    def servicereleases_by_version(self):
+        """Active service releases, latest version first; ties and unparseable versions fall back to newest created."""
+        def sort_key(release):
+            version_key = _service_version_key(release.version)
+            return (version_key is not None, version_key or (), release.created)
+        return sorted(self.servicereleases, key=sort_key, reverse=True)
+
     def get_releases(self):
         if self.platform == Platform.SERVICE:
             return self.servicereleases
         elif self.platform == Platform.WEB:
             return self.webbundlereleases
         return self.releases
+
+    @property
+    def releases_for_display(self):
+        if self.platform == Platform.SERVICE:
+            return self.servicereleases_by_version
+        return self.get_releases()
     
     def update_has_releases(self):
         self.has_releases = self.get_releases().count() > 0
