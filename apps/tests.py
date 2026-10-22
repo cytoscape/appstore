@@ -784,6 +784,16 @@ class ServiceReleaseOrderingTestCase(TestCase):
                            ServiceRelease.objects.get(app=self.app, version='1.10').created)
         self.assertEqual(['1.10', '1.9'], self.versions())
 
+    def test_edit_page_lists_releases_by_version(self):
+        self.make_release('1.10', days_old=5)
+        self.make_release('1.9', days_old=1)
+        editor = User.objects.create_user('editor', 'editor@example.org', 'secret')
+        self.app.editors.add(editor)
+        self.client.login(username='editor', password='secret')
+        response = self.client.get('/apps/svcapp/edit')
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(['1.10', '1.9'], [r.version for r in response.context['releases']])
+
     def test_service_page_uses_latest_version(self):
         self.make_release('1.10', days_old=5)
         self.make_release('1.9', days_old=1)

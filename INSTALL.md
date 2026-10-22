@@ -7,9 +7,11 @@ make test
 ```
 This creates `.venv/` with uv from `requirements.txt` and `requirements-test.txt` (including the Chromium browser for the browser tests), builds `build/` (migrations, search index) and runs `manage.py test`.
 
-On Linux, the browser tests also need Chromium's system libraries. Install them once, after the first `make test` has created `.venv/` (it needs sudo):
+On Linux, the browser tests also need Chromium's system libraries. Install them once, before the first `make test` (it needs sudo):
 ```
+make .venv/.installed
 .venv/bin/python -m playwright install-deps chromium
+make test
 ```
 
 ## Legacy setup
