@@ -70,9 +70,10 @@ coverage: build ## check code coverage
 	coverage html
 	$(BROWSER) htmlcov/index.html
 
-$(VENV): requirements.txt ## create the virtualenv with uv and install requirements
+$(VENV): requirements.txt requirements-test.txt ## create the virtualenv with uv and install requirements
 	uv venv --allow-existing --python 3.12 $(VENV)
-	uv pip install --python $(PYTHON) -r requirements.txt
+	uv pip install --python $(PYTHON) -r requirements.txt -r requirements-test.txt
+	$(PYTHON) -m playwright install chromium
 	touch $(VENV)
 
 build: $(VENV) ## Build app database and static content in build directory

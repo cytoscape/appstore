@@ -24,7 +24,10 @@ jobs:
       - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
         with:
           enable-cache: true
-          cache-dependency-glob: requirements.txt
+          cache-dependency-glob: requirements*.txt
+
+      - name: Browser system libraries
+        run: make .venv && .venv/bin/python -m playwright install-deps chromium
 
       - name: make test
         run: make test

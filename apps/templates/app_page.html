@@ -352,18 +352,10 @@
 			{% include 'app_url_copy.html' with url_label='Service URL' app_url=service_latest_release.service_endpoint %}
 			{% endif %}
 			<p><h6 class="panel-title muted">CYTOSCAPE 3.0</h6></p>
-			<!-- remove pointer-events/aria-disabled/tabindex/opacity and the title
-				attribute below once Desktop install support ships — the href/target
-				already point at the real endpoint. -->
-			<a class="btn btn-large btn-block"
-			style='margin-bottom: 15px; opacity: 0.5; cursor: not-allowed;'
-			href="{% url 'release_install' app.name service_latest_release.version %}" 
-			target="_blank"
-			tabindex="-1"
-			aria-disabled="true"
-			title="Coming Soon"> <!--release_install needs to be updated to accomodate for desktop apps (found in download.views)-->
-				<h4>Download for Cytoscape Desktop</h4>
-			</a>
+			<button class="btn btn-large btn-block disabled" id="cy-app-install-btn" style='margin-bottom: 15px;'>
+				<i></i> {# <-- install button icon will go here #}
+				<h4>Install in Cytoscape Desktop</h4>
+			</button>
 			<p><strong>Version</strong> {{ service_latest_release.version }}</p>
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
 			<p><strong>Released</strong> {{ service_latest_release.created|date:'j M Y' }}</p>
@@ -539,6 +531,15 @@ AppPage.setup_install("{{ app.name|escapejs }}",
 	"{% url 'release_download' app.name cy3_latest_release.version %}", 
 	"{{ cy3_latest_release.version }}",
 	"{% url 'getstarted_app_install' %}");
+{% elif app.platform == 'service' %}
+AppPage.setup_service_install({
+	'name': "{{ service_install_name|escapejs }}",
+	'version': "{{ service_latest_release.version|escapejs }}",
+	'url': "{{ service_latest_release.service_endpoint|escapejs }}",
+	'beacon_url': "{% url 'release_install' app.name service_latest_release.version %}?client=desktop",
+	'help_url': "{% url 'getstarted_app_install' %}",
+	'service_app_url': "{% url 'app_page' desktop_service_app_name %}"
+});
 {% else %}
 AppPage.setup_install("{{ app.name|escapejs}}",
 	"{{ app.fullname|escapejs}}",

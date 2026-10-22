@@ -553,9 +553,16 @@ def _latest_service_release(app):
         return None
     return releases[0]
 
+def _service_install_name(app, release):
+    # serviceapps install requires the name the service reports in its metadata
+    metadata = release.metadata if isinstance(release.metadata, dict) else {}
+    return metadata.get('name') or app.fullname
+
 def _mk_service_page(app, user, request):
     release = _latest_service_release(app)
     c = {
+        'service_install_name': _service_install_name(app, release),
+        'desktop_service_app_name': settings.DESKTOP_SERVICE_APP_NAME,
         'app': app,
         'service_endpoint': release.service_endpoint,
         'is_editor': (user and app.is_editor(user)),
