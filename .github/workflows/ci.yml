@@ -27,7 +27,7 @@ jobs:
           cache-dependency-glob: requirements*.txt
 
       - name: Browser system libraries
-        run: make .venv && .venv/bin/python -m playwright install-deps chromium
+        run: make .venv/.installed && .venv/bin/python -m playwright install-deps chromium
 
       - name: make test
         run: make test

@@ -29,6 +29,8 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 # project virtualenv, managed with uv (host prerequisite, like the python runtime)
 VENV := .venv
 PYTHON := $(VENV)/bin/python
+# written only after every setup step succeeds, so a failed setup is retried by the next make
+VENV_STAMP := $(VENV)/.installed
 
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
@@ -70,13 +72,13 @@ coverage: build ## check code coverage
 	coverage html
 	$(BROWSER) htmlcov/index.html
 
-$(VENV): requirements.txt requirements-test.txt ## create the virtualenv with uv and install requirements
+$(VENV_STAMP): requirements.txt requirements-test.txt ## create the virtualenv with uv and install requirements
 	uv venv --allow-existing --python 3.12 $(VENV)
 	uv pip install --python $(PYTHON) -r requirements.txt -r requirements-test.txt
 	$(PYTHON) -m playwright install chromium
-	touch $(VENV)
+	touch $(VENV_STAMP)
 
-build: $(VENV) ## Build app database and static content in build directory
+build: $(VENV_STAMP) ## Build app database and static content in build directory
 	mkdir -p build/whoosh_index
 	mkdir -p build/media
 	# should fix errors upon calling python manage.py commands
