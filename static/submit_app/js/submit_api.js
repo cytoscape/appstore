@@ -83,9 +83,13 @@ var SubmitAPI = (function($) {
   Parameters:
     - attrs: the object returned by extractPomAttrs. i.e. {'groupId': ..., 'artifactId': ..., ...}
     - callback: a function that takes a single boolean argument -- true if artifact exists, false otherwise
+  If the check itself fails, the pom is marked as not verified so the UI does not hang on "Verifying...".
   */
+  var artifactExistsUrl = null;
   function doesArtifactExist(attrs, callback) {
-    $.post('/submit_app/artifact_exists', attrs, callback);
+    $.post(artifactExistsUrl, attrs, callback).fail(function(xhr) {
+      verifyPomFailed('Unable to check the App Repository for an existing artifact (HTTP ' + xhr.status + '). Please try again later or contact the App Store team.');
+    });
   }
 
   /*
@@ -136,7 +140,8 @@ var SubmitAPI = (function($) {
   }
 
   /* Set up both the pom_xml and javadocs_jar file fields */
-  function setupInputFiles() {
+  function setupInputFiles(url) {
+    artifactExistsUrl = url;
     /* set up pom_xml field */
     $('input[name=pom_xml]').click(function(e) {
       $(this).val(null); // allows reselecting the same file again
@@ -148,8 +153,13 @@ var SubmitAPI = (function($) {
 
       $('#pom-verifying').show();
 
-      if (file.type !== 'text/xml') {
-        return verifyFailed(file.name + " is not an XML file");
+      /* Browsers report .xml files as text/xml, application/xml, or no type at all.
+         The content itself is validated by extractPomAttrs. */
+      var isXml = file.type === 'text/xml' || file.type === 'application/xml' ||
+                  (file.type === '' && /\.xml$/i.test(file.name));
+      if (!isXml) {
+        /* escape file name since status messages are inserted as HTML */
+        return verifyPomFailed($('<span>').text(file.name).html() + " is not an XML file");
       }
 
       var reader = new FileReader();
