@@ -208,6 +208,16 @@
     background-position: -70px 0;
 }
 
+/* busy icon on the install button while Cytoscape Desktop is being asked */
+.cy-spin {
+    animation: cy-spin 1s linear infinite;
+}
+
+@keyframes cy-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 .cy-markdown-preview {
 	border: 2px dashed #aaa;
 	padding: 1em;

@@ -246,6 +246,199 @@ var AppPage = (function($) {
         });
     }
 
+    /*
+     ================================================================
+       Install a service app via the Desktop Service App
+     ================================================================
+       desktop-service-app adds the serviceapps commands to Cytoscape
+       Desktop; CyREST serves them at /v1/commands/serviceapps/...
+    */
+
+    var ServiceRequestTimeoutMs = 10000;
+
+    function escape_html(text) {
+        return $('<div>').text(String(text)).html();
+    }
+
+    // serviceapps list replies with its JSON array on one line, followed by
+    // CyREST's "Finished"; CyREST may wrap each line in <p> tags.
+    function parse_service_list(reply) {
+        var lines = String(reply).replace(/<[^>]*>/g, '\n').split('\n');
+        for (var i = 0; i < lines.length; i++) {
+            var line = $.trim(lines[i]);
+            if (line.charAt(0) === '[') {
+                var list = JSON.parse(line);
+                if ($.isArray(list))
+                    return list;
+            }
+        }
+        throw new Error('no service app list in reply');
+    }
+
+    function version_parts(version) {
+        if (!/^\d+(\.\d+)*$/.test(version))
+            return null;
+        var parts = $.map(version.split('.'), function(part) { return parseInt(part, 10); });
+        while (parts.length > 1 && parts[parts.length - 1] === 0)
+            parts.pop();
+        return parts;
+    }
+
+    // -1, 0 or 1 comparing dot-separated numeric versions; null if either isn't numeric
+    function compare_versions(a, b) {
+        var pa = version_parts(String(a)), pb = version_parts(String(b));
+        if (!pa || !pb)
+            return null;
+        for (var i = 0; i < Math.max(pa.length, pb.length); i++) {
+            var x = i < pa.length ? pa[i] : 0, y = i < pb.length ? pb[i] : 0;
+            if (x !== y)
+                return x < y ? -1 : 1;
+        }
+        return 0;
+    }
+
+    function strip_trailing_slashes(url) {
+        return String(url).replace(/\/+$/, '');
+    }
+
+    // 'install', 'installed' or 'upgrade' for the store's latest release,
+    // given the service apps installed in Desktop
+    function service_install_state(installed_apps, release) {
+        var installed = null;
+        $.each(installed_apps, function(i, app) {
+            if (app.name === release.name)
+                installed = app;
+        });
+        if (!installed)
+            return 'install';
+        var cmp = compare_versions(installed.version, release.version);
+        if (cmp === null)
+            cmp = installed.version === release.version ? 0 : -1;
+        if (cmp > 0)
+            return 'installed';
+        if (cmp < 0)
+            return 'upgrade';
+        return strip_trailing_slashes(installed.url) === strip_trailing_slashes(release.url) ? 'installed' : 'upgrade';
+    }
+
+    function setup_service_install(opts) {
+        var cyrest_url = opts.cyrest_url || AppManagerURL;
+
+        function set_btn(btn_class, icon_class, btn_text, tooltip, func) {
+            setup_install_btn(btn_class, icon_class, btn_text, func);
+            if (tooltip)
+                install_btn.attr('title', tooltip);
+            else
+                install_btn.removeAttr('title');
+        }
+
+        function set_btn_unavailable(tooltip) {
+            set_btn('', 'icon-info-sign', 'Install in Cytoscape Desktop', tooltip);
+        }
+
+        function set_btn_to_installed() {
+            set_btn('btn-success', 'icon-cy-install-installed', 'Installed in Cytoscape Desktop');
+        }
+
+        function set_btn_for_state(state) {
+            if (state === 'installed') {
+                set_btn_to_installed();
+            } else if (state === 'upgrade') {
+                set_btn('btn-warning', 'icon-cy-install-upgrade', 'Upgrade in Cytoscape Desktop', null,
+                    function() { install('upgrade'); });
+            } else {
+                set_btn('btn-info', 'icon-cy-install-install', 'Install in Cytoscape Desktop', null,
+                    function() { install('install'); });
+            }
+        }
+
+        function install(state) {
+            set_btn('btn-info', 'icon-refresh cy-spin', state === 'upgrade' ? 'Upgrading...' : 'Installing...');
+            var url = cyrest_url + '/commands/serviceapps/install' +
+                '?name=' + encodeURIComponent(opts.name) +
+                '&version=' + encodeURIComponent(opts.version) +
+                '&url=' + encodeURIComponent(opts.url);
+            function failed(reason) {
+                CyMsgs.add_msg('Could not install &ldquo;' + escape_html(opts.name) + '&rdquo; in Cytoscape Desktop: <tt>' +
+                    escape_html(reason) + '</tt>', 'error', 'cy-service-install');
+                set_btn_for_state(state);
+            }
+            $.ajax(url, {
+                'type': 'GET',
+                'dataType': 'text',
+                'timeout': ServiceRequestTimeoutMs,
+                'success': function(reply) {
+                    if (String(reply).indexOf('installed') === -1) {
+                        failed(reply);
+                        return;
+                    }
+                    // count the Desktop install; best effort, it doesn't change what the user sees
+                    $.ajax(opts.beacon_url, {'type': 'GET'});
+                    CyMsgs.add_msg(escape_html(opts.name) + ' has been installed in Cytoscape Desktop! Go to Cytoscape to use it.',
+                        'success', 'cy-service-install');
+                    set_btn_to_installed();
+                },
+                'error': function(xhr, text_status) {
+                    if (text_status === 'timeout')
+                        failed('Cytoscape Desktop did not answer within ' + (ServiceRequestTimeoutMs / 1000) + ' seconds');
+                    else
+                        failed($.trim(xhr.responseText || '') || 'Cytoscape Desktop could not be reached');
+                }
+            });
+        }
+
+        function desktop_not_running() {
+            set_btn_unavailable('Start Cytoscape Desktop 3.10 or later, then reload this page.');
+            CyMsgs.add_msg('Start Cytoscape Desktop to install this service app. <a href="' + opts.help_url +
+                '" target="_blank">Click here</a> to learn how!', 'info', 'cy-service-install');
+        }
+
+        function service_app_missing() {
+            var reason = 'Desktop needs the Service App installed first to enable service app installation';
+            set_btn_unavailable(reason + '.');
+            CyMsgs.add_msg(reason + ': <a href="' + opts.service_app_url + '">get the Desktop Service App</a>.',
+                'info', 'cy-service-install');
+        }
+
+        function list_unreadable() {
+            set_btn_unavailable("Couldn't read installed service apps from Cytoscape Desktop.");
+        }
+
+        set_btn('', 'icon-refresh cy-spin', 'Checking Cytoscape Desktop...');
+
+        $.ajax(cyrest_url, {
+            'type': 'GET',
+            'dataType': 'text',
+            'timeout': ServiceRequestTimeoutMs,
+            'error': desktop_not_running,
+            'success': function() {
+                $.ajax(cyrest_url + '/commands/serviceapps/list', {
+                    'type': 'GET',
+                    'dataType': 'text',
+                    'timeout': ServiceRequestTimeoutMs,
+                    'success': function(reply) {
+                        var installed_apps;
+                        try {
+                            installed_apps = parse_service_list(reply);
+                        } catch (e) {
+                            list_unreadable();
+                            return;
+                        }
+                        set_btn_for_state(service_install_state(installed_apps, opts));
+                    },
+                    'error': function(xhr) {
+                        if (xhr.status === 404)
+                            service_app_missing();
+                        else if (xhr.status === 0)
+                            desktop_not_running();
+                        else
+                            list_unreadable();
+                    }
+                });
+            }
+        });
+    }
+
     function setup_cy_2x_download_popover(plugins_dir_img) {
         $('.cy-app-2x-download-popover').popover({
             'title': 'How to Install',
@@ -360,6 +553,7 @@ var AppPage = (function($) {
     return {
         'setup_url_copy': setup_url_copy,
         'setup_install': setup_install,
+        'setup_service_install': setup_service_install,
         'setup_cy_2x_download_popover': setup_cy_2x_download_popover,
         'setup_stars': setup_stars,
         'setup_details': setup_details,

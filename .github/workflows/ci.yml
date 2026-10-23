@@ -1,21 +1,33 @@
-name: CI
+name: ci
 
 on:
   push:
     branches: [master, dev]
   pull_request:
-    branches: [master, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  make-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # checks out into .../appstore/appstore; ROOT_URLCONF 'appstore.urls' needs the repo dir named appstore
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
         with:
-          python-version: "3.12"
-          cache: pip
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Run tests
+          enable-cache: true
+          cache-dependency-glob: requirements*.txt
+
+      - name: Browser system libraries
+        run: make .venv/.installed && .venv/bin/python -m playwright install-deps chromium
+
+      - name: make test
         run: make test

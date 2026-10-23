@@ -1,7 +1,7 @@
 import datetime
 from collections import defaultdict
 from django.shortcuts import get_object_or_404
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect
 from django.http import Http404
 
 from util.view_util import html_response, json_response, ipaddr_str_to_long, ipaddr_long_to_str
@@ -43,13 +43,20 @@ def release_download(request, app_name, version):
     return HttpResponseRedirect(release.release_file_url)
 
 
-def release_install(request, app_name, version): #need to add functionality for desktop apps as well or make new function (or use release_download)
+def release_install(request, app_name, version):
+    # ?client=desktop is the store page reporting a service app it installed into
+    # Cytoscape Desktop: record the install and reply 204 instead of redirecting.
+    client = request.GET.get('client')
     app = get_object_or_404(App, name=app_name)
     if app.platform == 'service':
         release = get_object_or_404(ServiceRelease, app=app, version=version, active=True)
         _record_download(request, app, release, ServiceDownload, ServiceReleaseDownloadsByDate)
+        if client == 'desktop':
+            return HttpResponse(status=204)
         return HttpResponseRedirect(release.install_url)
     elif app.platform == 'web':
+        if client == 'desktop':
+            raise Http404
         release = get_object_or_404(WebBundleRelease, app=app, version=version, active=True)
         _record_download(request, app, release, WebBundleDownload, WebBundleReleaseDownloadsByDate)
         return HttpResponseRedirect(release.install_url)
@@ -120,19 +127,19 @@ def app_stats_timeline(request, app_name):
     response = dict()
 
     if app.platform == 'desktop':
-        release = app.release_set.all()
+        releases = app.release_set.all()
         by_date_model = ReleaseDownloadsByDate
     elif app.platform == 'service':
-        release = app.servicereleases_set.all()
+        releases = app.servicerelease_set.all()
         by_date_model = ServiceReleaseDownloadsByDate
     elif app.platform == 'web':
-        release = app.webbundlereleases_set.all()
+        releases = app.webbundlerelease_set.all()
         by_date_model = WebBundleReleaseDownloadsByDate
     else:
         raise Http404
 
     for release in releases:
-        dls = ReleaseDownloadsByDate.objects.filter(release = release)
+        dls = by_date_model.objects.filter(release = release)
         response[release.version] = [[dl.when.isoformat(), dl.count] for dl in dls]
     return json_response(response)
         

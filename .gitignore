@@ -35,3 +35,4 @@ cyappstore.sql
 # Database
 *.sqlite3
 
+.venv/

@@ -1,6 +1,6 @@
 django==4.2.15  # requires django.utils.importlib
 social-auth-app-django==5.4.2
-social-auth-core<4.6  # 4.6+ removed MissingBackend, which social-auth-app-django 5.4.2 imports
+social-auth-core==4.5.4  # newer releases dropped MissingBackend, which social-auth-app-django 5.4.2 imports
 sphinx
 urllib3
 Whoosh==2.7.4

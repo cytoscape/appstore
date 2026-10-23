@@ -535,7 +535,7 @@ def app_page_edit(request, app_name):
     all_tags = [tag.fullname for tag in Tag.objects.all()]
     c = {
         'app': app,
-        'releases': app.get_releases(),
+        'releases': app.releases_for_display,
         'all_tags': all_tags,
         'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
         'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,
@@ -548,14 +548,21 @@ def app_page_edit(request, app_name):
 #---------------------------SERVICE APPS----------------------------
 
 def _latest_service_release(app):
-    releases = app.servicereleases
+    releases = app.servicereleases_by_version
     if not releases:
         return None
     return releases[0]
 
+def _service_install_name(app, release):
+    # serviceapps install requires the name the service reports in its metadata
+    metadata = release.metadata if isinstance(release.metadata, dict) else {}
+    return metadata.get('name') or app.fullname
+
 def _mk_service_page(app, user, request):
     release = _latest_service_release(app)
     c = {
+        'service_install_name': _service_install_name(app, release),
+        'desktop_service_app_name': settings.DESKTOP_SERVICE_APP_NAME,
         'app': app,
         'service_endpoint': release.service_endpoint,
         'is_editor': (user and app.is_editor(user)),
