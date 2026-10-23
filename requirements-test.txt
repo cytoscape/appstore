@@ -1,0 +1,1 @@
+playwright==1.63.0  # browser tests of the app page scripts (apps/test_service_install.py)

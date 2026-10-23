@@ -8,10 +8,14 @@
   latest_release_date="{{ app.latest_release_date.isoformat }}"
   onClick="window.location='{% url 'app_page' app.name %}';">
 
-  {% if app.has_releases %}
-    <i class="cy3-sticker" style="background-image: url('{% get_static_prefix %}apps/img/cy3_sticker.png');"></i>
+  {% if app.has_releases%}
+    {% if app.platform == 'web'%}
+      <i class="cy3-sticker" style="background-image: url('{% get_static_prefix %}apps/img/cyweb_sticker.png');"></i>
+    {% else %}
+      <i class="cy3-sticker" style="background-image: url('{% get_static_prefix %}apps/img/cy3_sticker.png');"></i>
+    {% endif %}
   {% endif %}
-  
+
   <a href="{% url 'app_page' app.name %}">
     <div class="partial">
       <table border="0" width="100%">
@@ -66,7 +70,11 @@
               <i class="stars-full icon-cy-stars-filled" style="width: {{ app.stars_percentage }}%"></i>
             </div>
             <span class="votes">
-              ({{ app.votes }}){% if app.has_releases %}&nbsp;&nbsp;{{ app.downloads }} downloads {% endif %}
+              ({{ app.votes }}){% if app.has_releases and app.platform == 'desktop' %}
+                                  &nbsp;&nbsp;{{ app.downloads }} downloads 
+                                {% elif app.has_releases and app.platform == 'service' or app.platform == 'web'%}
+                                  &nbsp;&nbsp;{{ app.downloads }} installs
+                                {% endif %}
             </span>
           </td>
         </tr>

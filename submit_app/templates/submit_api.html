@@ -103,9 +103,9 @@
 </div>
 </form>
 
-<script type="text/javascript" src="{% get_static_prefix %}submit_app/js/submit_api.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}submit_app/js/submit_api.js?v=148"></script>
 <script type="text/javascript">
-  SubmitAPI.setupInputFiles();
+  SubmitAPI.setupInputFiles('{% url "artifact-exists" %}');
 </script>
 {% endblock %}
     

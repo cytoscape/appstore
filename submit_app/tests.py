@@ -10,8 +10,12 @@ import io
 import tempfile
 import shutil
 
-from unittest.mock import MagicMock
+import json
+
+from unittest.mock import MagicMock, patch
 from django.test import TestCase
+from django.urls import reverse
+from django.contrib.staticfiles import finders
 
 from django.conf import settings
 
@@ -20,8 +24,14 @@ from django.core.files.uploadedfile import TemporaryUploadedFile
 from django.http import HttpRequest
 from django.contrib.auth.models import User
 from apps.models import App
+from apps.models import Platform
 from apps.models import Release
+from apps.models import WebBundleRelease
 from submit_app.models import AppPending
+from submit_app.models import WebBundlePending
+from submit_app import bundle_storage
+from submit_app import models as submit_models
+from util.id_util import fullname_to_name
 from submit_app import processjar
 from submit_app import mfparse
 from submit_app import views
@@ -103,7 +113,7 @@ class ViewsTest(TestCase):
                              'History tab in the app edit page', str(ve))
 
     def test_confirm_submission_pending_app_not_found(self):
-        response = self.client.post('/submit_app/confirm/12345',
+        response = self.client.post('/submit/confirm/12345',
                                     follow=True)
         self.assertEqual(404, response.status_code)
 
@@ -121,7 +131,7 @@ class ViewsTest(TestCase):
                                         'workswith', [], jarfile)
         res = self.client.login(username='joe', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id)
+        response = self.client.post('/submit/confirm/' + str(pending.id)
                                     ,follow=True)
         self.assertEqual(403, response.status_code)
 
@@ -136,7 +146,7 @@ class ViewsTest(TestCase):
                                         'workswith', [], jarfile)
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id),
+        response = self.client.post('/submit/confirm/' + str(pending.id),
                                     follow=True)
         self.assertEqual(200, response.status_code)
         self.assertTrue(b'Cytoscape App Store - '
@@ -163,7 +173,7 @@ class ViewsTest(TestCase):
 
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id),
+        response = self.client.post('/submit/confirm/' + str(pending.id),
                                     follow=True)
         self.assertEqual(200, response.status_code)
         self.assertTrue(b'Cytoscape App Store - '
@@ -183,7 +193,7 @@ class ViewsTest(TestCase):
                                         'workswith', [], jarfile)
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id),
+        response = self.client.post('/submit/confirm/' + str(pending.id),
                                     {'action': 'cancel'},
                                     follow=True)
         self.assertEqual(200, response.status_code)
@@ -202,7 +212,7 @@ class ViewsTest(TestCase):
                                         'workswith', [], jarfile)
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id),
+        response = self.client.post('/submit/confirm/' + str(pending.id),
                                     {'action': 'accept'},
                                     follow=True)
         self.assertEqual(200, response.status_code)
@@ -235,7 +245,7 @@ class ViewsTest(TestCase):
             res = self.client.login(username='bob', password='secret')
             self.assertTrue(res)
 
-            response = self.client.post('/submit_app/submit_api/' +
+            response = self.client.post('/submit/submit_api/' +
                                         str(pending.id),
                                         {'submit': 'true',
                                          'pom_xml': testpomfile,
@@ -261,7 +271,7 @@ class ViewsTest(TestCase):
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
 
-        response = self.client.post('/submit_app/submit_api/' +
+        response = self.client.post('/submit/submit_api/' +
                                     str(pending.id),
                                     {'submit': 'true',
                                      'pom_xml': testpomfile,
@@ -288,7 +298,7 @@ class ViewsTest(TestCase):
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
 
-        response = self.client.post('/submit_app/submit_api/' +
+        response = self.client.post('/submit/submit_api/' +
                                     str(pending.id),
                                     {'submit': 'true',
                                      'pom_xml': testpomfile,
@@ -298,6 +308,58 @@ class ViewsTest(TestCase):
         self.assertTrue(b'Submit an API' in response.content)
         self.assertTrue(b'pom.xml is not valid; '
                         b'it must have' in response.content)
+
+    def test_submit_api_page_passes_artifact_exists_url_to_js(self):
+        userobj = User.objects.create_user(username='bob', password='secret',
+                                           is_superuser=True)
+        userobj.save()
+        jarfile = SimpleUploadedFile('SomeApp-1.0.0.jar', b'data',
+                                     content_type='application/zip')
+        pending = views._create_pending(userobj, 'SomeApp', '1.0.0',
+                                        'workswith', [], jarfile)
+        res = self.client.login(username='bob', password='secret')
+        self.assertTrue(res)
+
+        response = self.client.get('/submit/submit_api/' + str(pending.id))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('/submit/artifact_exists', reverse('artifact-exists'))
+        self.assertTrue(b"SubmitAPI.setupInputFiles('/submit/artifact_exists')"
+                        in response.content)
+        # version query string forces browsers to drop a cached old submit_api.js
+        self.assertTrue(b'submit_app/js/submit_api.js?v=148' in response.content)
+
+    def test_artifact_exists_url_is_routed(self):
+        with patch('submit_app.views._url_exists', return_value=False) as mock_exists:
+            response = self.client.post(reverse('artifact-exists'),
+                                        {'groupId': 'es.imim',
+                                         'artifactId': 'DisGeNET-app',
+                                         'version': '8.2.6'})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(False, json.loads(response.content))
+        mock_exists.assert_called_once_with(
+            views.AppRepoUrl + '/es/imim/DisGeNET-app/8.2.6')
+
+    def test_artifact_exists_missing_coordinates(self):
+        response = self.client.post(reverse('artifact-exists'),
+                                    {'groupId': 'es.imim'})
+        self.assertEqual(400, response.status_code)
+
+    def test_submit_api_js_does_not_hardcode_artifact_exists_url(self):
+        js_path = finders.find('submit_app/js/submit_api.js')
+        self.assertIsNotNone(js_path)
+        with open(js_path, 'r') as f:
+            js = f.read()
+        self.assertFalse('artifact_exists' in js)
+        self.assertFalse('verifyFailed(' in js)
+
+    def test_submit_api_js_accepts_xml_mime_types_and_escapes_filename(self):
+        js_path = finders.find('submit_app/js/submit_api.js')
+        self.assertIsNotNone(js_path)
+        with open(js_path, 'r') as f:
+            js = f.read()
+        self.assertTrue("'application/xml'" in js)
+        self.assertFalse('verifyPomFailed(file.name' in js)
+        self.assertTrue("$('<span>').text(file.name).html()" in js)
 
 
 class ViewsHelperMethodsTest(TestCase):
@@ -724,3 +786,85 @@ class MFParseTestCase(TestCase):
                   '=optional;version="[3.16,4)"'
         res = mfparse.max_of_lower_cytoscape_pkg_versions(the_str)
         self.assertEqual(('3', '27', None, None), res)
+
+
+class WebBundleManifestIdTest(TestCase):
+    """The published manifest id must be the bundle's Module Federation
+    container name, not the store's URL slug (issue #144)."""
+
+    def setUp(self):
+        self.app = App.objects.create(fullname='C3 App', name='c3app',
+                                      platform=Platform.WEB)
+
+    def test_catalog_entry_uses_cy_app_id_not_the_slug(self):
+        release = WebBundleRelease.objects.create(app=self.app,
+                                                  cy_app_id='c3App',
+                                                  version='0.1.0')
+        entry = bundle_storage.bundle_catalog_entry(release)
+        self.assertEqual('c3App', entry['id'])
+        self.assertEqual('C3 App', entry['name'])
+
+    def test_catalog_entry_never_substitutes_the_slug(self):
+        # An empty cy_app_id means make_bundle_release did not run, which is a
+        # bug. Publishing the slug instead would hide it behind an id that is
+        # wrong but well-formed.
+        release = WebBundleRelease.objects.create(app=self.app, version='0.1.0')
+        entry = bundle_storage.bundle_catalog_entry(release)
+        self.assertNotEqual('c3app', entry['id'])
+
+    def test_slug_would_not_match_the_container_name(self):
+        # The regression this guards: the slug is derived from the display
+        # name and cannot round-trip a camelCase id.
+        self.assertEqual('c3app', fullname_to_name('C3 App'))
+        self.assertEqual('cytoscapewebsubmissiontest',
+                         fullname_to_name('Cytoscape Web Submission Test'))
+
+    def test_make_bundle_release_carries_the_pending_id(self):
+        user = User.objects.create_user(username='submitter',
+                                        password='password')
+        pending = WebBundlePending.objects.create(submitter=user,
+                                                  fullname='C3 App',
+                                                  cy_app_id='c3App',
+                                                  version='0.1.0',
+                                                  bundle_hash='abc')
+        with patch.object(submit_models, '_copy_bundle_to_storage'), \
+             patch.object(submit_models, 'write_manifest_json'):
+            pending.make_bundle_release(self.app)
+
+        release = WebBundleRelease.objects.get(app=self.app, version='0.1.0')
+        self.assertEqual('c3App', release.cy_app_id)
+
+    def test_make_bundle_release_falls_back_for_pre_cy_manifest_uploads(self):
+        user = User.objects.create_user(username='submitter2',
+                                        password='password')
+        pending = WebBundlePending.objects.create(submitter=user,
+                                                  fullname='C3 App',
+                                                  cy_app_id=None,
+                                                  version='0.2.0',
+                                                  bundle_hash='abc')
+        with patch.object(submit_models, '_copy_bundle_to_storage'), \
+             patch.object(submit_models, 'write_manifest_json'):
+            pending.make_bundle_release(self.app)
+
+        release = WebBundleRelease.objects.get(app=self.app, version='0.2.0')
+        self.assertEqual('c3app', release.cy_app_id)
+
+    def test_pending_manifest_uses_the_stored_id(self):
+        user = User.objects.create_user(username='submitter3',
+                                        password='password')
+        pending = WebBundlePending.objects.create(submitter=user,
+                                                  fullname='C3 App',
+                                                  cy_app_id='c3App',
+                                                  version='0.1.0',
+                                                  bundle_hash='abc')
+        saved = {}
+        storage = MagicMock()
+        storage.exists.return_value = False
+        storage.save.side_effect = lambda path, content: saved.update(
+            path=path, body=json.loads(content.read()))
+
+        with patch.object(bundle_storage, 'storages',
+                          {'webbundles': storage}):
+            bundle_storage.write_pending_manifest_json(pending)
+
+        self.assertEqual('c3App', saved['body'][0]['id'])
