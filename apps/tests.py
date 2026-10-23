@@ -794,6 +794,16 @@ class ServiceReleaseOrderingTestCase(TestCase):
         self.assertEqual(200, response.status_code)
         self.assertEqual(['1.10', '1.9'], [r.version for r in response.context['releases']])
 
+    def test_service_page_works_with_web_and_desktop(self):
+        self.make_release('1.10', days_old=1)
+        self.make_release('1.9', days_old=2)
+        html = self.client.get('/apps/svcapp').content.decode()
+        works_with = ('Cytoscape Web</a>, or <a href="http://www.cytoscape.org" target="_blank">Cytoscape Desktop</a> 3.10+'
+                      ' with the <a href="/apps/desktopserviceapp">Desktop Service App</a> installed')
+        # the side panel plus one line per release in the Releases tab
+        self.assertEqual(3, html.count(works_with))
+        self.assertNotIn('<strong>Works with</strong> Cytoscape\n', html)
+
     def test_service_page_uses_latest_version(self):
         self.make_release('1.10', days_old=5)
         self.make_release('1.9', days_old=1)

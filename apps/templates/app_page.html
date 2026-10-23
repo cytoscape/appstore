@@ -252,8 +252,12 @@
 
 						{# Works with #}
 						<p>
+							{% if app.platform == 'service' %}
+							{% include 'service_works_with.html' %}
+							{% else %}
 							<strong>Works with</strong> Cytoscape
 							{{ release.works_with }}
+							{% endif %}
 						</p>
 						{# End Works with #}
 
@@ -359,7 +363,7 @@
 			<p><strong>Version</strong> {{ service_latest_release.version }}</p>
 			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
 			<p><strong>Released</strong> {{ service_latest_release.created|date:'j M Y' }}</p>
-			<p><strong>Works with</strong> <a href="http://web.cytoscape.org" target="_blank">Cytoscape Web</a></p>
+			<p>{% include 'service_works_with.html' %}</p>
 			<p><strong>Install Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
 			{% else %}
 			<h6 class="panel-title muted">CYTOSCAPE 3</h6>
