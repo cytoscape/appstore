@@ -1,8 +1,11 @@
 import datetime
+import shutil
+import tempfile
 import http.client
 import json
 from urllib.parse import urlparse
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import LiveServerTestCase, TestCase
 
 from apps.models import App, Platform, Release, ServiceRelease, WebBundleRelease
@@ -33,6 +36,22 @@ class DownloadFixtureMixin:
                                               platform=Platform.DESKTOP, active=True)
         self.desktop_release = Release.objects.create(
             app=self.desktop_app, version='3.0.0', works_with='3.10')
+
+    def create_multi_platform_fixtures(self):
+        # the desktop release's jar goes to a temporary media root
+        media_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, media_root)
+        overrides = self.settings(MEDIA_ROOT=media_root)
+        overrides.enable()
+        self.addCleanup(overrides.disable)
+
+        self.multi_app = App.objects.create(name='multiapp', fullname='Multi App', active=True)
+        self.multi_desktop = Release.objects.create(app=self.multi_app, version='1.0', works_with='3.10',
+                                                    release_file=SimpleUploadedFile('multi-1.0.jar', b'jar'))
+        self.multi_web = WebBundleRelease.objects.create(app=self.multi_app, version='1.0', active=True,
+                                                         bundle_hash='abc123')
+        self.multi_service = ServiceRelease.objects.create(app=self.multi_app, version='1.0',
+                                                           service_endpoint='https://service.example.org/multi')
 
     def install_url(self, app, version, client=None):
         url = '/download/install/%s/%s' % (app.name, version)
@@ -120,6 +139,49 @@ class ReleaseInstallTestCase(DownloadFixtureMixin, TestCase):
             release=self.web_release, when=self.today).count)
 
 
+class MultiPlatformInstallTestCase(DownloadFixtureMixin, TestCase):
+    """An app with service, web and desktop releases of the same version (#155)."""
+
+    def setUp(self):
+        self.create_multi_platform_fixtures()
+
+    def test_platform_picks_the_release_installed(self):
+        response = self.client.get(self.install_url(self.multi_app, '1.0') + '?platform=web')
+        self.assertEqual((302, self.multi_web.install_url), (response.status_code, response['Location']))
+        self.assertEqual(1, WebBundleDownload.objects.filter(release=self.multi_web).count())
+
+        response = self.client.get(self.install_url(self.multi_app, '1.0') + '?platform=service')
+        self.assertEqual((302, self.multi_service.install_url), (response.status_code, response['Location']))
+        self.assertEqual(1, ServiceDownload.objects.filter(release=self.multi_service).count())
+
+    def test_bare_install_url_prefers_service(self):
+        response = self.client.get(self.install_url(self.multi_app, '1.0'))
+        self.assertEqual(self.multi_service.install_url, response['Location'])
+
+    def test_bare_install_url_finds_the_only_platform_with_the_version(self):
+        WebBundleRelease.objects.create(app=self.multi_app, version='2.0', active=True, bundle_hash='def456')
+        response = self.client.get(self.install_url(self.multi_app, '2.0'))
+        self.assertEqual(302, response.status_code)
+        self.assertIn('multiapp', response['Location'])
+
+    def test_desktop_beacon_records_the_service_release(self):
+        response = self.client.get(self.install_url(self.multi_app, '1.0', 'desktop'))
+        self.assertEqual(204, response.status_code)
+        self.assertEqual(1, ServiceDownload.objects.filter(release=self.multi_service).count())
+
+    def test_unknown_platform_is_404(self):
+        for platform in ('desktop', 'bogus'):
+            response = self.client.get(self.install_url(self.multi_app, '1.0') + '?platform=' + platform)
+            self.assertEqual(404, response.status_code)
+        self.assertEqual(0, ServiceDownload.objects.count() + WebBundleDownload.objects.count())
+
+    def test_desktop_download_of_a_multi_platform_app(self):
+        response = self.client.get('/download/multiapp/1.0')
+        self.assertEqual(302, response.status_code)
+        self.assertEqual(self.multi_desktop.release_file_url, response['Location'])
+        self.assertEqual(1, Download.objects.filter(release=self.multi_desktop).count())
+
+
 class AppStatsTimelineTestCase(DownloadFixtureMixin, TestCase):
 
     def setUp(self):
@@ -149,6 +211,15 @@ class AppStatsTimelineTestCase(DownloadFixtureMixin, TestCase):
         # ids can collide across the release tables; each platform must read its own by-date model
         ReleaseDownloadsByDate.objects.create(release=self.desktop_release, when=self.day, count=7)
         self.assertEqual({'1.0.0': [], '0.9.0': []}, self.get_timeline('svcapp'))
+
+    def test_multi_platform_timeline_keys_name_the_platform(self):
+        self.create_multi_platform_fixtures()
+        ReleaseDownloadsByDate.objects.create(release=self.multi_desktop, when=self.day, count=1)
+        WebBundleReleaseDownloadsByDate.objects.create(release=self.multi_web, when=self.day, count=2)
+        ServiceReleaseDownloadsByDate.objects.create(release=self.multi_service, when=self.day, count=3)
+        self.assertEqual({'desktop 1.0': [['2026-01-15', 1]],
+                          'web 1.0': [['2026-01-15', 2]],
+                          'service 1.0': [['2026-01-15', 3]]}, self.get_timeline('multiapp'))
 
     def test_unknown_app_is_404(self):
         self.assertEqual(404, self.client.get('/download/stats/nosuchapp/timeline').status_code)

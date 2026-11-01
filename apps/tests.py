@@ -858,14 +858,15 @@ class SeedIntegrationDataTestCase(TestCase):
         self.assertFalse(User.objects.get(username='it-other').is_staff)
 
         apps = {app.name: app for app in App.objects.all()}
-        self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itlegacy'}, set(apps))
+        self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itmulti', 'itlegacy'}, set(apps))
+        self.assertEqual([Platform.DESKTOP, Platform.WEB, Platform.SERVICE], apps['itmulti'].platforms)
         self.assertEqual(['1.0'], [r.version for r in apps['itdesktop'].releases])
         self.assertTrue(os.path.exists(apps['itdesktop'].releases[0].release_file.path))
         self.assertEqual(['1.0'], [r.version for r in apps['itweb'].webbundlereleases])
         self.assertEqual(['1.0'], [r.version for r in apps['itservice'].servicereleases])
         self.assertFalse(apps['itlegacy'].has_releases)
         self.assertTrue(apps['itlegacy'].cy_2x_plugin_download)
-        for name in ('itdesktop', 'itweb', 'itservice', 'itlegacy'):
+        for name in ('itdesktop', 'itweb', 'itservice', 'itmulti', 'itlegacy'):
             self.assertEqual(['it-editor'], [u.username for u in apps[name].editors.all()])
 
         pending = WebBundlePending.objects.get()
@@ -884,7 +885,7 @@ class SeedIntegrationDataTestCase(TestCase):
     def test_reseeding_replaces_the_data(self):
         self.seed()
         sessions = self.seed()
-        self.assertEqual(4, App.objects.count())
+        self.assertEqual(5, App.objects.count())
         self.assertEqual(1, WebBundlePending.objects.count())
         self.assertEqual(1, ServiceAppPending.objects.count())
         self.assertEqual(3, User.objects.filter(username__startswith='it-').count())

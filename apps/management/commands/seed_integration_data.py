@@ -95,6 +95,17 @@ class Command(BaseCommand):
             metadata={'name': 'IT Service', 'version': '1.0'})
         self.mark_released(service, service_release)
 
+        # the same version on all three platforms
+        multi = self.create_app('IT Multi', Platform.DESKTOP, editor, has_releases=True)
+        multi_desktop = Release.objects.create(app=multi, version='1.0', works_with='3.10')
+        multi_desktop.release_file.save('itmulti-1.0.jar', ContentFile(b'integration test jar'))
+        multi_desktop.calc_checksum()
+        write_manifest_json(WebBundleRelease.objects.create(app=multi, version='1.0', cy_app_id='itmulti',
+                                                            active=True, bundle_hash='0' * 64))
+        ServiceRelease.objects.create(app=multi, version='1.0', service_endpoint='https://service.example.org/itmulti',
+                                      metadata={'name': 'IT Multi', 'version': '1.0'})
+        self.mark_released(multi, multi_desktop)
+
         self.create_app('IT Legacy', Platform.DESKTOP, editor,
                         cy_2x_plugin_download='https://example.org/itlegacy-1.0.jar',
                         cy_2x_plugin_version='1.0', cy_2x_versions='2.8')
