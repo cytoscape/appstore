@@ -989,3 +989,38 @@ class AppPlatformsTestCase(TestCase):
         with self.assertNumQueries(1):
             platforms = [app.platforms for app in App.objects.filter(name__startswith='app')]
         self.assertEqual([[Platform.SERVICE]] * 10, platforms)
+
+
+class PlatformListingsTestCase(TestCase):
+    """Platform pages list every app on the platform; 2.x-only plugins get their own page (#155)."""
+
+    def setUp(self):
+        self.multi = App.objects.create(name='multi', fullname='Multi', active=True, has_releases=True)
+        Release.objects.create(app=self.multi, version='1.0', works_with='3.10')
+        WebBundleRelease.objects.create(app=self.multi, version='1.0', active=True, bundle_hash='0')
+        ServiceRelease.objects.create(app=self.multi, version='1.0', service_endpoint='https://example.org/multi')
+        self.legacy = App.objects.create(name='legacy', fullname='Legacy Plugin', active=True,
+                                         cy_2x_plugin_download='https://example.org/legacy.jar')
+        App.objects.create(name='empty', fullname='Empty App', active=True)
+
+    def listed(self, url):
+        response = self.client.get(url)
+        self.assertEqual(200, response.status_code)
+        return {app.fullname for app in response.context['apps']}
+
+    def test_an_app_is_listed_on_each_of_its_platforms(self):
+        for platform in ('desktop', 'web', 'service'):
+            self.assertEqual({'Multi'}, self.listed('/apps/platform/%s/' % platform))
+
+    def test_unknown_platform_is_404(self):
+        self.assertEqual(404, self.client.get('/apps/platform/bogus/').status_code)
+
+    def test_legacy_plugins_are_listed_only_on_their_own_page(self):
+        response = self.client.get('/apps/cy2x_plugins')
+        self.assertContains(response, 'Legacy Plugin')
+        self.assertNotContains(response, 'Empty App')
+        self.assertEqual({'Legacy Plugin'}, {app.fullname for app in response.context['apps']})
+        self.assertNotContains(self.client.get('/apps/platform/desktop/'), 'Unsupported Plugins')
+
+    def test_nav_panel_links_to_legacy_plugins(self):
+        self.assertContains(self.client.get('/apps/all'), 'href="/apps/cy2x_plugins"')

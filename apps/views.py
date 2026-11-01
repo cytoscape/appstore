@@ -159,7 +159,9 @@ def apps_with_author(request, author_name):
     return html_response('apps_with_author.html', c, request, processors = (_nav_panel_context, ))
 
 def apps_with_platform(request, platform):
-    apps = App.objects.filter(active=True, platform=platform)
+    if platform not in Platform.values:
+        raise Http404('No such platform "%s"' % platform)
+    apps = App.objects.filter(active=True).on_platform(platform)
 
     c = {
         'platform': platform,
@@ -169,6 +171,15 @@ def apps_with_platform(request, platform):
     }
 
     return html_response('apps_with_platform.html', c, request, processors = (_nav_panel_context, ))
+
+def cy2x_plugins_page(request):
+    c = {
+        'apps': App.objects.filter(active=True).legacy_plugins().order_by('name'),
+        'cy2x_plugins_selected': True,
+        'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
+        'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
+    }
+    return html_response('apps_cy2x_plugins.html', c, request, processors = (_nav_panel_context, ))
 
 # ============================================
 #      App Pages

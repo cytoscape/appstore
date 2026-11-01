@@ -9,6 +9,7 @@ from apps.views import wall_of_apps
 from apps.views import apps_with_tag
 from apps.views import apps_with_author
 from apps.views import apps_with_platform
+from apps.views import cy2x_plugins_page
 from apps.views import app_page
 from apps.views import app_page_edit
 from apps.views import author_names
@@ -25,6 +26,8 @@ urlpatterns = [
     re_path(r'^with_tag/(\w{1,100})$', apps_with_tag, name='tag_page'),
     re_path(r'^with_author/(.{1,300})$', apps_with_author, name='author_page'),
     re_path(r"^platform/(?P<platform>[\w-]+)/$", apps_with_platform, name="platform_page"),
+    # before app_page; no app can be named this, since app names have no underscores
+    re_path(r'^cy2x_plugins$', cy2x_plugins_page, name='cy2x_plugins_page'),
     re_path(r'^(\w{1,100})$', app_page, name='app_page'),
     #re_path(r'^(\w{1,100})$', service_page, name='service_page'),
     #re_path(r'^(\w{1,100})$', webapp_page, name='webapp_page'),

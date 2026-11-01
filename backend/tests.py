@@ -107,8 +107,8 @@ class BackendViewsTestCase(TestCase):
 class AllAppsReleaseShapeTestCase(TestCase):
     """
     Desktop's app-list reader expects every entry in all_apps releases to be a
-    downloadable jar release, and fails the whole catalog otherwise. Service and
-    web apps must only ever appear with releases: [].
+    downloadable jar release, and fails the whole catalog otherwise. all_apps
+    lists only apps with desktop releases, and only their desktop releases (#155).
     """
 
     def setUp(self):
@@ -132,11 +132,20 @@ class AllAppsReleaseShapeTestCase(TestCase):
         self.assertEqual(200, response.status_code)
         return {app['fullname']: app for app in response.json()}
 
-    def test_service_and_web_apps_listed_without_releases(self):
+    def test_service_and_web_only_apps_are_not_listed(self):
+        self.assertEqual({'Jar App'}, set(self.get_all_apps()))
+
+    def test_app_on_several_platforms_lists_only_its_desktop_releases(self):
+        multi_app = App.objects.create(name='multiapp', fullname='Multi App', active=True, has_releases=True)
+        Release.objects.create(app=multi_app, version='1.0', works_with='3.10',
+                               release_file=SimpleUploadedFile('multi.jar', b'hello'))
+        WebBundleRelease.objects.create(app=multi_app, version='1.1', active=True, bundle_hash='abc123')
+        ServiceRelease.objects.create(app=multi_app, version='1.2', service_endpoint='https://example.org/multi')
+
         apps = self.get_all_apps()
-        self.assertEqual({'Service App', 'Web App', 'Jar App'}, set(apps))
-        self.assertEqual([], apps['Service App']['releases'])
-        self.assertEqual([], apps['Web App']['releases'])
+        self.assertEqual({'Jar App', 'Multi App'}, set(apps))
+        self.assertEqual(['1.0'], [release['version'] for release in apps['Multi App']['releases']])
+        self.assertEqual(set(apps['Jar App']), set(apps['Multi App']))
 
     def test_jar_app_lists_downloadable_release(self):
         releases = self.get_all_apps()['Jar App']['releases']

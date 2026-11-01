@@ -115,7 +115,18 @@ def _platform_annotation(platform):
     return 'platform_' + platform
 
 
-class AppManager(models.Manager):
+class AppQuerySet(models.QuerySet):
+    def on_platform(self, platform):
+        """Apps with active releases on 'platform'."""
+        return self.filter(**{_platform_annotation(platform): True})
+
+    def legacy_plugins(self):
+        """Apps that are only a Cytoscape 2.x plugin: no active release on any platform."""
+        return self.filter(**{_platform_annotation(platform): False for platform in _PLATFORM_RELEASE_SETS}) \
+                   .exclude(cy_2x_plugin_download__isnull=True).exclude(cy_2x_plugin_download='')
+
+
+class AppManager(models.Manager.from_queryset(AppQuerySet)):
     """
     Annotates every App with whether it has active releases on each platform,
     so listings learn every app's platforms in the same query that loads them.
