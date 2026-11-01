@@ -71,10 +71,8 @@ class AppPending(PendingIdentity, models.Model):
             release.dependencies.add(dependee)
         release.calc_checksum()
 
-        if not app.has_releases:
-            app.has_releases = True
         app.latest_release_date = release.created
-        app.save()
+        app.update_has_releases()
 
         if self.pom_xml_file and self.javadocs_jar_file:
             api, _ = ReleaseAPI.objects.get_or_create(release=release)
@@ -166,10 +164,8 @@ class ServiceAppPending(PendingIdentity, models.Model):
         release.created = datetime.datetime.today()
         release.save()
 
-        if not app.has_releases:
-            app.has_releases = True
         app.latest_release_date = release.created
-        app.save()
+        app.update_has_releases()
 
 class WEB_SUBMISSION_ORIGIN(models.TextChoices):
     WEB_URL = 'web_url', 'Web URL',
@@ -273,10 +269,7 @@ class WebBundlePending(PendingIdentity, models.Model):
         release.active = True
         release.save()
 
-        if not app.has_releases:
-            app.has_releases = True
-
         app.latest_release_date = release.created
         _copy_bundle_to_storage(self.bundle, destination=f"{app.name}/{self.version}/")
         write_manifest_json(release)
-        app.save()
+        app.update_has_releases()

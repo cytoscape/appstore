@@ -13,6 +13,7 @@ import shutil
 import json
 
 from unittest.mock import MagicMock, patch
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.staticfiles import finders
@@ -27,6 +28,7 @@ from apps.models import App
 from apps.models import Platform
 from apps.models import Release
 from apps.models import WebBundleRelease
+from apps.models import ServiceRelease
 from submit_app.models import AppPending
 from submit_app.models import ServiceAppPending
 from submit_app.models import WebBundlePending
@@ -871,8 +873,8 @@ class WebBundleManifestIdTest(TestCase):
         self.assertEqual('c3App', saved['body'][0]['id'])
 
 
-class SubmissionIdentityTest(TestCase):
-    """Every platform's submission resolves its name to an app the submitter may extend (#155)."""
+class SubmissionFixtureMixin:
+    """Foo, a desktop app edited by 'editor', and helpers that submit service apps and web bundles."""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -907,14 +909,18 @@ class SubmissionIdentityTest(TestCase):
             data['expect_app_name'] = expect_app_name
         return self.client.post(reverse('submit-web-bundle'), data)
 
-    def submit_service(self, user, name='Foo', expect_app_name=None):
+    def submit_service(self, user, name='Foo', expect_app_name=None, version='1.0'):
         self.client.force_login(user)
         data = {'service-url': 'https://service.example.org/foo'}
         if expect_app_name:
             data['expect_app_name'] = expect_app_name
-        metadata = {'name': name, 'version': '1.0', 'author': 'Someone'}
+        metadata = {'name': name, 'version': version, 'author': 'Someone'}
         with patch('submit_app.views.check_reachable', return_value=metadata):
             return self.client.post(reverse('submit-service-app'), data)
+
+
+class SubmissionIdentityTest(SubmissionFixtureMixin, TestCase):
+    """Every platform's submission resolves its name to an app the submitter may extend (#155)."""
 
     def test_non_editor_cannot_submit_an_existing_name_on_any_platform(self):
         jar = SimpleUploadedFile('Foo-2.0.jar', b'data', content_type='application/zip')
@@ -982,3 +988,94 @@ class SubmissionIdentityTest(TestCase):
         for url in (reverse('submit-web-bundle'), reverse('submit-service-app')):
             self.assertContains(self.client.get(url + '?expect_app_name=Foo'),
                                 '<input type="hidden" name="expect_app_name" value="Foo">', html=True)
+
+
+class PlatformAcceptTest(SubmissionFixtureMixin, TestCase):
+    """Accepting a submission for a new platform adds it to the app already holding the name (#155)."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_user('admin', 'admin@example.org', 'secret', is_staff=True)
+
+    def confirm(self, url_name, pending):
+        return self.client.post(reverse(url_name, args=[pending.id]), {'action': 'accept'})
+
+    def admin_accept(self, pending, pending_platform):
+        self.client.force_login(self.admin)
+        return self.client.post(reverse('pending-apps'), {'action': 'accept', 'pending_id': pending.id,
+                                                          'pending_platform': pending_platform})
+
+    def assert_one_app_on(self, name, *platforms):
+        app = App.objects.get(name=name)
+        self.assertEqual(list(platforms), app.platforms)
+        self.assertEqual(['editor'], [u.username for u in app.editors.all()])
+        self.assertTrue(app.active)
+        return app
+
+    def subjects(self):
+        return [message.subject for message in mail.outbox]
+
+    def test_service_added_to_a_desktop_app(self):
+        self.submit_service(self.editor)
+        pending = ServiceAppPending.objects.get()
+        self.assertTemplateUsed(self.confirm('confirm-service', pending), 'submit_done.html')
+        self.assertRedirects(self.admin_accept(pending, 'service'), reverse('pending-apps'))
+
+        self.assert_one_app_on('foo', Platform.DESKTOP, Platform.SERVICE)
+        self.assertFalse(ServiceAppPending.objects.exists())
+        self.assertIn('Cytoscape App Store - App Submitted (new platform for existing app Foo)', self.subjects())
+        self.assertIn('Cytoscape App Store - The service version of Foo Has Been Approved', self.subjects())
+        self.assertIn('now appears on your existing app page', mail.outbox[-1].body)
+
+    def test_web_bundle_added_to_a_desktop_app(self):
+        self.submit_bundle(self.editor)
+        pending = WebBundlePending.objects.get()
+        self.assertTemplateUsed(self.confirm('confirm-web-bundle', pending), 'submit_done.html')
+        self.admin_accept(pending, 'web-bundle')
+
+        app = self.assert_one_app_on('foo', Platform.DESKTOP, Platform.WEB)
+        self.assertEqual(['1.0'], [r.version for r in app.webbundlereleases])
+        self.assertFalse(WebBundlePending.objects.exists())
+        self.assertIn('Cytoscape App Store - The Cytoscape Web version of Foo Has Been Approved', self.subjects())
+
+    def test_web_bundle_added_to_a_service_app(self):
+        service_app = App.objects.create(name='baz', fullname='Baz', active=True)
+        service_app.editors.add(self.editor)
+        ServiceRelease.objects.create(app=service_app, version='1.0', service_endpoint='https://example.org/baz')
+
+        self.submit_bundle(self.editor, name='Baz')
+        pending = WebBundlePending.objects.get()
+        self.confirm('confirm-web-bundle', pending)
+        self.admin_accept(pending, 'web-bundle')
+
+        self.assert_one_app_on('baz', Platform.WEB, Platform.SERVICE)
+
+    def test_inactive_app_is_reactivated_by_its_new_platform(self):
+        App.objects.filter(name='foo').update(active=False)
+        self.submit_service(self.editor)
+        self.admin_accept(ServiceAppPending.objects.get(), 'service')
+        self.assert_one_app_on('foo', Platform.DESKTOP, Platform.SERVICE)
+
+    def test_release_on_an_existing_platform_publishes_without_review(self):
+        self.submit_service(self.editor)
+        self.admin_accept(ServiceAppPending.objects.get(), 'service')
+
+        self.submit_service(self.editor, version='2.0')
+        pending = ServiceAppPending.objects.get()
+        self.assertFalse(pending.is_new_platform)
+        response = self.confirm('confirm-service', pending)
+        self.assertRedirects(response, reverse('app_page_edit', args=['foo']) + '?upload_release=true',
+                             fetch_redirect_response=False)
+        self.assertEqual(['2.0', '1.0'], [r.version for r in App.objects.get(name='foo').servicereleases_by_version])
+        self.assertFalse(ServiceAppPending.objects.exists())
+
+    def test_new_app_is_created_on_accept(self):
+        self.submit_service(self.other, name='Brand New')
+        pending = ServiceAppPending.objects.get()
+        self.confirm('confirm-service', pending)
+        self.admin_accept(pending, 'service')
+
+        app = App.objects.get(name='brandnew')
+        self.assertEqual([Platform.SERVICE], app.platforms)
+        self.assertEqual(['other'], [u.username for u in app.editors.all()])
+        self.assertIn('Cytoscape App Store - Brand New Has Been Approved', self.subjects())

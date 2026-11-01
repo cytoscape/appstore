@@ -120,7 +120,7 @@ def _user_cancelled(request, pending):
 
 def _user_accepted(request, pending):
     app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
-    if app and app.platform == 'desktop':
+    if app and app.has_platform(Platform.DESKTOP):
         if not app.is_editor(request.user):
             return HttpResponseForbidden('You are not authorized to add releases, because you are not an editor')
         if not app.active:
@@ -224,8 +224,11 @@ The following app has been submitted:
 """.format(id=pending.id, server_url=server_url, fullname=pending.fullname,
            version=pending.version, submitter_name=pending.submitter.username,
            submitter_email=pending.submitter.email)
+    subject = 'Cytoscape App Store - App Submitted'
+    if getattr(pending, 'is_new_platform', False):
+        subject += ' (new platform for existing app %s)' % pending.identity.app.fullname
     try:
-        send_mail('Cytoscape App Store - App Submitted', msg, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
+        send_mail(subject, msg, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
     except Exception as e:
         LOGGER.exception('Error sending email for pending App')
 
@@ -320,6 +323,30 @@ def submit_api(request, id):
                          request)
 
 
+# what accept emails call each platform
+_PLATFORM_NAMES = {
+    Platform.DESKTOP: 'Cytoscape Desktop',
+    Platform.WEB: 'Cytoscape Web',
+    Platform.SERVICE: 'service',
+}
+
+def _send_email_for_new_platform(to_email, from_email, app_fullname, app_name, server_url, platform):
+    platform_name = _PLATFORM_NAMES[platform]
+    subject = u'Cytoscape App Store - The {platform} version of {app_fullname} Has Been Approved'.format(
+        platform=platform_name, app_fullname=app_fullname)
+    app_url = reverse('app_page', args=[app_name])
+    msg = u"""The {platform} version of {app_fullname} has been approved and now appears on your existing app page:
+
+  {server_url}{app_url}
+
+- Cytoscape App Store Team
+""".format(platform=platform_name, app_fullname=app_fullname, server_url=server_url, app_url=app_url)
+    try:
+        send_mail(subject, msg, from_email, (to_email,))
+    except Exception as e:
+        LOGGER.exception('Error sending email for accepted platform')
+
+
 def _send_email_for_accepted_app(to_email, from_email, app_fullname, app_name, server_url):
     subject = u'Cytoscape App Store - {app_fullname} Has Been Approved'.format(app_fullname = app_fullname)
     app_url = reverse('app_page', args=[app_name])
@@ -364,21 +391,40 @@ def _get_server_url(request):
 
     return '%s://%s:%s' % (prefix, name, port)
 
+def _get_or_create_app_for_pending(pending, platform):
+    """
+    The App an accepted 'pending' release goes to: the app already holding its name, which is
+    then gaining 'platform', or else a new app with the submitter as its editor.
+
+    :return: the App, and whether it already existed
+    """
+    name = fullname_to_name(pending.fullname)
+    app = get_object_or_none(App, name=name)
+    existed = app is not None
+    if not existed:
+        app = App.objects.create(fullname=pending.fullname, name=name, platform=platform)
+        app.editors.add(pending.submitter)
+    app.active = True
+    app.save()
+    return app, existed
+
+
+def _send_email_for_accepted(request, submitter_email, app, existed, platform):
+    server_url = _get_server_url(request)
+    if existed:
+        _send_email_for_new_platform(submitter_email, settings.CONTACT_EMAIL, app.fullname, app.name,
+                                     server_url, platform)
+    else:
+        _send_email_for_accepted_app(submitter_email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
+
+
 @csrf_exempt
 def _pending_app_accept(pending, request):
-    name = fullname_to_name(pending.fullname)
-    # we always create a new app, because only new apps require accepting
-    app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.DESKTOP)
-    app.active = True
-    app.editors.add(pending.submitter)
-    app.save()
-
+    app, existed = _get_or_create_app_for_pending(pending, Platform.DESKTOP)
     pending.make_release(app)
     pending.delete_files()
     pending.delete()
-
-    server_url = _get_server_url(request)
-    _send_email_for_accepted_app(pending.submitter.email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
+    _send_email_for_accepted(request, pending.submitter.email, app, existed, Platform.DESKTOP)
 
 def _pending_app_decline(pending_app, request):
     pending_app.delete_files()
@@ -388,11 +434,7 @@ def _pending_app_decline(pending_app, request):
 @csrf_exempt
 def _pending_web_accept(pending, request): #INCLUDES PATH FOR REPO URL, MAY OR MAY NOT ADD SEPARATE FUNCTION LATER
     if isinstance(pending, WebBundlePending):
-        name = fullname_to_name(pending.fullname)
-        app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.WEB)
-        app.active = True
-        app.editors.add(pending.submitter)
-        app.save()  
+        app, existed = _get_or_create_app_for_pending(pending, Platform.WEB)
 
         try:
             pending.make_bundle_release(app)
@@ -406,24 +448,16 @@ def _pending_web_accept(pending, request): #INCLUDES PATH FOR REPO URL, MAY OR M
     else:
         pass #later configure to accept github url submissions
 
-    server_url = _get_server_url(request)
-    _send_email_for_accepted_app(pending.submitter.email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
+    _send_email_for_accepted(request, pending.submitter.email, app, existed, Platform.WEB)
 
 
 @csrf_exempt
 def _pending_service_accept(pending, request):
-    name = fullname_to_name(pending.fullname)
-    app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.SERVICE)
-    app.active = True
-    app.editors.add(pending.submitter)
-    app.save()
-
+    app, existed = _get_or_create_app_for_pending(pending, Platform.SERVICE)
     pending.make_service_release(app)
     submitter_email = pending.submitter.email
     pending.delete()
-
-    server_url = _get_server_url(request)
-    _send_email_for_accepted_app(submitter_email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
+    _send_email_for_accepted(request, submitter_email, app, existed, Platform.SERVICE)
 
 def _pending_url_decline(pending_app, request): #originally _pending_service_decline, change to just url for repo url as well
     pending_app.delete()
@@ -716,7 +750,7 @@ def _service_user_cancel(request, pending):
 
 def _service_user_accepted(request, pending):
     app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
-    if app and app.platform == 'service':
+    if app and app.has_platform(Platform.SERVICE):
         if not app.is_editor(request.user):
             return HttpResponseForbidden('You are not authorized to make changes or add new releases to this app')
         if not app.active:
@@ -998,7 +1032,7 @@ def _bundle_user_cancelled(request, pending):
 
 def _bundle_user_accepted(request, pending):
     app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
-    if app and app.platform == 'web':
+    if app and app.has_platform(Platform.WEB):
         if not app.is_editor(request.user):
             return HttpResponseForbidden('You are not authorized to make changes or add new releases to this app')
         if not app.active:

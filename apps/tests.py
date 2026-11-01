@@ -34,6 +34,7 @@ from apps.models import Platform
 from apps.views import _AppPageEditConfig
 from apps.templatetags import app_buttons
 from submit_app.models import ServiceAppPending
+from submit_app.models import WebBundlePending
 
 SMALL_GIF = (
     b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x00\x00\x00\x21\xf9\x04'
@@ -865,6 +866,11 @@ class SeedIntegrationDataTestCase(TestCase):
         for name in ('itdesktop', 'itweb', 'itservice', 'itlegacy'):
             self.assertEqual(['it-editor'], [u.username for u in apps[name].editors.all()])
 
+        pending = WebBundlePending.objects.get()
+        self.assertEqual(('IT Desktop', '1.0', 'it-editor'), (pending.fullname, pending.version, pending.submitter.username))
+        self.assertTrue(pending.is_new_platform)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, 'media', 'webbundles', pending.bundle_path, 'remoteEntry.js')))
+
     def test_sessions_sign_in_each_user(self):
         sessions = self.seed()
         for role, username in (('admin', 'it-admin'), ('editor', 'it-editor'), ('other', 'it-other')):
@@ -874,6 +880,7 @@ class SeedIntegrationDataTestCase(TestCase):
         self.seed()
         sessions = self.seed()
         self.assertEqual(4, App.objects.count())
+        self.assertEqual(1, WebBundlePending.objects.count())
         self.assertEqual(3, User.objects.filter(username__startswith='it-').count())
         self.assertEqual('it-editor', self.signed_in_user(sessions['editor']).username)
 

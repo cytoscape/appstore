@@ -1,5 +1,7 @@
+import io
 import json
 import os
+import zipfile
 
 from django.conf import settings
 from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY
@@ -9,7 +11,7 @@ from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.models import App, Platform, Release, ServiceRelease, WebBundleRelease
-from submit_app.bundle_storage import write_manifest_json
+from submit_app.bundle_storage import _copy_bundle_to_storage, write_manifest_json, write_pending_manifest_json
 from submit_app.models import AppPending, ServiceAppPending, WebBundlePending, WebUrlPending
 from util.id_util import fullname_to_name
 
@@ -24,6 +26,8 @@ def sessions_file():
     return os.path.join(settings.BUILD_DIR, 'it_sessions.json')
 
 
+# Specs that change data own the seeded objects they change, so the specs stay independent:
+# admin-accept.spec.ts accepts IT Desktop's pending Cytoscape Web bundle.
 class Command(BaseCommand):
     help = ('Replaces all apps, pending submissions and it-* users with the integration test data, '
             'and writes a logged-in session key per test user to build/it_sessions.json. '
@@ -36,6 +40,7 @@ class Command(BaseCommand):
         self.flush()
         users = {role: self.create_user(**fields) for role, fields in USERS.items()}
         self.create_apps(users)
+        self.create_pending(users)
 
         sessions = {role: self.create_session(user) for role, user in users.items()}
         os.makedirs(os.path.dirname(sessions_file()), exist_ok=True)
@@ -92,6 +97,22 @@ class Command(BaseCommand):
         self.create_app('IT Legacy', Platform.DESKTOP, editor,
                         cy_2x_plugin_download='https://example.org/itlegacy-1.0.jar',
                         cy_2x_plugin_version='1.0', cy_2x_versions='2.8')
+
+    def create_pending(self, users):
+        # IT Desktop's editor submitted a Cytoscape Web version, which awaits review
+        web_pending = WebBundlePending.objects.create(
+            submitter=users['editor'], fullname='IT Desktop', cy_app_id='itdesktop', version='1.0',
+            author='it-editor', bundle_hash='1' * 64, status=WebBundlePending.Status.PENDING_REVIEW)
+        web_pending.bundle.save('itdesktop-1.0.zip', ContentFile(self.web_bundle('itdesktop', 'IT Desktop', '1.0')))
+        _copy_bundle_to_storage(web_pending.bundle, web_pending.bundle_path)
+        write_pending_manifest_json(web_pending)
+
+    def web_bundle(self, cy_app_id, fullname, version):
+        data = io.BytesIO()
+        with zipfile.ZipFile(data, 'w') as zf:
+            zf.writestr('dist/remoteEntry.js', 'var %s;' % cy_app_id)
+            zf.writestr('dist/cy-manifest.json', json.dumps({'id': cy_app_id, 'name': fullname, 'version': version}))
+        return data.getvalue()
 
     def mark_released(self, app, release):
         app.latest_release_date = release.created
