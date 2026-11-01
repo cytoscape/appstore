@@ -1,4 +1,4 @@
-.PHONY: clean clean-test clean-pyc clean-build help build
+.PHONY: clean clean-test clean-pyc clean-build help build integration-image integration-test
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -96,6 +96,17 @@ build: $(VENV_STAMP) ## Build app database and static content in build directory
 	$(PYTHON) manage.py migrate --noinput
 	$(PYTHON) manage.py rebuild_index --noinput
 
+
+INTEGRATION_IMAGE ?= appstore-it:local
+INTEGRATION_PORT ?= 8080
+
+integration-image: ## build the Docker image the integration tests run against
+	docker build -f docker/Dockerfile -t $(INTEGRATION_IMAGE) .
+
+integration-test: integration-image ## run the Playwright integration suite (Chromium, Firefox) against the App Store container
+	npm ci --prefix integration --no-audit --no-fund
+	cd integration && npx playwright install chromium firefox
+	INTEGRATION_IMAGE=$(INTEGRATION_IMAGE) INTEGRATION_PORT=$(INTEGRATION_PORT) sh docker/integration-test.sh
 
 runserver: build ## Runs server locally
 	$(PYTHON) manage.py runserver

@@ -36,3 +36,9 @@ cyappstore.sql
 *.sqlite3
 
 .venv/
+
+# integration suite (make integration-test)
+integration/node_modules/
+integration/test-results/
+integration/playwright-report/
+integration/.auth/

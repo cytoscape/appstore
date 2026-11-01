@@ -6,6 +6,7 @@ Replace this with more appropriate tests for your application.
 """
 import datetime
 import io
+import json
 import os
 import shutil
 import zipfile
@@ -15,6 +16,8 @@ from PIL import Image, ImageDraw
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.contrib.auth.models import User
 from django.test import TestCase
 from apps.models import App
@@ -813,3 +816,66 @@ class ServiceReleaseOrderingTestCase(TestCase):
         releases_tab = response.content.decode().split('id="cy-app-releases-tab"', 1)[1]
         self.assertLess(releases_tab.index('https://service.example.org/v1.10'),
                         releases_tab.index('https://service.example.org/v1.9'))
+
+
+class SeedIntegrationDataTestCase(TestCase):
+    """seed_integration_data, which the integration-test container runs before serving."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        media = os.path.join(self.tmp, 'media')
+        storages = dict(settings.STORAGES)
+        storages['webbundles'] = {**storages['webbundles'],
+                                  'OPTIONS': {**storages['webbundles']['OPTIONS'],
+                                              'location': os.path.join(media, 'webbundles')}}
+        self.overrides = self.settings(INTEGRATION_SEED_ENABLED=True, BUILD_DIR=self.tmp,
+                                       MEDIA_ROOT=media, STORAGES=storages,
+                                       CDN_BASE_URL='http://localhost:8080/web/')
+        self.overrides.enable()
+
+    def tearDown(self):
+        self.overrides.disable()
+        shutil.rmtree(self.tmp)
+
+    def seed(self):
+        call_command('seed_integration_data', stdout=io.StringIO())
+        with open(os.path.join(self.tmp, 'it_sessions.json')) as f:
+            return json.load(f)
+
+    def signed_in_user(self, session_key):
+        self.client.cookies['sessionid'] = session_key
+        return self.client.get('/apps/itdesktop').wsgi_request.user
+
+    def test_seeds_users_apps_and_releases(self):
+        self.seed()
+        self.assertTrue(User.objects.get(username='it-admin').is_staff)
+        self.assertFalse(User.objects.get(username='it-editor').is_staff)
+        self.assertFalse(User.objects.get(username='it-other').is_staff)
+
+        apps = {app.name: app for app in App.objects.all()}
+        self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itlegacy'}, set(apps))
+        self.assertEqual(['1.0'], [r.version for r in apps['itdesktop'].releases])
+        self.assertTrue(os.path.exists(apps['itdesktop'].releases[0].release_file.path))
+        self.assertEqual(['1.0'], [r.version for r in apps['itweb'].webbundlereleases])
+        self.assertEqual(['1.0'], [r.version for r in apps['itservice'].servicereleases])
+        self.assertFalse(apps['itlegacy'].has_releases)
+        self.assertTrue(apps['itlegacy'].cy_2x_plugin_download)
+        for name in ('itdesktop', 'itweb', 'itservice', 'itlegacy'):
+            self.assertEqual(['it-editor'], [u.username for u in apps[name].editors.all()])
+
+    def test_sessions_sign_in_each_user(self):
+        sessions = self.seed()
+        for role, username in (('admin', 'it-admin'), ('editor', 'it-editor'), ('other', 'it-other')):
+            self.assertEqual(username, self.signed_in_user(sessions[role]).username)
+
+    def test_reseeding_replaces_the_data(self):
+        self.seed()
+        sessions = self.seed()
+        self.assertEqual(4, App.objects.count())
+        self.assertEqual(3, User.objects.filter(username__startswith='it-').count())
+        self.assertEqual('it-editor', self.signed_in_user(sessions['editor']).username)
+
+    def test_refuses_unless_enabled(self):
+        with self.settings(INTEGRATION_SEED_ENABLED=False):
+            with self.assertRaises(CommandError):
+                call_command('seed_integration_data', stdout=io.StringIO())

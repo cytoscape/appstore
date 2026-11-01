@@ -202,3 +202,6 @@ CYTOSCAPE_WEB_INSTALL_URL = "https://dev1.ndexbio.org/cytoscape/?installApp="
 # store name of the Desktop Service App (desktop-service-app), which service app pages link to
 # when Cytoscape Desktop lacks it and so cannot install service apps
 DESKTOP_SERVICE_APP_NAME = "desktopserviceapp"
+
+# seed_integration_data wipes app data, so it only runs where this is True (settings/container.py)
+INTEGRATION_SEED_ENABLED = False
