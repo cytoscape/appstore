@@ -199,15 +199,16 @@ def _app_ratings_delete_all(app, user, post):
 # -- General app stuff
 
 def _latest_release(app):
-    releases = app.get_releases()
+    releases = app.get_releases(app.platform)
     if not releases: return None
     return releases[0] # go by the ordering provided by Release.Meta
 
 def _mk_app_page(app, user, request):
     c = {
         'app': app,
-        'releases': app.get_releases(),
-        'latest_release': app.get_releases().first(),
+        'releases': app.get_releases(app.platform),
+        'releases_for_display': app.releases_for_display(app.platform),
+        'latest_release': app.get_releases(app.platform).first(),
         'is_editor': (user and app.is_editor(user)),
         'cy3_latest_release': _latest_release(app),
         'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
@@ -443,7 +444,7 @@ def _save_release_notes(app, request):
     except ValueError:
         raise ValueError('release_count is not an integer')
 
-    releases = app.get_releases()
+    releases = app.get_releases(app.platform)
     release_model = releases.model
     for i in range(release_count):
         key = 'release_id_' + str(i)
@@ -470,7 +471,7 @@ def _delete_release(app, request):
     except ValueError:
         raise ValueError('release_count is not an integer')
 
-    releases = app.get_releases()
+    releases = app.get_releases(app.platform)
     release_model = releases.model
     for i in range(release_count):
         key = 'release_id_' + str(i)
@@ -535,7 +536,7 @@ def app_page_edit(request, app_name):
     all_tags = [tag.fullname for tag in Tag.objects.all()]
     c = {
         'app': app,
-        'releases': app.releases_for_display,
+        'releases': app.releases_for_display(app.platform),
         'all_tags': all_tags,
         'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
         'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,
@@ -567,6 +568,7 @@ def _mk_service_page(app, user, request):
         'service_endpoint': release.service_endpoint,
         'is_editor': (user and app.is_editor(user)),
         'service_latest_release': _latest_service_release(app),
+        'releases_for_display': app.releases_for_display(app.platform),
         'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
         'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
         'service_install': (
@@ -622,7 +624,7 @@ def service_page_edit(request, app_name):
     all_tags = [tag.fullname for tag in Tag.objects.all()]
     c = {
         'app': app,
-        'releases': app.get_releases(),
+        'releases': app.get_releases(app.platform),
         'all_tags': all_tags,
         'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
         'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,
@@ -645,8 +647,9 @@ def _mk_web_page(app, user, request):
     release = _latest_bundle_release(app)
     c = {
         'app': app,
-        'releases': app.get_releases(),
-        'latest_release': app.get_releases().first(),
+        'releases': app.get_releases(app.platform),
+        'releases_for_display': app.releases_for_display(app.platform),
+        'latest_release': app.get_releases(app.platform).first(),
         'cdn_base_url': release.cdn_base_url if release else None,
         'is_editor': (user and app.is_editor(user)),
         'bundle_latest_release': _latest_bundle_release(app),
@@ -707,7 +710,7 @@ def webapp_page_edit(request, app_name):
     all_tags = [tag.fullname for tag in Tag.objects.all()]
     c = {
         'app': app,
-        'releases': app.get_releases(),
+        'releases': app.get_releases(app.platform),
         'all_tags': all_tags,
         'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
         'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,

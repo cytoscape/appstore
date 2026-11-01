@@ -29,6 +29,8 @@ from apps.models import Tag
 from apps import models as apps_models
 from apps.models import Release
 from apps.models import ServiceRelease
+from apps.models import WebBundleRelease
+from apps.models import Platform
 from apps.views import _AppPageEditConfig
 from apps.templatetags import app_buttons
 from submit_app.models import ServiceAppPending
@@ -770,9 +772,9 @@ class ServiceReleaseOrderingTestCase(TestCase):
     def test_releases_for_display_by_platform(self):
         self.make_release('1.9', days_old=0)
         self.make_release('1.10', days_old=1)
-        self.assertEqual(['1.10', '1.9'], [r.version for r in self.app.releases_for_display])
+        self.assertEqual(['1.10', '1.9'], [r.version for r in self.app.releases_for_display('service')])
         desktop_app = App.objects.create(name='jarapp', fullname='Jar App', active=True)
-        self.assertQuerySetEqual(desktop_app.get_releases(), desktop_app.releases_for_display)
+        self.assertQuerySetEqual(desktop_app.get_releases('desktop'), desktop_app.releases_for_display('desktop'))
 
     def test_resubmitted_old_version_does_not_become_latest(self):
         self.make_release('1.10', days_old=1)
@@ -879,3 +881,97 @@ class SeedIntegrationDataTestCase(TestCase):
         with self.settings(INTEGRATION_SEED_ENABLED=False):
             with self.assertRaises(CommandError):
                 call_command('seed_integration_data', stdout=io.StringIO())
+
+
+class AppPlatformsTestCase(TestCase):
+    """An app is on a platform when it has an active release of that platform's type."""
+
+    def setUp(self):
+        self.app = App.objects.create(name='multi', fullname='Multi', active=True)
+
+    def add_desktop(self, version='1.0', active=True):
+        return Release.objects.create(app=self.app, version=version, works_with='3.10', active=active)
+
+    def add_web(self, version='1.0', active=True):
+        return WebBundleRelease.objects.create(app=self.app, version=version, active=active, bundle_hash='0')
+
+    def add_service(self, version='1.0', active=True):
+        return ServiceRelease.objects.create(app=self.app, version=version, active=active,
+                                             service_endpoint='https://service.example.org/multi')
+
+    def loaded(self):
+        return App.objects.get(pk=self.app.pk)
+
+    def flags(self, app):
+        return app.has_desktop, app.has_web, app.has_service
+
+    def test_no_releases_means_no_platforms(self):
+        app = self.loaded()
+        self.assertEqual((False, False, False), self.flags(app))
+        self.assertEqual([], app.platforms)
+        self.assertIsNone(app.primary_platform)
+
+    def test_each_release_type_sets_its_platform(self):
+        for add, flags in ((self.add_web, (False, True, False)),
+                           (self.add_service, (False, True, True)),
+                           (self.add_desktop, (True, True, True))):
+            add()
+            self.assertEqual(flags, self.flags(self.loaded()))
+
+    def test_inactive_releases_do_not_count(self):
+        self.add_desktop(active=False)
+        self.add_web(active=False)
+        self.add_service(active=False)
+        self.assertEqual((False, False, False), self.flags(self.loaded()))
+
+    def test_flags_without_annotations(self):
+        self.add_web()
+        self.add_service()
+        unannotated = App._base_manager.get(pk=self.app.pk)
+        self.assertFalse(hasattr(unannotated, 'platform_web'))
+        self.assertEqual((False, True, True), self.flags(unannotated))
+        release = ServiceRelease.objects.get(app=self.app)
+        self.assertEqual((False, True, True), self.flags(release.app))
+
+    def test_platforms_in_display_order_and_primary(self):
+        self.add_service()
+        self.add_web()
+        app = self.loaded()
+        self.assertEqual([Platform.WEB, Platform.SERVICE], app.platforms)
+        self.assertEqual(Platform.WEB, app.primary_platform)
+        self.assertTrue(app.has_platform('service'))
+        self.assertFalse(app.has_platform('desktop'))
+        self.add_desktop()
+        self.assertEqual(Platform.DESKTOP, self.loaded().primary_platform)
+
+    def test_get_releases_per_platform(self):
+        desktop = self.add_desktop()
+        web = self.add_web()
+        service = self.add_service()
+        self.add_service(version='0.9', active=False)
+        app = self.loaded()
+        self.assertEqual([desktop], list(app.get_releases('desktop')))
+        self.assertEqual([web], list(app.get_releases('web')))
+        self.assertEqual([service], list(app.get_releases('service')))
+        self.assertEqual([('desktop', [desktop]), ('web', [web]), ('service', [service])],
+                         [(platform, list(releases)) for platform, releases in app.releases_by_platform])
+
+    def test_update_has_releases_sees_new_releases_of_any_type(self):
+        app = self.loaded()
+        self.assertFalse(app.has_web)
+        self.add_web()
+        app.update_has_releases()
+        self.assertTrue(app.has_web)
+        self.assertTrue(self.loaded().has_releases)
+        WebBundleRelease.objects.filter(app=self.app).update(active=False)
+        app.update_has_releases()
+        self.assertFalse(app.has_web)
+        self.assertFalse(self.loaded().has_releases)
+
+    def test_listing_loads_platforms_in_one_query(self):
+        for i in range(10):
+            app = App.objects.create(name='app%d' % i, fullname='App %d' % i, active=True)
+            ServiceRelease.objects.create(app=app, version='1.0', service_endpoint='https://example.org')
+        with self.assertNumQueries(1):
+            platforms = [app.platforms for app in App.objects.filter(name__startswith='app')]
+        self.assertEqual([[Platform.SERVICE]] * 10, platforms)

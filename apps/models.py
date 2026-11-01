@@ -104,6 +104,35 @@ class Platform(models.TextChoices):
         WEB = 'web', 'Web'
         SERVICE = 'service', 'Service'
 
+# App reverse accessor holding each platform's releases, in display order
+_PLATFORM_RELEASE_SETS = {
+    Platform.DESKTOP: 'release_set',
+    Platform.WEB: 'webbundlerelease_set',
+    Platform.SERVICE: 'servicerelease_set',
+}
+
+def _platform_annotation(platform):
+    return 'platform_' + platform
+
+
+class AppManager(models.Manager):
+    """
+    Annotates every App with whether it has active releases on each platform,
+    so listings learn every app's platforms in the same query that loads them.
+    """
+    def get_queryset(self):
+        release_models = {
+            Platform.DESKTOP: Release,
+            Platform.WEB: WebBundleRelease,
+            Platform.SERVICE: ServiceRelease,
+        }
+        return super().get_queryset().annotate(**{
+            _platform_annotation(platform): models.Exists(
+                release_model.objects.filter(app=models.OuterRef('pk'), active=True))
+            for platform, release_model in release_models.items()
+        })
+
+
 class App(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=127, unique=True)
@@ -149,6 +178,8 @@ class App(models.Model):
     competition_winner_dec_2012 = models.BooleanField(default=False)
 
     active = models.BooleanField(default=False)
+
+    objects = AppManager()
 
     def is_editor(self, user):
         """
@@ -227,27 +258,63 @@ class App(models.Model):
             return (version_key is not None, version_key or (), release.created)
         return sorted(self.servicereleases, key=sort_key, reverse=True)
 
-    def get_releases(self):
-        if self.platform == Platform.SERVICE:
+    def _has_platform_releases(self, platform):
+        annotated = getattr(self, _platform_annotation(platform), None)
+        if annotated is not None:
+            return annotated
+        # loaded without AppManager's annotations, e.g. through release.app
+        return getattr(self, _PLATFORM_RELEASE_SETS[platform]).filter(active=True).exists()
+
+    @property
+    def has_desktop(self):
+        return self._has_platform_releases(Platform.DESKTOP)
+
+    @property
+    def has_web(self):
+        return self._has_platform_releases(Platform.WEB)
+
+    @property
+    def has_service(self):
+        return self._has_platform_releases(Platform.SERVICE)
+
+    def has_platform(self, platform):
+        return self._has_platform_releases(platform)
+
+    @property
+    def platforms(self):
+        """Platforms this app has active releases on: desktop, then web, then service."""
+        return [platform for platform in _PLATFORM_RELEASE_SETS if self._has_platform_releases(platform)]
+
+    @property
+    def primary_platform(self):
+        platforms = self.platforms
+        return platforms[0] if platforms else None
+
+    def get_releases(self, platform):
+        if platform == Platform.SERVICE:
             return self.servicereleases
-        elif self.platform == Platform.WEB:
+        elif platform == Platform.WEB:
             return self.webbundlereleases
         return self.releases
 
-    @property
-    def releases_for_display(self):
-        if self.platform == Platform.SERVICE:
+    def releases_for_display(self, platform):
+        if platform == Platform.SERVICE:
             return self.servicereleases_by_version
-        return self.get_releases()
-    
-    def update_has_releases(self):
-        self.has_releases = self.get_releases().count() > 0
-        self.save()
+        return self.get_releases(platform)
 
-    """
+    @property
+    def releases_by_platform(self):
+        return [(platform, self.releases_for_display(platform)) for platform in self.platforms]
+
+    def _forget_platforms(self):
+        for platform in _PLATFORM_RELEASE_SETS:
+            self.__dict__.pop(_platform_annotation(platform), None)
+
     def update_has_releases(self):
-        self.has_releases = (self.release_set.filter(active=True).count() > 0)
-        self.save()"""
+        # releases were just added or removed, so annotations loaded with this app are stale
+        self._forget_platforms()
+        self.has_releases = bool(self.platforms)
+        self.save()
 
     @property
     def page_url(self):
