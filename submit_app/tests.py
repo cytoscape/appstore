@@ -32,6 +32,7 @@ from apps.models import ServiceRelease
 from submit_app.models import AppPending
 from submit_app.models import ServiceAppPending
 from submit_app.models import WebBundlePending
+from submit_app.models import WebUrlPending
 from submit_app import bundle_storage
 from submit_app import models as submit_models
 from util.id_util import fullname_to_name
@@ -1079,3 +1080,58 @@ class PlatformAcceptTest(SubmissionFixtureMixin, TestCase):
         self.assertEqual([Platform.SERVICE], app.platforms)
         self.assertEqual(['other'], [u.username for u in app.editors.all()])
         self.assertIn('Cytoscape App Store - Brand New Has Been Approved', self.subjects())
+
+
+class PendingQueueTest(SubmissionFixtureMixin, TestCase):
+    """The admin queue says whether each submission is a new app or a new platform for an existing one (#155)."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_user('admin', 'admin@example.org', 'secret', is_staff=True)
+        self.new_app = AppPending.objects.create(submitter=self.other, fullname='Brand New', version='1.0',
+                                                 cy_works_with='3.10')
+        self.new_app.release_file.save('brandnew-1.0.jar', SimpleUploadedFile('brandnew-1.0.jar', b'data'))
+        self.new_platform = ServiceAppPending.objects.create(
+            submitter=self.editor, fullname='Foo', name='foo', version='1.0',
+            service_endpoint='https://service.example.org/foo')
+        self.web_url = WebUrlPending.objects.create(submitter=self.other, fullname='Url App', version='1.0',
+                                                    repo_url='https://github.com/example/url-app')
+        self.client.force_login(self.admin)
+
+    def post(self, action, pending_id, pending_platform, **headers):
+        return self.client.post(reverse('pending-apps'), {'action': action, 'pending_id': pending_id,
+                                                          'pending_platform': pending_platform}, **headers)
+
+    def test_rows_say_new_app_or_new_platform(self):
+        response = self.client.get(reverse('pending-apps'))
+        self.assertContains(response, '<th>Type</th>', html=True)
+        self.assertContains(response, 'New app')
+        self.assertContains(response, 'New platform &rarr; <a href="%s">Foo</a>' % reverse('app_page', args=['foo']))
+
+    def test_accept_for_desktop_service_and_web_bundle(self):
+        self.post('accept', self.new_app.id, 'desktop')
+        self.assertEqual([Platform.DESKTOP], App.objects.get(name='brandnew').platforms)
+
+        self.post('accept', self.new_platform.id, 'service')
+        self.assertEqual([Platform.DESKTOP, Platform.SERVICE], App.objects.get(name='foo').platforms)
+
+        self.submit_bundle(self.editor, name='Foo')
+        self.client.force_login(self.admin)
+        self.post('accept', WebBundlePending.objects.get().id, 'web-bundle')
+        self.assertEqual([Platform.DESKTOP, Platform.WEB, Platform.SERVICE], App.objects.get(name='foo').platforms)
+
+    def test_web_url_cannot_be_accepted_yet(self):
+        for headers in ({}, {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'}):
+            response = self.post('accept', self.web_url.id, 'web-url', **headers)
+            self.assertContains(response, 'Approving GitHub-URL web submissions is not supported yet', status_code=400)
+        self.assertTrue(WebUrlPending.objects.filter(id=self.web_url.id).exists())
+        self.assertFalse(App.objects.filter(name='urlapp').exists())
+
+    def test_decline_for_every_platform(self):
+        self.submit_bundle(self.editor, name='Foo')
+        self.client.force_login(self.admin)
+        for pending, pending_platform in ((self.new_app, 'desktop'), (self.new_platform, 'service'),
+                                          (WebBundlePending.objects.get(), 'web-bundle'), (self.web_url, 'web-url')):
+            self.post('decline', pending.id, pending_platform)
+            self.assertFalse(type(pending).objects.filter(id=pending.id).exists())
+        self.assertEqual(['foo'], [app.name for app in App.objects.all()])

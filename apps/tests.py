@@ -35,6 +35,8 @@ from apps.views import _AppPageEditConfig
 from apps.templatetags import app_buttons
 from submit_app.models import ServiceAppPending
 from submit_app.models import WebBundlePending
+from submit_app.models import AppPending
+from submit_app.models import WebUrlPending
 
 SMALL_GIF = (
     b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x00\x00\x00\x21\xf9\x04'
@@ -870,6 +872,9 @@ class SeedIntegrationDataTestCase(TestCase):
         self.assertEqual(('IT Desktop', '1.0', 'it-editor'), (pending.fullname, pending.version, pending.submitter.username))
         self.assertTrue(pending.is_new_platform)
         self.assertTrue(os.path.exists(os.path.join(self.tmp, 'media', 'webbundles', pending.bundle_path, 'remoteEntry.js')))
+        self.assertTrue(AppPending.objects.get(fullname='IT Brand New').is_new_app)
+        self.assertTrue(ServiceAppPending.objects.get(fullname='IT Desktop').is_new_platform)
+        self.assertEqual(['IT Url App'], [p.fullname for p in WebUrlPending.objects.all()])
 
     def test_sessions_sign_in_each_user(self):
         sessions = self.seed()
@@ -881,6 +886,7 @@ class SeedIntegrationDataTestCase(TestCase):
         sessions = self.seed()
         self.assertEqual(4, App.objects.count())
         self.assertEqual(1, WebBundlePending.objects.count())
+        self.assertEqual(1, ServiceAppPending.objects.count())
         self.assertEqual(3, User.objects.filter(username__startswith='it-').count())
         self.assertEqual('it-editor', self.signed_in_user(sessions['editor']).username)
 

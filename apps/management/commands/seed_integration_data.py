@@ -27,7 +27,8 @@ def sessions_file():
 
 
 # Specs that change data own the seeded objects they change, so the specs stay independent:
-# admin-accept.spec.ts accepts IT Desktop's pending Cytoscape Web bundle.
+# admin-accept.spec.ts accepts IT Desktop's pending Cytoscape Web bundle, and
+# admin-queue.spec.ts declines IT Url App.
 class Command(BaseCommand):
     help = ('Replaces all apps, pending submissions and it-* users with the integration test data, '
             'and writes a logged-in session key per test user to build/it_sessions.json. '
@@ -106,6 +107,17 @@ class Command(BaseCommand):
         web_pending.bundle.save('itdesktop-1.0.zip', ContentFile(self.web_bundle('itdesktop', 'IT Desktop', '1.0')))
         _copy_bundle_to_storage(web_pending.bundle, web_pending.bundle_path)
         write_pending_manifest_json(web_pending)
+
+        # the admin queue's three kinds of row: a new app, a new platform, and a GitHub-URL web app
+        new_app = AppPending.objects.create(submitter=users['other'], fullname='IT Brand New',
+                                            version='1.0', cy_works_with='3.10')
+        new_app.release_file.save('itbrandnew-1.0.jar', ContentFile(b'integration test jar'))
+        ServiceAppPending.objects.create(
+            submitter=users['editor'], fullname='IT Desktop', name='itdesktop', version='1.0', author='it-editor',
+            service_endpoint='https://service.example.org/itdesktop',
+            status=ServiceAppPending.Status.PENDING_REVIEW)
+        WebUrlPending.objects.create(submitter=users['other'], fullname='IT Url App', version='1.0',
+                                     repo_url='https://github.com/cytoscape/it-url-app')
 
     def web_bundle(self, cy_app_id, fullname, version):
         data = io.BytesIO()

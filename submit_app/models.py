@@ -171,7 +171,8 @@ class WEB_SUBMISSION_ORIGIN(models.TextChoices):
     WEB_URL = 'web_url', 'Web URL',
     WEB_BUNDLE = 'web_bundle', 'Web Bundle'
 
-class WebUrlPending(models.Model):
+class WebUrlPending(PendingIdentity, models.Model):
+    PLATFORM = Platform.WEB
     id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=128)

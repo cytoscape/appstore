@@ -446,7 +446,7 @@ def _pending_web_accept(pending, request): #INCLUDES PATH FOR REPO URL, MAY OR M
         pending.delete()
 
     else:
-        pass #later configure to accept github url submissions
+        return HttpResponseBadRequest('Approving GitHub-URL web submissions is not supported yet')
 
     _send_email_for_accepted(request, pending.submitter.email, app, existed, Platform.WEB)
 
@@ -520,11 +520,10 @@ def pending_apps(request):
             return HttpResponseBadRequest('invalid pending_id')
         
         result = _PendingAppsActions[action](pending_app, request)
-        if is_ajax(request):
-            return json_response(True)
-
         if isinstance(result, HttpResponse):
             return result
+        if is_ajax(request):
+            return json_response(True)
 
         return HttpResponseRedirect(reverse('pending-apps'))
 
