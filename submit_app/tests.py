@@ -28,6 +28,7 @@ from apps.models import Platform
 from apps.models import Release
 from apps.models import WebBundleRelease
 from submit_app.models import AppPending
+from submit_app.models import ServiceAppPending
 from submit_app.models import WebBundlePending
 from submit_app import bundle_storage
 from submit_app import models as submit_models
@@ -868,3 +869,116 @@ class WebBundleManifestIdTest(TestCase):
             bundle_storage.write_pending_manifest_json(pending)
 
         self.assertEqual('c3App', saved['body'][0]['id'])
+
+
+class SubmissionIdentityTest(TestCase):
+    """Every platform's submission resolves its name to an app the submitter may extend (#155)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        storages = dict(settings.STORAGES)
+        storages['webbundles'] = {**storages['webbundles'],
+                                  'OPTIONS': {**storages['webbundles']['OPTIONS'],
+                                              'location': os.path.join(self.tmp, 'webbundles')}}
+        self.overrides = self.settings(MEDIA_ROOT=self.tmp, STORAGES=storages)
+        self.overrides.enable()
+
+        self.editor = User.objects.create_user('editor', 'editor@example.org', 'secret')
+        self.other = User.objects.create_user('other', 'other@example.org', 'secret')
+        self.desktop_app = App.objects.create(name='foo', fullname='Foo', active=True)
+        self.desktop_app.editors.add(self.editor)
+        Release.objects.create(app=self.desktop_app, version='1.0', works_with='3.10')
+
+    def tearDown(self):
+        self.overrides.disable()
+        shutil.rmtree(self.tmp)
+
+    def bundle(self, name='Foo', version='1.0'):
+        data = io.BytesIO()
+        with zipfile.ZipFile(data, 'w') as zf:
+            zf.writestr('dist/remoteEntry.js', 'var foo;')
+            zf.writestr('dist/cy-manifest.json', json.dumps({'id': 'foo', 'name': name, 'version': version}))
+        return SimpleUploadedFile('foo.zip', data.getvalue(), content_type='application/zip')
+
+    def submit_bundle(self, user, expect_app_name=None, **bundle):
+        self.client.force_login(user)
+        data = {'bundle': self.bundle(**bundle)}
+        if expect_app_name:
+            data['expect_app_name'] = expect_app_name
+        return self.client.post(reverse('submit-web-bundle'), data)
+
+    def submit_service(self, user, name='Foo', expect_app_name=None):
+        self.client.force_login(user)
+        data = {'service-url': 'https://service.example.org/foo'}
+        if expect_app_name:
+            data['expect_app_name'] = expect_app_name
+        metadata = {'name': name, 'version': '1.0', 'author': 'Someone'}
+        with patch('submit_app.views.check_reachable', return_value=metadata):
+            return self.client.post(reverse('submit-service-app'), data)
+
+    def test_non_editor_cannot_submit_an_existing_name_on_any_platform(self):
+        jar = SimpleUploadedFile('Foo-2.0.jar', b'data', content_type='application/zip')
+        with self.assertRaisesRegex(ValueError, 'not an editor'):
+            views._create_pending(self.other, 'Foo', '2.0', '3.10', [], jar)
+        self.assertContains(self.submit_service(self.other), 'you are not one of its editors')
+        self.assertContains(self.submit_bundle(self.other), 'you are not one of its editors')
+        self.assertFalse(AppPending.objects.exists())
+        self.assertFalse(ServiceAppPending.objects.exists())
+        self.assertFalse(WebBundlePending.objects.exists())
+
+    def test_editor_adding_a_platform_creates_a_new_platform_pending(self):
+        response = self.submit_service(self.editor)
+        pending = ServiceAppPending.objects.get()
+        self.assertRedirects(response, reverse('confirm-service', args=[pending.id]))
+        self.assertTrue(pending.is_new_platform)
+        self.assertFalse(pending.is_new_app)
+
+        response = self.submit_bundle(self.editor)
+        pending = WebBundlePending.objects.get()
+        self.assertRedirects(response, reverse('confirm-web-bundle', args=[pending.id]))
+        self.assertTrue(pending.is_new_platform)
+        self.assertContains(self.client.get(reverse('confirm-web-bundle', args=[pending.id])),
+                            'this adds Cytoscape Web to the existing app Foo')
+
+        web_app = App.objects.create(name='bar', fullname='Bar', active=True)
+        web_app.editors.add(self.editor)
+        WebBundleRelease.objects.create(app=web_app, version='1.0', active=True, bundle_hash='0')
+        jar = SimpleUploadedFile('Bar-1.0.jar', b'data', content_type='application/zip')
+        pending = views._create_pending(self.editor, 'Bar', '1.0', '3.10', [], jar)
+        self.assertTrue(pending.is_new_platform)
+        self.assertContains(self.client.get(reverse('confirm-submission', args=[pending.id])),
+                            'this adds Cytoscape Desktop to the existing app Bar')
+
+    def test_existing_platform_and_new_app_are_not_new_platforms(self):
+        jar = SimpleUploadedFile('Foo-2.0.jar', b'data', content_type='application/zip')
+        pending = views._create_pending(self.editor, 'Foo', '2.0', '3.10', [], jar)
+        self.assertFalse(pending.is_new_platform)
+        self.assertFalse(pending.is_new_app)
+
+        self.submit_bundle(self.other, name='Brand New')
+        pending = WebBundlePending.objects.get()
+        self.assertTrue(pending.is_new_app)
+        self.assertFalse(pending.is_new_platform)
+
+    def test_duplicate_web_bundle_version_is_rejected(self):
+        WebBundleRelease.objects.create(app=self.desktop_app, version='1.0', active=True, bundle_hash='0')
+        self.assertContains(self.submit_bundle(self.editor, version='1.0'),
+                            'already has a Cytoscape Web release with version 1.0')
+        self.assertFalse(WebBundlePending.objects.exists())
+
+    def test_expect_app_name_must_match_for_service_and_web(self):
+        self.assertContains(self.submit_service(self.editor, name='Bar', expect_app_name='Foo'),
+                            'is named Bar but must be Foo')
+        self.assertContains(self.submit_bundle(self.editor, name='Bar', expect_app_name='Foo'),
+                            'is named Bar but must be Foo')
+        self.assertFalse(ServiceAppPending.objects.exists())
+        self.assertFalse(WebBundlePending.objects.exists())
+
+        self.submit_service(self.editor, name='FOO', expect_app_name='Foo')
+        self.assertTrue(ServiceAppPending.objects.exists())
+
+    def test_forms_carry_expect_app_name(self):
+        self.client.force_login(self.editor)
+        for url in (reverse('submit-web-bundle'), reverse('submit-service-app')):
+            self.assertContains(self.client.get(url + '?expect_app_name=Foo'),
+                                '<input type="hidden" name="expect_app_name" value="Foo">', html=True)

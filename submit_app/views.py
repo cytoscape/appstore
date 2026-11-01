@@ -25,7 +25,7 @@ from django import forms
 from django.db import IntegrityError
 
 from util.view_util import html_response, json_response, get_object_or_none, is_ajax
-from util.id_util import fullname_to_name
+from util.id_util import IdentityOutcome, fullname_to_name, resolve_app_identity
 from apps.models import Release, ServiceRelease, WebBundleRelease, App, Author, OrderedAuthor, Platform
 from apps.views import _parse_iso_date
 from .models import AppPending, ServiceAppPending, WebBundlePending, WebUrlPending
@@ -188,12 +188,12 @@ def _create_pending(submitter, fullname, version, cy_works_with,
                         to edit. Will also be raised if Release matching name
                         exists that is active.
     """
-    name = fullname_to_name(fullname)
-    app = get_object_or_none(App, name=name)
+    identity = resolve_app_identity(fullname, submitter, Platform.DESKTOP)
+    app = identity.app
+    if identity.outcome == IdentityOutcome.NOT_EDITOR:
+        raise ValueError('cannot be accepted because you are not '
+                         'an editor')
     if app:
-        if not app.is_editor(submitter):
-            raise ValueError('cannot be accepted because you are not '
-                             'an editor')
         release = get_object_or_none(Release, app=app, version=version)
         if release and release.active:
             raise ValueError('cannot be accepted because the app %s already'
@@ -613,6 +613,28 @@ def cy2x_plugins(request):
         return html_response('cy2x_plugins.html', {}, request)
 
 
+def _identity_error(fullname, user, platform, expect_app_name=None):
+    """
+    Why 'user' cannot submit a 'platform' release named 'fullname', or None if they can.
+    'expect_app_name' is set when the submission started from an existing app's page.
+    """
+    if expect_app_name and fullname_to_name(fullname) != fullname_to_name(expect_app_name):
+        return 'The submitted app is named %s but must be %s' % (fullname, expect_app_name)
+    identity = resolve_app_identity(fullname, user, platform)
+    if identity.outcome == IdentityOutcome.NOT_EDITOR:
+        return ('An app named %s already exists and you are not one of its editors. '
+                'Ask its editors to add you.' % identity.app.fullname)
+    return None
+
+
+def _web_bundle_version_error(fullname, version):
+    app = get_object_or_none(App, name=fullname_to_name(fullname))
+    if app and WebBundleRelease.objects.filter(app=app, version=version, active=True).exists():
+        return ('%s already has a Cytoscape Web release with version %s. You can delete this '
+                'version in the Release History tab of the app edit page.' % (app.fullname, version))
+    return None
+
+
 #---------------------- SERVICE APP SUBMISSION ----------------------
 @login_required
 def submit_service_app(request):
@@ -620,8 +642,11 @@ def submit_service_app(request):
     context = {}
 
     if request.method != 'POST':
+        context['expect_app_name'] = request.GET.get('expect_app_name')
         return html_response('service_upload_form.html', context, request)
-    
+
+    expect_app_name = request.POST.get('expect_app_name')
+    context['expect_app_name'] = expect_app_name
     service_url = request.POST.get('service-url')
 
     if not service_url:
@@ -648,9 +673,9 @@ def submit_service_app(request):
         return html_response('service_upload_form.html', context, request)
 
 
-    existing = get_object_or_none(App, name=name)
-    if existing and not existing.is_editor(request.user):
-        context['error'] = 'An app with that name already exists and you are not an editor'
+    error = _identity_error(fullname, request.user, Platform.SERVICE, expect_app_name)
+    if error:
+        context['error'] = error
         return html_response('service_upload_form.html', context, request)
 
     if ServiceAppPending.objects.filter(name=name).exists():
@@ -882,14 +907,16 @@ def resolve_commit_ref(repo_url, commit_ref):
 #---------------------- WEB APP BUNDLE SUBMISSION ----------------------
 @login_required
 def submit_web_bundle(request):
-    context = []
     if request.method != "POST":
         form = web_bundle_submission()
-        return html_response('web_bundle_upload_form.html', {'form': form}, request)
+        context = {'form': form, 'expect_app_name': request.GET.get('expect_app_name')}
+        return html_response('web_bundle_upload_form.html', context, request)
 
     form = web_bundle_submission(request.POST, request.FILES)
+    expect_app_name = request.POST.get('expect_app_name')
+    context = {'form': form, 'expect_app_name': expect_app_name}
     if not form.is_valid():
-        return html_response('web_bundle_upload_form.html', {'form': form}, request)
+        return html_response('web_bundle_upload_form.html', context, request)
 
     bundle = form.cleaned_data['bundle']
 
@@ -898,7 +925,14 @@ def submit_web_bundle(request):
         cy_manifest = _extract_cy_manifest(bundle)
     except ValidationError as e:
         form.add_error(None, str(e))
-        return html_response('web_bundle_upload_form.html', {'form': form}, request)
+        return html_response('web_bundle_upload_form.html', context, request)
+
+    error = _identity_error(cy_manifest['name'], request.user, Platform.WEB, expect_app_name)
+    if not error:
+        error = _web_bundle_version_error(cy_manifest['name'], cy_manifest['version'])
+    if error:
+        form.add_error(None, error)
+        return html_response('web_bundle_upload_form.html', context, request)
 
     pending = _create_web_bundle_pending(form, bundle, request.user, cy_app_id=cy_manifest['id'],  fullname=cy_manifest['name'] , version=cy_manifest['version'])
 
@@ -906,8 +940,8 @@ def submit_web_bundle(request):
         server_url = _get_server_url(request)
         _send_email_for_pending(pending, server_url=server_url)
     except ValueError as e:
-        context['error_msg'] = str(e)
-        return html_response('web_bundle_upload_form.html', context, request)  
+        form.add_error(None, str(e))
+        return html_response('web_bundle_upload_form.html', context, request)
 
     return HttpResponseRedirect(reverse('confirm-web-bundle', args=[pending.id]))
     

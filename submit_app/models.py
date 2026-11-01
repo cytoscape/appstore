@@ -6,9 +6,8 @@ from threading import Thread
 
 from django.db import models
 from django.contrib.auth.models import User
-from apps.models import App, ServiceRelease, WebBundleRelease, Release, ReleaseAPI
-from util.id_util import fullname_to_name
-from util.view_util import get_object_or_none
+from apps.models import App, Platform, ServiceRelease, WebBundleRelease, Release, ReleaseAPI
+from util.id_util import IdentityOutcome, fullname_to_name, resolve_app_identity
 from django.core.mail import send_mail
 from django.core.files.storage import storages
 from django.conf import settings
@@ -16,7 +15,29 @@ from submit_app.bundle_storage import write_manifest_json, _copy_bundle_to_stora
 from urllib.parse import urljoin, quote
 
 
-class AppPending(models.Model):
+class PendingIdentity:
+    """
+    Which app a pending submission belongs to, from its submitter's point of view.
+    Subclasses set PLATFORM to the platform they submit for.
+    """
+    PLATFORM = None
+
+    @property
+    def identity(self):
+        return resolve_app_identity(self.fullname, self.submitter, self.PLATFORM)
+
+    @property
+    def is_new_app(self):
+        return self.identity.outcome == IdentityOutcome.NEW_APP
+
+    @property
+    def is_new_platform(self):
+        return self.identity.outcome == IdentityOutcome.NEW_PLATFORM
+
+
+class AppPending(PendingIdentity, models.Model):
+    PLATFORM = Platform.DESKTOP
+
     id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=127)
@@ -32,11 +53,6 @@ class AppPending(models.Model):
         if user.is_staff or user.is_superuser:
             return True
         return user.username == self.submitter.username
-
-    @property
-    def is_new_app(self):
-       name = fullname_to_name(self.fullname)
-       return get_object_or_none(App, name = name) == None
 
     class Meta:
         ordering = ['created']
@@ -97,7 +113,8 @@ def _deploy_artifact(api):
     send_mail('Cytoscape App Store - App Repo Deploy (Release API ID: %d)' % api.id, cmdout, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
 
 
-class ServiceAppPending(models.Model):
+class ServiceAppPending(PendingIdentity, models.Model):
+    PLATFORM = Platform.SERVICE
 
     class Status(models.TextChoices):
         PENDING_CHECKER = 'pending_checker', 'Pending Checker' #submission was successful, waiting for checker command
@@ -173,7 +190,8 @@ class WebUrlPending(models.Model):
 def get_webbundles_storage():
     return storages['webbundles']
 
-class WebBundlePending(models.Model):
+class WebBundlePending(PendingIdentity, models.Model):
+    PLATFORM = Platform.WEB
     class Status(models.TextChoices):
         DEFAULT = 'default_status', 'Default Status'
         PENDING_AUTOMATED_CHECKS = 'pending_automated_checks', 'Running Automated Checks'
