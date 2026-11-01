@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import LiveServerTestCase, TestCase
 
-from apps.models import App, Platform, Release, ServiceRelease, WebBundleRelease
+from apps.models import App, Release, ServiceRelease, WebBundleRelease
 from download.models import Download, ReleaseDownloadsByDate
 from download.models import ServiceDownload, ServiceReleaseDownloadsByDate
 from download.models import WebBundleDownload, WebBundleReleaseDownloadsByDate
@@ -18,8 +18,7 @@ class DownloadFixtureMixin:
     """Service, web and desktop apps with releases, shared by the download tests."""
 
     def create_fixtures(self):
-        self.service_app = App.objects.create(name='svcapp', fullname='Service App',
-                                              platform=Platform.SERVICE, active=True)
+        self.service_app = App.objects.create(name='svcapp', fullname='Service App', active=True)
         self.service_release = ServiceRelease.objects.create(
             app=self.service_app, version='1.0.0',
             service_endpoint='https://service.example.org/svcapp')
@@ -27,13 +26,11 @@ class DownloadFixtureMixin:
             app=self.service_app, version='0.9.0',
             service_endpoint='https://service.example.org/svcapp-old', active=False)
 
-        self.web_app = App.objects.create(name='webapp', fullname='Web App',
-                                          platform=Platform.WEB, active=True)
+        self.web_app = App.objects.create(name='webapp', fullname='Web App', active=True)
         self.web_release = WebBundleRelease.objects.create(
             app=self.web_app, version='2.0.0', active=True, bundle_hash='abc123')
 
-        self.desktop_app = App.objects.create(name='jarapp', fullname='Jar App',
-                                              platform=Platform.DESKTOP, active=True)
+        self.desktop_app = App.objects.create(name='jarapp', fullname='Jar App', active=True)
         self.desktop_release = Release.objects.create(
             app=self.desktop_app, version='3.0.0', works_with='3.10')
 

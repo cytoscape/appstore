@@ -17,6 +17,8 @@ from html.parser import HTMLParser
 from PIL import Image, ImageDraw
 
 from django.conf import settings
+from django.core.exceptions import FieldDoesNotExist
+from django.template import Context, Template
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -728,7 +730,6 @@ class ServiceReleaseOrderingTestCase(TestCase):
 
     def setUp(self):
         self.app = App.objects.create(name='svcapp', fullname='Service App',
-                                      platform=apps_models.Platform.SERVICE,
                                       active=True, has_releases=True)
         self.base_time = datetime.datetime(2026, 1, 1)
 
@@ -802,7 +803,8 @@ class ServiceReleaseOrderingTestCase(TestCase):
         self.client.login(username='editor', password='secret')
         response = self.client.get('/apps/svcapp/edit')
         self.assertEqual(200, response.status_code)
-        self.assertEqual(['1.10', '1.9'], [r.version for r in response.context['releases']])
+        [(platform, _, releases)] = response.context['releases_by_platform']
+        self.assertEqual(('service', ['1.10', '1.9']), (platform, [r.version for r in releases]))
 
     def test_service_page_works_with_web_and_desktop(self):
         self.make_release('1.10', days_old=1)
@@ -860,7 +862,7 @@ class SeedIntegrationDataTestCase(TestCase):
         self.assertFalse(User.objects.get(username='it-other').is_staff)
 
         apps = {app.name: app for app in App.objects.all()}
-        self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itmulti', 'itlegacy'}, set(apps))
+        self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itlegacy'}, set(apps))
         self.assertEqual([Platform.DESKTOP, Platform.WEB, Platform.SERVICE], apps['itmulti'].platforms)
         self.assertEqual(['1.0'], [r.version for r in apps['itdesktop'].releases])
         self.assertTrue(os.path.exists(apps['itdesktop'].releases[0].release_file.path))
@@ -868,7 +870,7 @@ class SeedIntegrationDataTestCase(TestCase):
         self.assertEqual(['1.0'], [r.version for r in apps['itservice'].servicereleases])
         self.assertFalse(apps['itlegacy'].has_releases)
         self.assertTrue(apps['itlegacy'].cy_2x_plugin_download)
-        for name in ('itdesktop', 'itweb', 'itservice', 'itmulti', 'itlegacy'):
+        for name in ('itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itlegacy'):
             self.assertEqual(['it-editor'], [u.username for u in apps[name].editors.all()])
 
         pending = WebBundlePending.objects.get()
@@ -887,7 +889,7 @@ class SeedIntegrationDataTestCase(TestCase):
     def test_reseeding_replaces_the_data(self):
         self.seed()
         sessions = self.seed()
-        self.assertEqual(5, App.objects.count())
+        self.assertEqual(6, App.objects.count())
         self.assertEqual(1, WebBundlePending.objects.count())
         self.assertEqual(1, ServiceAppPending.objects.count())
         self.assertEqual(3, User.objects.filter(username__startswith='it-').count())
@@ -1113,3 +1115,91 @@ class UnifiedAppPageTestCase(TestCase):
         content = self.page('multi')
         for link in submit_links:
             self.assertNotIn(link, content)
+
+
+class PlatformTilesTestCase(TestCase):
+    """App tiles show a sticker per platform and say downloads or installs (#155)."""
+
+    def tile(self, platforms):
+        name = 'app' + ''.join(platforms)
+        app = App.objects.create(name=name, fullname=name, active=True, has_releases=bool(platforms))
+        if 'desktop' in platforms:
+            Release.objects.create(app=app, version='1.0', works_with='3.10')
+        if 'web' in platforms:
+            WebBundleRelease.objects.create(app=app, version='1.0', active=True, bundle_hash='0')
+        if 'service' in platforms:
+            ServiceRelease.objects.create(app=app, version='1.0', service_endpoint='https://example.org/app')
+        app = App.objects.get(pk=app.pk)
+        return Template('{% load app_buttons %}{% app_button app 0 %}').render(Context({'app': app}))
+
+    def stickers(self, html):
+        return re.findall(r'cy-sticker-(desktop|web)', html)
+
+    def usage(self, html):
+        found = re.search(r'class="cy-app-usage">\d+ (\w+)<', html)
+        return found.group(1) if found else None
+
+    def test_stickers_and_usage_per_platform_set(self):
+        for platforms, stickers, usage in ((['desktop'], ['desktop'], 'downloads'),
+                                           (['web'], ['web'], 'installs'),
+                                           (['service'], ['web'], 'installs'),
+                                           (['desktop', 'web', 'service'], ['desktop', 'web'], 'downloads'),
+                                           ([], [], None)):
+            html = self.tile(platforms)
+            self.assertEqual(stickers, self.stickers(html), platforms)
+            self.assertEqual(usage, self.usage(html), platforms)
+        self.assertIn('cy-sticker-second', self.tile(['desktop', 'service']))
+
+
+class EditPageReleasesByPlatformTestCase(TestCase):
+    """The edit page's release notes and deletes name the platform, since release ids are per platform (#155)."""
+
+    def setUp(self):
+        self.editor = User.objects.create_user('editor', 'editor@example.org', 'secret')
+        self.app = App.objects.create(name='multi', fullname='Multi', active=True, has_releases=True)
+        self.app.editors.add(self.editor)
+        self.desktop = Release.objects.create(app=self.app, version='1.0', works_with='3.10')
+        self.web = WebBundleRelease.objects.create(app=self.app, version='1.0', active=True, bundle_hash='0')
+        self.service = ServiceRelease.objects.create(app=self.app, version='1.0', service_endpoint='https://example.org/multi')
+        self.client.force_login(self.editor)
+
+    def post(self, action, platform, release, **data):
+        data.update({'action': action, 'release_count': 1, 'release_id_0': release.id})
+        if platform:
+            data['platform'] = platform
+        return self.client.post('/apps/multi/edit', data, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+    def test_edit_page_groups_releases_by_platform(self):
+        content = self.client.get('/apps/multi/edit').content.decode('utf-8')
+        for platform, release in (('desktop', self.desktop), ('web', self.web), ('service', self.service)):
+            self.assertIn('<h3 class="cy-release-platform" id="cy-releases-%s">' % platform, content)
+            self.assertIn('release_id="%d" data-platform="%s"' % (release.id, platform), content)
+
+    def test_notes_go_to_the_named_platforms_release(self):
+        self.assertEqual(200, self.post('save_release_notes', 'web', self.web, notes_0='web notes').status_code)
+        self.web.refresh_from_db()
+        self.desktop.refresh_from_db()
+        self.assertEqual('web notes', self.web.notes)
+        self.assertFalse(self.desktop.notes)
+
+    def test_platform_is_required(self):
+        response = self.post('save_release_notes', None, self.web, notes_0='notes')
+        self.assertContains(response, 'platform must be one of', status_code=400)
+
+    def test_deleting_the_last_web_release_takes_the_app_off_web(self):
+        self.assertEqual(200, self.post('delete_release', 'web', self.web).status_code)
+        self.web.refresh_from_db()
+        self.desktop.refresh_from_db()
+        self.assertFalse(self.web.active)
+        self.assertTrue(self.desktop.active)
+        app = App.objects.get(name='multi')
+        self.assertEqual([Platform.DESKTOP, Platform.SERVICE], app.platforms)
+        self.assertNotContains(self.client.get('/apps/platform/web/'), 'Multi')
+        self.assertContains(self.client.get('/apps/platform/desktop/'), 'Multi')
+
+
+class AppPlatformFieldRemovedTestCase(TestCase):
+
+    def test_app_has_no_stored_platform(self):
+        with self.assertRaises(FieldDoesNotExist):
+            App._meta.get_field('platform')

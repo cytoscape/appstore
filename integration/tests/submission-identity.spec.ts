@@ -23,7 +23,12 @@ test.describe('Submission identity', () => {
   test('a desktop jar repeating an existing version is refused', async ({ asEditor }) => {
     await asEditor.goto('/submit/submit_desktop_app')
     await asEditor.locator('input[name="file"]').setInputFiles(desktopJar('IT Desktop', '1.0'))
-    await asEditor.getByRole('button', { name: 'Submit' }).click()
+    // choosing a file slides the instructions open above the Submit button; click once it has settled
+    await asEditor.waitForFunction(() => !(window as any).$('#instructions').is(':animated'))
+    await Promise.all([
+      asEditor.waitForResponse((response) => response.url().endsWith('/submit/submit_desktop_app') && response.request().method() === 'POST'),
+      asEditor.getByRole('button', { name: 'Submit' }).click(),
+    ])
     await expect(asEditor.getByText('already has a release with version 1.0')).toBeVisible()
   })
 })

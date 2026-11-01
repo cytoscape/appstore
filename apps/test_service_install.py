@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, urlparse
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from playwright.sync_api import expect, sync_playwright
 
-from apps.models import App, Platform, ServiceRelease
+from apps.models import App, ServiceRelease
 from download.models import ServiceDownload
 
 CYREST = 'http://127.0.0.1:1234'
@@ -134,8 +134,7 @@ class ServiceInstallButtonTestCase(StaticLiveServerTestCase):
             os.environ['DJANGO_ALLOW_ASYNC_UNSAFE'] = cls._async_unsafe
 
     def setUp(self):
-        self.app = App.objects.create(name='helloworldapp', fullname='Hello World App',
-                                      platform=Platform.SERVICE, active=True, has_releases=True)
+        self.app = App.objects.create(name='helloworldapp', fullname='Hello World App', active=True, has_releases=True)
         self.release = ServiceRelease.objects.create(
             app=self.app, version='1.10', service_endpoint=self.ENDPOINT,
             metadata={'name': 'Hello World', 'version': '1.10'})

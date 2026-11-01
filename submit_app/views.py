@@ -391,10 +391,10 @@ def _get_server_url(request):
 
     return '%s://%s:%s' % (prefix, name, port)
 
-def _get_or_create_app_for_pending(pending, platform):
+def _get_or_create_app_for_pending(pending):
     """
     The App an accepted 'pending' release goes to: the app already holding its name, which is
-    then gaining 'platform', or else a new app with the submitter as its editor.
+    then gaining the pending release's platform, or else a new app with the submitter as its editor.
 
     :return: the App, and whether it already existed
     """
@@ -402,7 +402,7 @@ def _get_or_create_app_for_pending(pending, platform):
     app = get_object_or_none(App, name=name)
     existed = app is not None
     if not existed:
-        app = App.objects.create(fullname=pending.fullname, name=name, platform=platform)
+        app = App.objects.create(fullname=pending.fullname, name=name)
         app.editors.add(pending.submitter)
     app.active = True
     app.save()
@@ -420,7 +420,7 @@ def _send_email_for_accepted(request, submitter_email, app, existed, platform):
 
 @csrf_exempt
 def _pending_app_accept(pending, request):
-    app, existed = _get_or_create_app_for_pending(pending, Platform.DESKTOP)
+    app, existed = _get_or_create_app_for_pending(pending)
     pending.make_release(app)
     pending.delete_files()
     pending.delete()
@@ -434,7 +434,7 @@ def _pending_app_decline(pending_app, request):
 @csrf_exempt
 def _pending_web_accept(pending, request): #INCLUDES PATH FOR REPO URL, MAY OR MAY NOT ADD SEPARATE FUNCTION LATER
     if isinstance(pending, WebBundlePending):
-        app, existed = _get_or_create_app_for_pending(pending, Platform.WEB)
+        app, existed = _get_or_create_app_for_pending(pending)
 
         try:
             pending.make_bundle_release(app)
@@ -453,7 +453,7 @@ def _pending_web_accept(pending, request): #INCLUDES PATH FOR REPO URL, MAY OR M
 
 @csrf_exempt
 def _pending_service_accept(pending, request):
-    app, existed = _get_or_create_app_for_pending(pending, Platform.SERVICE)
+    app, existed = _get_or_create_app_for_pending(pending)
     pending.make_service_release(app)
     submitter_email = pending.submitter.email
     pending.delete()

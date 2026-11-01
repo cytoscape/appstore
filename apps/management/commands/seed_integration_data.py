@@ -10,7 +10,7 @@ from django.contrib.sessions.backends.db import SessionStore
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.models import App, Platform, Release, ServiceRelease, WebBundleRelease
+from apps.models import App, Release, ServiceRelease, WebBundleRelease
 from submit_app.bundle_storage import _copy_bundle_to_storage, write_manifest_json, write_pending_manifest_json
 from submit_app.models import AppPending, ServiceAppPending, WebBundlePending, WebUrlPending
 from util.id_util import fullname_to_name
@@ -28,7 +28,7 @@ def sessions_file():
 
 # Specs that change data own the seeded objects they change, so the specs stay independent:
 # admin-accept.spec.ts accepts IT Desktop's pending Cytoscape Web bundle, and
-# admin-queue.spec.ts declines IT Url App.
+# admin-queue.spec.ts declines IT Url App, and tiles-edit.spec.ts edits IT Edit.
 class Command(BaseCommand):
     help = ('Replaces all apps, pending submissions and it-* users with the integration test data, '
             'and writes a logged-in session key per test user to build/it_sessions.json. '
@@ -67,9 +67,8 @@ class Command(BaseCommand):
         session.create()
         return session.session_key
 
-    def create_app(self, fullname, platform, editor, **fields):
-        app = App.objects.create(name=fullname_to_name(fullname), fullname=fullname,
-                                 platform=platform, active=True,
+    def create_app(self, fullname, editor, **fields):
+        app = App.objects.create(name=fullname_to_name(fullname), fullname=fullname, active=True,
                                  description='%s, seeded for the integration tests' % fullname, **fields)
         app.editors.add(editor)
         return app
@@ -77,26 +76,26 @@ class Command(BaseCommand):
     def create_apps(self, users):
         editor = users['editor']
 
-        desktop = self.create_app('IT Desktop', Platform.DESKTOP, editor, has_releases=True)
+        desktop = self.create_app('IT Desktop', editor, has_releases=True)
         release = Release.objects.create(app=desktop, version='1.0', works_with='3.10')
         release.release_file.save('itdesktop-1.0.jar', ContentFile(b'integration test jar'))
         release.calc_checksum()
         self.mark_released(desktop, release)
 
-        web = self.create_app('IT Web', Platform.WEB, editor, has_releases=True)
+        web = self.create_app('IT Web', editor, has_releases=True)
         web_release = WebBundleRelease.objects.create(app=web, version='1.0', cy_app_id='itweb',
                                                       active=True, bundle_hash='0' * 64)
         write_manifest_json(web_release)
         self.mark_released(web, web_release)
 
-        service = self.create_app('IT Service', Platform.SERVICE, editor, has_releases=True)
+        service = self.create_app('IT Service', editor, has_releases=True)
         service_release = ServiceRelease.objects.create(
             app=service, version='1.0', service_endpoint='https://service.example.org/itservice',
             metadata={'name': 'IT Service', 'version': '1.0'})
         self.mark_released(service, service_release)
 
         # the same version on all three platforms
-        multi = self.create_app('IT Multi', Platform.DESKTOP, editor, has_releases=True)
+        multi = self.create_app('IT Multi', editor, has_releases=True)
         multi_desktop = Release.objects.create(app=multi, version='1.0', works_with='3.10')
         multi_desktop.release_file.save('itmulti-1.0.jar', ContentFile(b'integration test jar'))
         multi_desktop.calc_checksum()
@@ -106,7 +105,16 @@ class Command(BaseCommand):
                                       metadata={'name': 'IT Multi', 'version': '1.0'})
         self.mark_released(multi, multi_desktop)
 
-        self.create_app('IT Legacy', Platform.DESKTOP, editor,
+        # edited by tiles-edit.spec.ts, so it has all three platforms of its own
+        edited = self.create_app('IT Edit', editor, has_releases=True)
+        edited_desktop = Release.objects.create(app=edited, version='1.0', works_with='3.10')
+        write_manifest_json(WebBundleRelease.objects.create(app=edited, version='1.0', cy_app_id='itedit',
+                                                            active=True, bundle_hash='0' * 64))
+        ServiceRelease.objects.create(app=edited, version='1.0', service_endpoint='https://service.example.org/itedit',
+                                      metadata={'name': 'IT Edit', 'version': '1.0'})
+        self.mark_released(edited, edited_desktop)
+
+        self.create_app('IT Legacy', editor,
                         cy_2x_plugin_download='https://example.org/itlegacy-1.0.jar',
                         cy_2x_plugin_version='1.0', cy_2x_versions='2.8')
 

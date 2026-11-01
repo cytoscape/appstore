@@ -8,12 +8,12 @@
   latest_release_date="{{ app.latest_release_date.isoformat }}"
   onClick="window.location='{% url 'app_page' app.name %}';">
 
-  {% if app.has_releases%}
-    {% if app.platform == 'web'%}
-      <i class="cy3-sticker" style="background-image: url('{% get_static_prefix %}apps/img/cyweb_sticker.png');"></i>
-    {% else %}
-      <i class="cy3-sticker" style="background-image: url('{% get_static_prefix %}apps/img/cy3_sticker.png');"></i>
-    {% endif %}
+  {# a sticker per platform: Cytoscape Desktop, and Cytoscape Web for web and service apps #}
+  {% if app.has_desktop %}
+    <i class="cy3-sticker cy-sticker-desktop" style="background-image: url('{% get_static_prefix %}apps/img/cy3_sticker.png');"></i>
+  {% endif %}
+  {% if app.has_web or app.has_service %}
+    <i class="cy3-sticker cy-sticker-web{% if app.has_desktop %} cy-sticker-second{% endif %}" style="background-image: url('{% get_static_prefix %}apps/img/cyweb_sticker.png');"></i>
   {% endif %}
 
   <a href="{% url 'app_page' app.name %}">
@@ -70,10 +70,8 @@
               <i class="stars-full icon-cy-stars-filled" style="width: {{ app.stars_percentage }}%"></i>
             </div>
             <span class="votes">
-              ({{ app.votes }}){% if app.has_releases and app.platform == 'desktop' %}
-                                  &nbsp;&nbsp;{{ app.downloads }} downloads 
-                                {% elif app.has_releases and app.platform == 'service' or app.platform == 'web'%}
-                                  &nbsp;&nbsp;{{ app.downloads }} installs
+              ({{ app.votes }}){% if app.has_releases %}
+                                  &nbsp;&nbsp;<span class="cy-app-usage">{{ app.downloads }} {% if app.has_desktop %}downloads{% else %}installs{% endif %}</span>
                                 {% endif %}
             </span>
           </td>

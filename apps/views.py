@@ -467,6 +467,12 @@ def _save_authors(app, request):
         author, _ = Author.objects.get_or_create(name = name, institution = institution)
         ordered_author = OrderedAuthor.objects.create(app = app, author = author, author_order = author_order)
 
+def _posted_platform_releases(app, request):
+    platform = request.POST.get('platform')
+    if platform not in Platform.values:
+        raise ValueError('platform must be one of: %s' % ', '.join(Platform.values))
+    return app.get_releases(platform)
+
 def _save_release_notes(app, request):
     release_count = request.POST.get('release_count')
     if not release_count:
@@ -476,7 +482,7 @@ def _save_release_notes(app, request):
     except ValueError:
         raise ValueError('release_count is not an integer')
 
-    releases = app.get_releases(app.platform)
+    releases = _posted_platform_releases(app, request)
     release_model = releases.model
     for i in range(release_count):
         key = 'release_id_' + str(i)
@@ -503,7 +509,7 @@ def _delete_release(app, request):
     except ValueError:
         raise ValueError('release_count is not an integer')
 
-    releases = app.get_releases(app.platform)
+    releases = _posted_platform_releases(app, request)
     release_model = releases.model
     for i in range(release_count):
         key = 'release_id_' + str(i)
@@ -568,7 +574,8 @@ def app_page_edit(request, app_name):
     all_tags = [tag.fullname for tag in Tag.objects.all()]
     c = {
         'app': app,
-        'releases': app.releases_for_display(app.platform),
+        'releases_by_platform': [(platform, _PLATFORM_NAMES[platform], app.releases_for_display(platform))
+                                 for platform in app.platforms],
         'all_tags': all_tags,
         'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
         'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,

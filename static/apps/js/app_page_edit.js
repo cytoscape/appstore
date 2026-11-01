@@ -518,7 +518,8 @@ var AppPageEdit = (function($)
         
         $('.cy-release').each(function() {
             var release_div = $(this);
-            var release_id = $(this).attr('release_id');
+            // release ids are per platform, so the platform is part of the key
+            var release_id = $(this).attr('data-platform') + ':' + $(this).attr('release_id');
             var release_notes_field = $(this).find('.cy-release-notes');
             var release_notes_preview = $(this).find('.cy-release-notes-preview');
             var delete_btn = $(this).find('.cy-release-delete');
@@ -756,40 +757,52 @@ var AppPageEdit = (function($)
                 'data': data
             };
         },
-        'release_notes': function(release_ids) {
-            var data = Object();
-            data['action'] = 'save_release_notes';
-            var count = 0;
-            for (release_id in release_ids) {
-                data['release_id_' + count] = release_id;
-                data['notes_' + count] = $('[release_id=' + release_id + '] .cy-release-notes').val();
-                count++;
-            }
-            data['release_count'] = count;
-            return {
-                'msg': 'Saving release notes',
-                'data': data
-            };
+        'release_notes': function(release_keys) {
+            return $.map(releases_by_platform(release_keys), function(release_ids, platform) {
+                var data = Object();
+                data['action'] = 'save_release_notes';
+                data['platform'] = platform;
+                $.each(release_ids, function(count, release_id) {
+                    data['release_id_' + count] = release_id;
+                    data['notes_' + count] = $('.cy-release[data-platform=' + platform + '][release_id=' + release_id + '] .cy-release-notes').val();
+                });
+                data['release_count'] = release_ids.length;
+                return {
+                    'msg': 'Saving release notes',
+                    'data': data
+                };
+            });
         },
-        'release_deletes': function(release_ids) {
-            var data = Object();
-            data['action'] = 'delete_release';
-            var count = 0;
-            for (release_id in release_ids) {
-                data['release_id_' + count] = release_id;
-                count++;
-            }
-            data['release_count'] = count;
-            return {
-                'msg': 'Deleting releases',
-                'data': data
-            };
+        'release_deletes': function(release_keys) {
+            return $.map(releases_by_platform(release_keys), function(release_ids, platform) {
+                var data = Object();
+                data['action'] = 'delete_release';
+                data['platform'] = platform;
+                $.each(release_ids, function(count, release_id) {
+                    data['release_id_' + count] = release_id;
+                });
+                data['release_count'] = release_ids.length;
+                return {
+                    'msg': 'Deleting releases',
+                    'data': data
+                };
+            });
         },
     }
     
     
     var queue = new Array();
     
+    // {'desktop:12': true, 'web:3': true} -> {'desktop': ['12'], 'web': ['3']}
+    function releases_by_platform(release_keys) {
+        var by_platform = {};
+        for (var key in release_keys) {
+            var platform = key.split(':')[0], release_id = key.split(':')[1];
+            (by_platform[platform] = by_platform[platform] || []).push(release_id);
+        }
+        return by_platform;
+    }
+
     // Pulls out an entry from SaveActions, converts it to an Ajax query, and stores it in queue.
     // If there are no more entries in SaveActions, this returns false.
     function next_action() {

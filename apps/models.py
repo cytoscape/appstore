@@ -160,8 +160,6 @@ class App(models.Model):
     editors = models.ManyToManyField(User, blank=True)
 
 
-    platform = models.CharField(max_length=31, choices=Platform.choices, default=Platform.DESKTOP)
-
     cy_2x_plugin_download = models.URLField(blank=True, null=True)
     cy_2x_plugin_version = models.CharField(max_length=31, blank=True,
                                             null=True)

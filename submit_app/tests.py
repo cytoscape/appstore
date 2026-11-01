@@ -797,8 +797,7 @@ class WebBundleManifestIdTest(TestCase):
     container name, not the store's URL slug (issue #144)."""
 
     def setUp(self):
-        self.app = App.objects.create(fullname='C3 App', name='c3app',
-                                      platform=Platform.WEB)
+        self.app = App.objects.create(fullname='C3 App', name='c3app')
 
     def test_catalog_entry_uses_cy_app_id_not_the_slug(self):
         release = WebBundleRelease.objects.create(app=self.app,

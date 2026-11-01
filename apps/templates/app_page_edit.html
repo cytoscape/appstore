@@ -134,18 +134,26 @@
       <div class="tab-pane" id="cy-app-releases-tab">
         <div class="row">
           <div class="span7">
+            {% for platform, platform_name, releases in releases_by_platform %}
+            {% if releases_by_platform|length > 1 %}
+            <h3 class="cy-release-platform" id="cy-releases-{{ platform }}">{{ platform_name }}</h3>
+            {% endif %}
             {% for release in releases %}
-              <div class="cy-release" release_id="{{ release.id }}">
+              <div class="cy-release" release_id="{{ release.id }}" data-platform="{{ platform }}">
                 <h4>
                   {{ release.version }}
                   <small><abbr class="timeago" title="{{ release.created_iso }}"></abbr></small>
-                  <button class="btn btn-small {% if release.dependents.count %}disabled{% endif %} cy-release-delete"><i class="icon icon-trash"></i> Delete</button>
+                  <button class="btn btn-small {% if platform == 'desktop' and release.dependents.count %}disabled{% endif %} cy-release-delete"><i class="icon icon-trash"></i> Delete</button>
                 </h4>
                 <p>
+                  {% if platform == 'desktop' %}
                   <strong>Works with Cytoscape</strong>
                   {{ release.works_with }}
+                  {% else %}
+                  <strong>Works with</strong> Cytoscape Web
+                  {% endif %}
                 </p>
-                {% if release.releaseapi_set.count %}
+                {% if platform == 'desktop' and release.releaseapi_set.count %}
                 {% with releaseapi=release.releaseapi_set.get %}
                 <p>
                   <strong>API</strong>
@@ -156,7 +164,7 @@
                 </p>
                 {% endwith %}
                 {% endif %}
-                {% if release.dependents.count %}
+                {% if platform == 'desktop' and release.dependents.count %}
                 <p>
                   <strong>Apps that depend on this release</strong>
                   <ul>
@@ -175,6 +183,7 @@
                 <hr>
               </div>
               {% endfor %}
+            {% endfor %}
 
             {# end outer div #}
           </div>
@@ -207,7 +216,7 @@
     {# end editors #}
         
     {# 2.x #}
-    {% if app.platform == 'desktop' %}
+    {% if app.has_desktop or not app.has_releases %}
     <div class="well cy-right-panel">
       <h6 class="muted panel-title">Cytoscape 2.x Plugin</h6>
                 

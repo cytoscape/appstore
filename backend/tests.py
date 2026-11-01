@@ -10,7 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from apps.models import App
 from apps.models import Release
-from apps.models import Platform, ServiceRelease, WebBundleRelease
+from apps.models import ServiceRelease, WebBundleRelease
 from django.conf import settings
 
 SMALL_GIF = (
@@ -113,12 +113,10 @@ class AllAppsReleaseShapeTestCase(TestCase):
 
     def setUp(self):
         service_app = App.objects.create(name='svcapp', fullname='Service App',
-                                         platform=Platform.SERVICE,
                                          active=True, has_releases=True)
         ServiceRelease.objects.create(app=service_app, version='1.0',
                                       service_endpoint='https://service.example.org/svcapp')
         web_app = App.objects.create(name='webapp', fullname='Web App',
-                                     platform=Platform.WEB,
                                      active=True, has_releases=True)
         WebBundleRelease.objects.create(app=web_app, version='2.0', active=True,
                                         bundle_hash='abc123')
