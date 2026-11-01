@@ -10,10 +10,13 @@ import tempfile
 import shutil
 import yaml
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 from util.img_util import *
+from util.id_util import AppIdentity, IdentityOutcome, resolve_app_identity
+from apps.models import App, Platform, Release
 
 
 def image_to_byte_array(img, img_format):
@@ -116,3 +119,49 @@ class CiWorkflowTestCase(TestCase):
     def test_a_job_runs_make_integration_test_after_browser_libraries(self):
         job = self.job_running('make integration-test')
         self.assert_runs_after(job, 'playwright install-deps chromium firefox', 'make integration-test')
+
+
+class ResolveAppIdentityTestCase(TestCase):
+    """A submission's name picks its app regardless of platform."""
+
+    def setUp(self):
+        self.editor = User.objects.create_user('editor', 'editor@example.org', 'secret')
+        self.other = User.objects.create_user('other', 'other@example.org', 'secret')
+        self.staff = User.objects.create_user('staff', 'staff@example.org', 'secret', is_staff=True)
+        self.app = App.objects.create(name='foo', fullname='Foo', active=True)
+        self.app.editors.add(self.editor)
+        Release.objects.create(app=self.app, version='1.0', works_with='3.10')
+
+    def test_unknown_name_is_a_new_app(self):
+        identity = resolve_app_identity('Brand New', self.other, Platform.WEB)
+        self.assertEqual(AppIdentity('brandnew', None, IdentityOutcome.NEW_APP), identity)
+
+    def test_editor_on_a_platform_the_app_has(self):
+        identity = resolve_app_identity('Foo', self.editor, Platform.DESKTOP)
+        self.assertEqual(self.app, identity.app)
+        self.assertEqual(IdentityOutcome.EXISTING_PLATFORM, identity.outcome)
+
+    def test_editor_on_a_new_platform(self):
+        identity = resolve_app_identity('Foo', self.editor, Platform.SERVICE)
+        self.assertEqual(self.app, identity.app)
+        self.assertEqual(IdentityOutcome.NEW_PLATFORM, identity.outcome)
+
+    def test_non_editor_cannot_take_the_name_on_any_platform(self):
+        for platform in Platform:
+            self.assertEqual(IdentityOutcome.NOT_EDITOR,
+                             resolve_app_identity('Foo', self.other, platform).outcome)
+
+    def test_staff_count_as_editors(self):
+        self.assertEqual(IdentityOutcome.NEW_PLATFORM,
+                         resolve_app_identity('Foo', self.staff, Platform.WEB).outcome)
+
+    def test_case_and_punctuation_variants_are_the_same_app(self):
+        for variant in ('FOO', 'foo', 'F-o-o', 'F o o'):
+            identity = resolve_app_identity(variant, self.editor, Platform.WEB)
+            self.assertEqual(('foo', IdentityOutcome.NEW_PLATFORM), (identity.name, identity.outcome))
+            self.assertEqual('Foo', identity.app.fullname)
+
+    def test_inactive_app_still_holds_its_name(self):
+        App.objects.filter(pk=self.app.pk).update(active=False)
+        self.assertEqual(IdentityOutcome.NOT_EDITOR,
+                         resolve_app_identity('Foo', self.other, Platform.WEB).outcome)
