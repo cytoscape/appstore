@@ -12,6 +12,8 @@ import shutil
 import zipfile
 import tempfile
 import random
+import re
+from html.parser import HTMLParser
 from PIL import Image, ImageDraw
 
 from django.conf import settings
@@ -1024,3 +1026,90 @@ class PlatformListingsTestCase(TestCase):
 
     def test_nav_panel_links_to_legacy_plugins(self):
         self.assertContains(self.client.get('/apps/all'), 'href="/apps/cy2x_plugins"')
+
+
+class _ElementIds(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.ids = []
+
+    def handle_starttag(self, tag, attrs):
+        self.ids.extend(value for name, value in attrs if name == 'id')
+
+
+class UnifiedAppPageTestCase(TestCase):
+    """One app page shows every platform the app is on (#155)."""
+
+    PANELS = {'desktop': 'cy-app-panel-desktop', 'web': 'cy-app-panel-web', 'service': 'cy-app-panel-service'}
+
+    def setUp(self):
+        self.editor = User.objects.create_user('editor', 'editor@example.org', 'secret')
+        self.other = User.objects.create_user('other', 'other@example.org', 'secret')
+        self.apps = {}
+        for name, platforms in (('desktoponly', ['desktop']), ('webonly', ['web']),
+                                ('serviceonly', ['service']), ('multi', ['desktop', 'web', 'service'])):
+            app = App.objects.create(name=name, fullname=name.title(), active=True, has_releases=True)
+            app.editors.add(self.editor)
+            if 'desktop' in platforms:
+                Release.objects.create(app=app, version='1.0', works_with='3.10')
+            if 'web' in platforms:
+                WebBundleRelease.objects.create(app=app, version='1.0', active=True, bundle_hash='0')
+            if 'service' in platforms:
+                ServiceRelease.objects.create(app=app, version='1.0', service_endpoint='https://example.org/%s' % name)
+            self.apps[name] = platforms
+
+    def page(self, name, query=''):
+        response = self.client.get('/apps/%s%s' % (name, query))
+        self.assertEqual(200, response.status_code)
+        return response.content.decode('utf-8')
+
+    def panel_order(self, content):
+        positions = {platform: content.find('id="%s"' % panel) for platform, panel in self.PANELS.items()}
+        return sorted((platform for platform, at in positions.items() if at != -1), key=positions.get)
+
+    def test_panels_chips_and_release_sections_per_platform(self):
+        for name, platforms in self.apps.items():
+            content = self.page(name)
+            self.assertEqual(platforms, self.panel_order(content), name)
+            for platform in self.PANELS:
+                chip = re.search(r'class="label cy-app-platform-chip[^"]*" data-platform="%s"' % platform, content)
+                self.assertEqual(platform in platforms, bool(chip), (name, platform))
+                self.assertEqual(platform in platforms, 'id="cy-app-releases-%s"' % platform in content, (name, platform))
+            self.assertEqual(len(platforms) > 1, 'id="cy-app-release-platforms"' in content, name)
+
+    def test_no_duplicate_element_ids(self):
+        for name in self.apps:
+            parser = _ElementIds()
+            parser.feed(self.page(name))
+            duplicates = {i for i in parser.ids if parser.ids.count(i) > 1}
+            self.assertEqual(set(), duplicates, name)
+
+    def test_selected_platform_comes_first(self):
+        self.assertEqual(['web', 'desktop', 'service'], self.panel_order(self.page('multi', '?platform=web')))
+        self.assertEqual(['service', 'desktop', 'web'], self.panel_order(self.page('multi', '?platform=service')))
+        content = self.page('multi', '?platform=service')
+        self.assertLess(content.find('id="cy-app-releases-service"'), content.find('id="cy-app-releases-desktop"'))
+
+    def test_invalid_platform_falls_back_to_the_first(self):
+        self.assertEqual(['desktop', 'web', 'service'], self.panel_order(self.page('multi', '?platform=bogus')))
+        self.assertEqual(['web'], self.panel_order(self.page('webonly', '?platform=desktop')))
+
+    def test_install_buttons_set_up_per_platform(self):
+        content = self.page('multi')
+        self.assertIn("AppPage.setup_install('#cy-app-install-btn-desktop'", content)
+        self.assertIn("'selector': '#cy-app-install-btn-service'", content)
+        self.assertIn('Install service app in Cytoscape Desktop', content)
+        self.assertNotIn('AppPage.setup_install(', self.page('webonly'))
+
+    def test_editor_menu_offers_every_platform_to_editors_only(self):
+        submit_links = ('/submit/submit_desktop_app?expect_app_name=Multi',
+                        '/submit/submit_web_bundle?expect_app_name=Multi',
+                        '/submit/submit_service_app?expect_app_name=Multi')
+        self.client.force_login(self.editor)
+        content = self.page('multi')
+        for link in submit_links:
+            self.assertIn(link, content)
+        self.client.force_login(self.other)
+        content = self.page('multi')
+        for link in submit_links:
+            self.assertNotIn(link, content)

@@ -1,0 +1,23 @@
+{# Service panel: open the service in Cytoscape Web, or install it into Cytoscape Desktop through the Desktop Service App #}
+<div class="well cy-app-platform-panel" id="cy-app-panel-service" data-platform="service">
+	<h6 class="panel-title muted">CYTOSCAPE WEB</h6>
+	<a class="btn btn-large btn-block btn-primary"
+	style='margin-bottom: 15px;'
+	href="{% url 'release_install' app.name service_latest_release.version %}?platform=service"
+	target="_blank">
+		<h4>Open in Cytoscape Web</h4>
+	</a>
+	{% if service_latest_release.service_endpoint %}
+	{% include 'app_url_copy.html' with url_label='Service URL' app_url=service_latest_release.service_endpoint url_id='latest-service' %}
+	{% endif %}
+	<p><h6 class="panel-title muted">CYTOSCAPE 3.0</h6></p>
+	<button class="btn btn-large btn-block disabled" id="cy-app-install-btn-service" style='margin-bottom: 15px;'>
+		<i></i> {# <-- install button icon will go here #}
+		<h4>Install service app in Cytoscape Desktop</h4>
+	</button>
+	<p><strong>Version</strong> {{ service_latest_release.version }}</p>
+	{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
+	<p><strong>Released</strong> {{ service_latest_release.created|date:'j M Y' }}</p>
+	<p>{% include 'service_works_with.html' %}</p>
+	<p><strong>Install Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
+</div>

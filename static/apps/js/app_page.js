@@ -128,101 +128,107 @@ var AppPage = (function($) {
             callback);
     }
 
-    var install_btn = $('#cy-app-install-btn');
-    var install_btn_last_class = [];
+    // An install button on the page; each platform's panel has its own, with its own state.
+    function make_install_button(selector) {
+        var btn = $(selector);
+        var last_class = [];
 
-    function setup_install_btn(btn_class, icon_class, btn_text, func) {
-        if (install_btn_last_class.length !== 0)
-            install_btn.removeClass(install_btn_last_class.pop());
-        install_btn.addClass(btn_class);
-        install_btn_last_class.push(btn_class);
-    
-        install_btn.find('i').attr('class', '');
-        install_btn.find('i').addClass(icon_class);
-    
-        install_btn.find('h4').html(btn_text);
-    
-        install_btn.off('click');
-        install_btn.removeClass('disabled');
-    
-        if (func) {
-            var license_modal = $('#license_modal');
-            if (license_modal.length !== 0) {
-                // Unbind previous click handlers to prevent double binding
-                license_modal.find('.btn-primary').off('click');
-    
-                license_modal.find('.btn-primary').click(function() {
-                    license_modal.modal('hide');
-                    func();
-                });
-    
-                install_btn.click(function() {
-                    var license_iframe = license_modal.find('iframe');
-                    license_iframe.attr('src', license_iframe.attr('data-src'));
-                    license_modal.modal('show');
-                });
+        function setup(btn_class, icon_class, btn_text, func) {
+            if (last_class.length !== 0)
+                btn.removeClass(last_class.pop());
+            btn.addClass(btn_class);
+            last_class.push(btn_class);
+
+            btn.find('i').attr('class', '');
+            btn.find('i').addClass(icon_class);
+
+            btn.find('h4').html(btn_text);
+
+            btn.off('click');
+            btn.removeClass('disabled');
+
+            if (func) {
+                var license_modal = $('#license_modal');
+                if (license_modal.length !== 0) {
+                    // Unbind previous click handlers to prevent double binding
+                    license_modal.find('.btn-primary').off('click');
+
+                    license_modal.find('.btn-primary').click(function() {
+                        license_modal.modal('hide');
+                        func();
+                    });
+
+                    btn.click(function() {
+                        var license_iframe = license_modal.find('iframe');
+                        license_iframe.attr('src', license_iframe.attr('data-src'));
+                        license_modal.modal('show');
+                    });
+                } else {
+                    // If license modal doesn't exist in DOM
+                    btn.click(func);
+                }
             } else {
-                // If license modal doesn't exist in DOM
-                install_btn.click(func);
+                btn.addClass('disabled');
             }
-        } else {
-            install_btn.addClass('disabled');
         }
-    }
-    
 
-    function set_install_btn_to_download(release_url) {
-        setup_install_btn('btn-primary', 'icon-cy-install-download', 'Download',
-            function() {
-                window.location.href = release_url;
-            });
+        return {'element': btn, 'setup': setup};
     }
 
-    function set_install_btn_to_installing() {
-        setup_install_btn('btn-info', 'icon-cy-install-install', 'Installing...');
-    }
+    function setup_install(selector, app_name, app_fullname, latest_release_url, latest_release_version, install_app_help_url) {
+        var install_btn = make_install_button(selector);
 
-    function set_install_btn_to_install(app_name, latest_release_version) {
-        setup_install_btn('btn-info', 'icon-cy-install-install', 'Install',
-            function() {
-                set_install_btn_to_installing();
-                install_app(app_name, latest_release_version, function(result) {
-                    if (result) {
-                        CyMsgs.add_msg(app_name + ' has been installed! Go to Cytoscape to use it.', 'success');
-                        set_install_btn_to_installed();
-                    } else {
-                        CyMsgs.add_msg('Could not install &ldquo;' + app_name + '&rdquo; app: <tt>' + result['install_status'] + '</tt>', 'error');
-                        set_install_btn_to_install(app_name, latest_release_version);
-                    }
+        function set_install_btn_to_download(release_url) {
+            install_btn.setup('btn-primary', 'icon-cy-install-download', 'Download',
+                function() {
+                    window.location.href = release_url;
                 });
-            });
-    }
+        }
 
-    function set_install_btn_to_upgrading() {
-        setup_install_btn('btn-warning', 'icon-cy-install-upgrade', 'Upgrading...');
-    }
+        function set_install_btn_to_installing() {
+            install_btn.setup('btn-info', 'icon-cy-install-install', 'Installing...');
+        }
 
-    function set_install_btn_to_upgrade(app_name, latest_release_version) {
-        setup_install_btn('btn-warning', 'icon-cy-install-upgrade', 'Upgrade',
-            function() {
-                set_install_btn_to_upgrading();
-                install_app(app_name, latest_release_version, function(result) {
-                    if (result) {
-                        CyMsgs.add_msg(app_name + ' has been updated! Go to Cytoscape to use it.', 'success');
-                        set_install_btn_to_installed();
-                    } else {
-                        CyMsgs.add_msg('Could not update &ldquo;' + app_name + '&rdquo; app: <tt>' + result['install_status'] + '</tt>', 'error');
-                        set_install_btn_to_install(app_name, latest_release_version);
-                    }
+        function set_install_btn_to_install(app_name, latest_release_version) {
+            install_btn.setup('btn-info', 'icon-cy-install-install', 'Install',
+                function() {
+                    set_install_btn_to_installing();
+                    install_app(app_name, latest_release_version, function(result) {
+                        if (result) {
+                            CyMsgs.add_msg(app_name + ' has been installed! Go to Cytoscape to use it.', 'success');
+                            set_install_btn_to_installed();
+                        } else {
+                            CyMsgs.add_msg('Could not install &ldquo;' + app_name + '&rdquo; app: <tt>' + result['install_status'] + '</tt>', 'error');
+                            set_install_btn_to_install(app_name, latest_release_version);
+                        }
+                    });
                 });
-            });
-    }
+        }
 
-    function set_install_btn_to_installed() {
-        setup_install_btn('btn-success', 'icon-cy-install-installed', 'Installed');
-    }
+        function set_install_btn_to_upgrading() {
+            install_btn.setup('btn-warning', 'icon-cy-install-upgrade', 'Upgrading...');
+        }
 
-    function setup_install(app_name, app_fullname, latest_release_url, latest_release_version, install_app_help_url) {
+        function set_install_btn_to_upgrade(app_name, latest_release_version) {
+            install_btn.setup('btn-warning', 'icon-cy-install-upgrade', 'Upgrade',
+                function() {
+                    set_install_btn_to_upgrading();
+                    install_app(app_name, latest_release_version, function(result) {
+                        if (result) {
+                            CyMsgs.add_msg(app_name + ' has been updated! Go to Cytoscape to use it.', 'success');
+                            set_install_btn_to_installed();
+                        } else {
+                            CyMsgs.add_msg('Could not update &ldquo;' + app_name + '&rdquo; app: <tt>' + result['install_status'] + '</tt>', 'error');
+                            set_install_btn_to_install(app_name, latest_release_version);
+                        }
+                    });
+                });
+        }
+
+        function set_install_btn_to_installed() {
+            install_btn.setup('btn-success', 'icon-cy-install-installed', 'Installed');
+        }
+
         set_install_btn_to_download(latest_release_url);
 
         is_manager_running(function(is_running) {
@@ -323,31 +329,32 @@ var AppPage = (function($) {
 
     function setup_service_install(opts) {
         var cyrest_url = opts.cyrest_url || AppManagerURL;
+        var install_btn = make_install_button(opts.selector);
 
         function set_btn(btn_class, icon_class, btn_text, tooltip, func) {
-            setup_install_btn(btn_class, icon_class, btn_text, func);
+            install_btn.setup(btn_class, icon_class, btn_text, func);
             if (tooltip)
-                install_btn.attr('title', tooltip);
+                install_btn.element.attr('title', tooltip);
             else
-                install_btn.removeAttr('title');
+                install_btn.element.removeAttr('title');
         }
 
         function set_btn_unavailable(tooltip) {
-            set_btn('', 'icon-info-sign', 'Install in Cytoscape Desktop', tooltip);
+            set_btn('', 'icon-info-sign', 'Install service app in Cytoscape Desktop', tooltip);
         }
 
         function set_btn_to_installed() {
-            set_btn('btn-success', 'icon-cy-install-installed', 'Installed in Cytoscape Desktop');
+            set_btn('btn-success', 'icon-cy-install-installed', 'Service app installed in Cytoscape Desktop');
         }
 
         function set_btn_for_state(state) {
             if (state === 'installed') {
                 set_btn_to_installed();
             } else if (state === 'upgrade') {
-                set_btn('btn-warning', 'icon-cy-install-upgrade', 'Upgrade in Cytoscape Desktop', null,
+                set_btn('btn-warning', 'icon-cy-install-upgrade', 'Upgrade service app in Cytoscape Desktop', null,
                     function() { install('upgrade'); });
             } else {
-                set_btn('btn-info', 'icon-cy-install-install', 'Install in Cytoscape Desktop', null,
+                set_btn('btn-info', 'icon-cy-install-install', 'Install service app in Cytoscape Desktop', null,
                     function() { install('install'); });
             }
         }

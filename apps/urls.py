@@ -29,8 +29,6 @@ urlpatterns = [
     # before app_page; no app can be named this, since app names have no underscores
     re_path(r'^cy2x_plugins$', cy2x_plugins_page, name='cy2x_plugins_page'),
     re_path(r'^(\w{1,100})$', app_page, name='app_page'),
-    #re_path(r'^(\w{1,100})$', service_page, name='service_page'),
-    #re_path(r'^(\w{1,100})$', webapp_page, name='webapp_page'),
     re_path(r'^(\w{1,100})/edit$', app_page_edit, name='app_page_edit'),
     re_path(r'^(\w{1,100})/author_names$', author_names),
     re_path(r'^(\w{1,100})/institution_names$', institution_names),

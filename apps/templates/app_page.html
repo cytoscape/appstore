@@ -52,13 +52,9 @@
 			</a>
 			<ul class="dropdown-menu pull-right">
 				<li><a href="{% url 'app_page_edit' app.name %}">Edit this page</a></li>
-				{% if app.platform == 'web' %}
-				<li><a href="{% url 'submit-web-bundle' %}?expect_app_name={{ app.fullname }}">Submit a new web release</a></li>
-				{% elif app.platform == 'service'%}
-				<li><a href="{% url 'submit-service-app' %}?expect_app_name={{ app.fullname }}">Submit a new service release</a></li>
-				{% else %}
-				<li><a href="{% url 'submit-app' %}?expect_app_name={{ app.fullname }}">Submit a 3.0 app release</a></li>
-				{% endif %}
+				<li><a href="{% url 'submit-app' %}?expect_app_name={{ app.fullname|urlencode }}">Submit a desktop release</a></li>
+				<li><a href="{% url 'submit-web-bundle' %}?expect_app_name={{ app.fullname|urlencode }}">Submit a Cytoscape Web bundle</a></li>
+				<li><a href="{% url 'submit-service-app' %}?expect_app_name={{ app.fullname|urlencode }}">Submit a service release</a></li>
 				<li class="divider"></li>
 				<li><a data-toggle="modal" href="#delete_ratings_modal">Delete all ratings</a></li>
 			</ul>
@@ -82,20 +78,11 @@
 		{# End Ratings #}
 
 		{# Downloads #}
-		{% if app.platform == 'desktop'%}
-			{% if app.has_releases %}
-			<span class="app-usage-info-divider"></span>
-			<a href="{% url 'app_stats' app.name %}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Click to view the download stats.">
-				{{ app.downloads }} downloads
-			</a>
-			{% endif %}
-		{% else %}
-			{% if app.has_releases %}
-			<span class="app-usage-info-divider"></span>
-			<a href="{% url 'app_stats' app.name %}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Click to view the download stats.">
-				{{ app.downloads }} installs
-			</a>
-			{% endif %}
+		{% if app.has_releases %}
+		<span class="app-usage-info-divider"></span>
+		<a href="{% url 'app_stats' app.name %}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Click to view the download stats.">
+			{{ app.downloads }} {% if app.has_desktop %}downloads{% else %}installs{% endif %}
+		</a>
 		{% endif %}
 		{# End Downloads #}
 
@@ -113,12 +100,11 @@
 		<span class="app-usage-info-divider"></span>
 
 		{# badges #}
-		{% if app.has_releases %}
-			{% if app.platform == 'web' %}
-			<img src="{% get_static_prefix %}apps/img/cyweb_sticker.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is available for Cytoscape Web">
-			{% else %}
-			<img src="{% get_static_prefix %}apps/img/cy3_sticker.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is available for Cytoscape 3.0 and above.">
-			{% endif %}	
+		{% if app.has_desktop %}
+		<img src="{% get_static_prefix %}apps/img/cy3_sticker.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is available for Cytoscape 3.0 and above.">
+		{% endif %}
+		{% if app.has_web or app.has_service %}
+		<img src="{% get_static_prefix %}apps/img/cyweb_sticker.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is available for Cytoscape Web">
 		{% endif %}
 
 		{% if app.competition_winner_dec_2012 %}
@@ -141,6 +127,19 @@
 	</div>
 </div>
 {# End app usage info #}
+
+{# Platforms the app is on; each chip shows that platform's panel and releases first #}
+{% if platform_chips %}
+<div class="row">
+	<div class="span12" id="cy-app-platforms">
+		<strong>Available on</strong>
+		{% for platform, platform_name in platform_chips %}
+		<a href="?platform={{ platform }}" class="label cy-app-platform-chip{% if platform == selected_platform %} label-info{% endif %}" data-platform="{{ platform }}">{{ platform_name }}</a>
+		{% endfor %}
+	</div>
+</div>
+{% endif %}
+{# End platforms #}
 
 {# Main app page content #}
 <div class="row">
@@ -225,15 +224,25 @@
 			{# Releases tab #}
 			{% if app.has_releases %}
 			<div class="tab-pane" id="cy-app-releases-tab">
-				{% for release in releases_for_display %}
+				{% if releases_by_platform|length > 1 %}
+				<ul class="nav nav-pills" id="cy-app-release-platforms">
+					{% for platform, platform_name, releases in releases_by_platform %}
+					<li{% if forloop.first %} class="active"{% endif %}><a href="#cy-app-releases-{{ platform }}" data-toggle="pill">{{ platform_name }}</a></li>
+					{% endfor %}
+				</ul>
+				{% endif %}
+				<div class="tab-content">
+				{% for platform, platform_name, releases in releases_by_platform %}
+				<div class="tab-pane{% if forloop.first %} active{% endif %} cy-app-platform-releases" id="cy-app-releases-{{ platform }}" data-platform="{{ platform }}">
+				{% for release in releases %}
 				<div class="row">
 					<div class="span8">
 						{# Release version #}
 						<h4>
-							{% if app.platform == 'desktop' %}
+							{% if platform == 'desktop' %}
 							<a href="{% url 'release_download' app.name release.version %}">{{ release.version }}</a>
-							{% elif app.platform == 'web' %}
-							<a href="{% url 'release_install' app.name release.version %}"
+							{% elif platform == 'web' %}
+							<a href="{% url 'release_install' app.name release.version %}?platform=web"
 							   target="_blank"
 							   rel="noopener"
 							   title="Install version {{ release.version }} in Cytoscape Web">{{ release.version }}</a>
@@ -244,16 +253,22 @@
 						</h4>
 						{# End Release version #}
 
-						{% if app.platform == 'web' %}
-						{% include 'app_url_copy.html' with url_label='Manifest URL' app_url=release.manifest_url url_id=release.pk %}
-						{% elif app.platform == 'service' and release.service_endpoint %}
-						{% include 'app_url_copy.html' with url_label='Service URL' app_url=release.service_endpoint url_id=release.pk %}
+						{% with release_pk=release.pk|stringformat:"s" %}
+						{% with url_id=platform|add:'-'|add:release_pk %}
+						{% if platform == 'web' %}
+						{% include 'app_url_copy.html' with url_label='Manifest URL' app_url=release.manifest_url url_id=url_id %}
+						{% elif platform == 'service' and release.service_endpoint %}
+						{% include 'app_url_copy.html' with url_label='Service URL' app_url=release.service_endpoint url_id=url_id %}
 						{% endif %}
+						{% endwith %}
+						{% endwith %}
 
 						{# Works with #}
 						<p>
-							{% if app.platform == 'service' %}
+							{% if platform == 'service' %}
 							{% include 'service_works_with.html' %}
+							{% elif platform == 'web' %}
+							<strong>Works with</strong> <a href="http://web.cytoscape.org" target="_blank">Cytoscape Web</a>
 							{% else %}
 							<strong>Works with</strong> Cytoscape
 							{{ release.works_with }}
@@ -262,7 +277,7 @@
 						{# End Works with #}
 
 						{# Desktop-only: Java API artifacts #}
-						{% if app.platform == 'desktop' and release.releaseapi_set.count %}
+						{% if platform == 'desktop' and release.releaseapi_set.count %}
 						{% with releaseapi=release.releaseapi_set.get %}
 						<p>
 							<strong>API</strong>
@@ -275,7 +290,7 @@
 						{% endif %}
 
 						{# Desktop-only: Release dependencies #}
-						{% if app.platform == 'desktop' and release.dependents.count %}
+						{% if platform == 'desktop' and release.dependents.count %}
 						<p>
 							<strong>Apps that depend on this release</strong>
 							<ul>
@@ -296,6 +311,9 @@
 					</div>
 				</div>
 				{% endfor %} {# end looping thru each release #}
+				</div>
+				{% endfor %} {# end looping thru each platform #}
+				</div>
 			</div>
 			{% endif %}
 			{# End Releases tab #}
@@ -306,91 +324,26 @@
 	{# Right-hand panels #}
 	<div class="span3 offset1">
 
-		{# 3.0 download panel #}
-		{% if app.has_releases %}
-		<div class="well">
-			{% if app.platform == 'web' %}
-			<h6 class="panel-title muted">CYTOSCAPE WEB</h6>
-			<!--
-			<button class="btn btn-large btn-block" id="cy-app-install-btn">
-				<i></i> {# <-- download button icon will go here #}
-				<h4></h4> {# <-- download button text will go here #}
-			</button> -->
-			<a class="btn btn-large btn-block btn-primary"
-			style='margin-bottom: 15px;'
-			href="{% url 'release_install' app.name bundle_latest_release.version %}"
-			target="_blank">
-				<h4>Install in Cytoscape Web</h4>
-			</a>
-			{% include 'app_url_copy.html' with url_label='Manifest URL' app_url=bundle_latest_release.manifest_url %}
-			<!--
-			<p><strong>CDN Base:</strong> {{ bundle_latest_release.cdn_base_url }}</p>
-            <p>
-                <strong>Manifest:</strong>
-                <a href="{{ bundle_latest_release.manifest_url }}" target="_blank">
-                    {{ bundle_latest_release.manifest_url }}
-                </a>
-            </p>
-
-            <p> 
-                <strong>Remote Entry:</strong>
-                <a href="{{ bundle_latest_release.remote_entry_url }}" target="_blank">
-                    {{ bundle_latest_release.remote_entry_url }}
-                </a>
-            </p>
-			-->
-			<p><strong>Version</strong> {{ bundle_latest_release.version }}</p>
-			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
-			<p><strong>Released</strong> {{ bundle_latest_release.created|date:'j M Y' }}</p>
-			<p><strong>Works with</strong> <a href="http://web.cytoscape.org" target="_blank">Cytoscape Web</a></p>
-			<p><strong>Install Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
-			{% elif app.platform == 'service' %}
-			<h6 class="panel-title muted">CYTOSCAPE WEB</h6>
-			<a class="btn btn-large btn-block btn-primary"
-			style='margin-bottom: 15px;'
-			href="{% url 'release_install' app.name service_latest_release.version %}"
-			target="_blank">
-				<h4>Open in Cytoscape Web</h4>
-			</a>
-			{% if service_latest_release.service_endpoint %}
-			{% include 'app_url_copy.html' with url_label='Service URL' app_url=service_latest_release.service_endpoint %}
-			{% endif %}
-			<p><h6 class="panel-title muted">CYTOSCAPE 3.0</h6></p>
-			<button class="btn btn-large btn-block disabled" id="cy-app-install-btn" style='margin-bottom: 15px;'>
-				<i></i> {# <-- install button icon will go here #}
-				<h4>Install in Cytoscape Desktop</h4>
-			</button>
-			<p><strong>Version</strong> {{ service_latest_release.version }}</p>
-			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
-			<p><strong>Released</strong> {{ service_latest_release.created|date:'j M Y' }}</p>
-			<p>{% include 'service_works_with.html' %}</p>
-			<p><strong>Install Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
-			{% else %}
-			<h6 class="panel-title muted">CYTOSCAPE 3</h6>
-			<button class="btn btn-large btn-block" id="cy-app-install-btn">
-				<i></i> {# <-- download button icon will go here #}
-				<h4></h4> {# <-- download button text will go here #}
-			</button>
-			<p id="downloadLink" style="display: none; font-size: 9px;">Or, for JAR file, click <a href= "{% url 'release_download' app.name cy3_latest_release.version %}">here</a> to download</p>
-			<p><strong>Version</strong> {{ cy3_latest_release.version }}</p>
-			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
-			<p><strong>Released</strong> {{ cy3_latest_release.created|date:'j M Y' }}</p>
-			<p><strong>Works with</strong> <a href="http://www.cytoscape.org" target="_blank">Cytoscape {{ cy3_latest_release.works_with }}</a></p>
-			<p><strong>Download Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
-			<span class="cytoscape-badge"></span>
-			{% endif %}
-		</div>
+		{# A panel per platform the app is on, the selected platform's first #}
+		{% for platform in panel_order %}
+		{% if platform == 'desktop' %}
+		{% include 'app_panel_desktop.html' %}
+		{% elif platform == 'web' %}
+		{% include 'app_panel_web.html' %}
+		{% else %}
+		{% include 'app_panel_service.html' %}
 		{% endif %}
-		{# end 3.0 download panel #}
+		{% endfor %}
+		{# end platform panels #}
 			
 		{# 2.x download panel #}
-		{% if app.platform == 'desktop' and app.cy_2x_plugin_download %}
-		<div class="well">
+		{% if app.cy_2x_plugin_download %}
+		<div class="well" id="cy-app-panel-cy2x">
 			<h6 class="panel-title muted">CYTOSCAPE 2</h6>
 			{% if app.has_releases %}
 			<p><strong>Version</strong> <a class="cy-app-2x-download-popover" href="{{ app.cy_2x_plugin_download }}">{{ app.cy_2x_plugin_version }}</a></p>
 			{% else %}
-			<button class="btn btn-large btn-primary btn-block cy-app-2x-download-popover" id="cy-app-install-btn" onClick="window.location.href='https://github.com/cytoscape/cy2_plugin_archive'" >
+			<button class="btn btn-large btn-primary btn-block cy-app-2x-download-popover" id="cy-app-2x-download-btn" onClick="window.location.href='https://github.com/cytoscape/cy2_plugin_archive'" >
 				<i class="icon-cy-install-download"></i>
 				<h4>Download</h4>
 			</button>
@@ -524,19 +477,21 @@
 <script type="text/javascript" src="{% get_static_prefix %}apps/js/app_page.js"></script>
 	
 <script type="text/javascript">
-window.onload = cyBadge();
-window.onload = cyDownload();
 $('.has-tooltip').tooltip();
 
-{% if app.has_releases %}
-{% if app.platform == 'desktop' %}
-AppPage.setup_install("{{ app.name|escapejs }}",
+{% if app.has_desktop %}
+window.onload = cyBadge();
+window.onload = cyDownload();
+AppPage.setup_install('#cy-app-install-btn-desktop',
+	"{{ app.name|escapejs }}",
 	"{{ app.fullname|escapejs }}",
-	"{% url 'release_download' app.name cy3_latest_release.version %}", 
+	"{% url 'release_download' app.name cy3_latest_release.version %}",
 	"{{ cy3_latest_release.version }}",
 	"{% url 'getstarted_app_install' %}");
-{% elif app.platform == 'service' %}
+{% endif %}
+{% if app.has_service %}
 AppPage.setup_service_install({
+	'selector': '#cy-app-install-btn-service',
 	'name': "{{ service_install_name|escapejs }}",
 	'version': "{{ service_latest_release.version|escapejs }}",
 	'url': "{{ service_latest_release.service_endpoint|escapejs }}",
@@ -544,12 +499,6 @@ AppPage.setup_service_install({
 	'help_url': "{% url 'getstarted_app_install' %}",
 	'service_app_url': "{% url 'app_page' desktop_service_app_name %}"
 });
-{% else %}
-AppPage.setup_install("{{ app.name|escapejs}}",
-	"{{ app.fullname|escapejs}}",
-	"{{ latest_release.version }}",
-	"{% url 'getstarted_app_install' %}");
-{% endif %}
 {% endif %}
 AppPage.setup_cy_2x_download_popover('{% get_static_prefix %}apps/img/plugins_dir.png');
 AppPage.setup_url_copy();
