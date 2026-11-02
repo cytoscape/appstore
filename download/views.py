@@ -137,9 +137,17 @@ _PLATFORM_DOWNLOADS = {
     Platform.SERVICE: ('servicerelease_set', ServiceReleaseDownloadsByDate),
 }
 
+def _stats_platforms(app):
+    """
+    Platforms the app has ever released on. Unlike app.platforms, inactive releases
+    count: their downloads stay in the app's stats after the releases are deleted.
+    """
+    return [platform for platform, (release_set, _) in _PLATFORM_DOWNLOADS.items()
+            if getattr(app, release_set).exists()]
+
 def _downloads_by_release(app):
-    """(platform, release, its downloads by date) for every release on each of the app's platforms."""
-    for platform in app.platforms:
+    """(platform, release, its downloads by date) for every release, active or not, on each platform the app released on."""
+    for platform in _stats_platforms(app):
         release_set, by_date_model = _PLATFORM_DOWNLOADS[platform]
         for release in getattr(app, release_set).all():
             yield platform, release, by_date_model.objects.filter(release=release)
@@ -156,9 +164,9 @@ def app_stats(request, app_name):
     return html_response('app_stats.html', c, request)
 
 def app_stats_timeline(request, app_name):
-    """Downloads by date per release, keyed by version, or by "<platform> <version>" when the app has several platforms."""
+    """Downloads by date per release, keyed by version, or by "<platform> <version>" when the app released on several platforms."""
     app = get_object_or_404(App, active = True, name = app_name)
-    several_platforms = len(app.platforms) > 1
+    several_platforms = len(_stats_platforms(app)) > 1
     response = dict()
     for platform, release, dls in _downloads_by_release(app):
         key = '%s %s' % (platform, release.version) if several_platforms else release.version

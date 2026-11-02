@@ -1,3 +1,4 @@
+import datetime
 import io
 import json
 import os
@@ -11,6 +12,7 @@ from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.models import App, Release, ServiceRelease, WebBundleRelease
+from download.models import ReleaseDownloadsByDate
 from submit_app.bundle_storage import _copy_bundle_to_storage, write_manifest_json, write_pending_manifest_json
 from submit_app.models import AppPending, ServiceAppPending, WebBundlePending, WebUrlPending
 from util.id_util import fullname_to_name
@@ -113,6 +115,11 @@ class Command(BaseCommand):
         ServiceRelease.objects.create(app=edited, version='1.0', service_endpoint='https://service.example.org/itedit',
                                       metadata={'name': 'IT Edit', 'version': '1.0'})
         self.mark_released(edited, edited_desktop)
+
+        # every release deleted (inactive), but its downloads stay in the app's stats
+        retired = self.create_app('IT Retired', editor)
+        retired_release = Release.objects.create(app=retired, version='1.0', works_with='3.10', active=False)
+        ReleaseDownloadsByDate.objects.create(release=retired_release, when=datetime.date(2026, 1, 15), count=3)
 
         self.create_app('IT Legacy', editor,
                         cy_2x_plugin_download='https://example.org/itlegacy-1.0.jar',

@@ -209,6 +209,19 @@ class AppStatsTimelineTestCase(DownloadFixtureMixin, TestCase):
         ReleaseDownloadsByDate.objects.create(release=self.desktop_release, when=self.day, count=7)
         self.assertEqual({'1.0.0': [], '0.9.0': []}, self.get_timeline('svcapp'))
 
+    def test_app_whose_releases_are_all_inactive_keeps_its_history(self):
+        # deleting releases makes them inactive; their downloads stay in the timeline, as before #155
+        ReleaseDownloadsByDate.objects.create(release=self.desktop_release, when=self.day, count=3)
+        Release.objects.filter(pk=self.desktop_release.pk).update(active=False)
+        self.assertEqual({'3.0.0': [['2026-01-15', 3]]}, self.get_timeline('jarapp'))
+
+    def test_platform_with_only_inactive_releases_stays_in_the_timeline(self):
+        self.create_multi_platform_fixtures()
+        WebBundleRelease.objects.filter(pk=self.multi_web.pk).update(active=False)
+        WebBundleReleaseDownloadsByDate.objects.create(release=self.multi_web, when=self.day, count=2)
+        self.assertEqual({'desktop 1.0': [], 'web 1.0': [['2026-01-15', 2]], 'service 1.0': []},
+                         self.get_timeline('multiapp'))
+
     def test_multi_platform_timeline_keys_name_the_platform(self):
         self.create_multi_platform_fixtures()
         ReleaseDownloadsByDate.objects.create(release=self.multi_desktop, when=self.day, count=1)

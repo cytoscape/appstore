@@ -28,6 +28,12 @@ test.describe('Install and download', () => {
     expect((await request.get(jar)).status()).toBe(200)
   })
 
+  test('the stats timeline keeps the history of releases that were deleted', async ({ request }) => {
+    // IT Retired's only release is inactive; its downloads are still reported, as before #155
+    const timeline = await request.get('/download/stats/itretired/timeline')
+    expect(await timeline.json()).toEqual({ '1.0': [['2026-01-15', 3]] })
+  })
+
   test("the stats timeline has a series per platform's release", async ({ request }) => {
     const timeline = await request.get('/download/stats/itmulti/timeline')
     expect(Object.keys(await timeline.json()).sort()).toEqual(['desktop 1.0', 'service 1.0', 'web 1.0'])
