@@ -862,7 +862,9 @@ class SeedIntegrationDataTestCase(TestCase):
         self.assertFalse(User.objects.get(username='it-other').is_staff)
 
         apps = {app.name: app for app in App.objects.all()}
-        self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itretired', 'itlegacy'}, set(apps))
+        self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itlicensed', 'itretired', 'itlegacy'},
+                         set(apps))
+        self.assertTrue(apps['itlicensed'].license_confirm)
         self.assertEqual([], apps['itretired'].platforms)
         self.assertEqual([Platform.DESKTOP, Platform.WEB, Platform.SERVICE], apps['itmulti'].platforms)
         self.assertEqual(['1.0'], [r.version for r in apps['itdesktop'].releases])
@@ -871,7 +873,7 @@ class SeedIntegrationDataTestCase(TestCase):
         self.assertEqual(['1.0'], [r.version for r in apps['itservice'].servicereleases])
         self.assertFalse(apps['itlegacy'].has_releases)
         self.assertTrue(apps['itlegacy'].cy_2x_plugin_download)
-        for name in ('itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itretired', 'itlegacy'):
+        for name in ('itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itlicensed', 'itretired', 'itlegacy'):
             self.assertEqual(['it-editor'], [u.username for u in apps[name].editors.all()])
 
         pending = WebBundlePending.objects.get()
@@ -879,6 +881,7 @@ class SeedIntegrationDataTestCase(TestCase):
         self.assertTrue(pending.is_new_platform)
         self.assertTrue(os.path.exists(os.path.join(self.tmp, 'media', 'webbundles', pending.bundle_path, 'remoteEntry.js')))
         self.assertTrue(AppPending.objects.get(fullname='IT Brand New').is_new_app)
+        self.assertEqual('not_editor', AppPending.objects.get(fullname='IT Web').identity.outcome.value)
         self.assertTrue(ServiceAppPending.objects.get(fullname='IT Desktop').is_new_platform)
         self.assertEqual(['IT Url App'], [p.fullname for p in WebUrlPending.objects.all()])
 
@@ -890,7 +893,7 @@ class SeedIntegrationDataTestCase(TestCase):
     def test_reseeding_replaces_the_data(self):
         self.seed()
         sessions = self.seed()
-        self.assertEqual(7, App.objects.count())
+        self.assertEqual(8, App.objects.count())
         self.assertEqual(1, WebBundlePending.objects.count())
         self.assertEqual(1, ServiceAppPending.objects.count())
         self.assertEqual(3, User.objects.filter(username__startswith='it-').count())

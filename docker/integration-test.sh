@@ -32,7 +32,8 @@ mkdir -p integration/.auth
 for browser in $BROWSERS; do
     cleanup
     echo "=== $browser: starting $IMAGE on $URL"
-    docker run -d --name "$CONTAINER" -p "$PORT:8000" -e "APPSTORE_PUBLIC_URL=$URL" "$IMAGE" >/dev/null
+    # localhost only: the container runs Django's debug server and accepts any host name
+    docker run -d --name "$CONTAINER" -p "127.0.0.1:$PORT:8000" -e "APPSTORE_PUBLIC_URL=$URL" "$IMAGE" >/dev/null
     wait_until_up
     docker cp "$CONTAINER:/srv/appstore/build/it_sessions.json" integration/.auth/sessions.json
     (cd integration && APPSTORE_URL=$URL npx playwright test --project="$browser")

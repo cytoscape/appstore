@@ -116,6 +116,14 @@ class Command(BaseCommand):
                                       metadata={'name': 'IT Edit', 'version': '1.0'})
         self.mark_released(edited, edited_desktop)
 
+        # desktop and service, and installing needs its license accepted
+        licensed = self.create_app('IT Licensed', editor, has_releases=True, license_confirm=True,
+                                   license_text='https://example.org/it-licensed-license')
+        licensed_desktop = Release.objects.create(app=licensed, version='1.0', works_with='3.10')
+        ServiceRelease.objects.create(app=licensed, version='1.0', service_endpoint='https://service.example.org/itlicensed',
+                                      metadata={'name': 'IT Licensed', 'version': '1.0'})
+        self.mark_released(licensed, licensed_desktop)
+
         # every release deleted (inactive), but its downloads stay in the app's stats
         retired = self.create_app('IT Retired', editor)
         retired_release = Release.objects.create(app=retired, version='1.0', works_with='3.10', active=False)
@@ -142,6 +150,10 @@ class Command(BaseCommand):
             submitter=users['editor'], fullname='IT Desktop', name='itdesktop', version='1.0', author='it-editor',
             service_endpoint='https://service.example.org/itdesktop',
             status=ServiceAppPending.Status.PENDING_REVIEW)
+        # someone who is not IT Web's editor submitted under its name
+        name_taken = AppPending.objects.create(submitter=users['other'], fullname='IT Web', version='2.0',
+                                               cy_works_with='3.10')
+        name_taken.release_file.save('itweb-2.0.jar', ContentFile(b'integration test jar'))
         WebUrlPending.objects.create(submitter=users['other'], fullname='IT Url App', version='1.0',
                                      repo_url='https://github.com/cytoscape/it-url-app')
 

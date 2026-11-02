@@ -165,3 +165,13 @@ class ResolveAppIdentityTestCase(TestCase):
         App.objects.filter(pk=self.app.pk).update(active=False)
         self.assertEqual(IdentityOutcome.NOT_EDITOR,
                          resolve_app_identity('Foo', self.other, Platform.WEB).outcome)
+
+
+class IntegrationContainerTestCase(TestCase):
+    """The integration-test container runs Django's debug server, so only this machine may reach it."""
+
+    def test_container_port_is_published_on_localhost_only(self):
+        with open(os.path.join(settings.BASE_DIR, 'docker', 'integration-test.sh')) as f:
+            script = f.read()
+        self.assertIn('-p "127.0.0.1:$PORT:8000"', script)
+        self.assertNotIn('-p "$PORT:8000"', script)

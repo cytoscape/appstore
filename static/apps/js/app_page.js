@@ -150,15 +150,13 @@ var AppPage = (function($) {
             if (func) {
                 var license_modal = $('#license_modal');
                 if (license_modal.length !== 0) {
-                    // Unbind previous click handlers to prevent double binding
-                    license_modal.find('.btn-primary').off('click');
-
-                    license_modal.find('.btn-primary').click(function() {
-                        license_modal.modal('hide');
-                        func();
-                    });
-
                     btn.click(function() {
+                        // Every install button shares the modal, so accepting runs the action
+                        // of the button that opened it, replacing any earlier button's action
+                        license_modal.find('.btn-primary').off('click').click(function() {
+                            license_modal.modal('hide');
+                            func();
+                        });
                         var license_iframe = license_modal.find('iframe');
                         license_iframe.attr('src', license_iframe.attr('data-src'));
                         license_modal.modal('show');

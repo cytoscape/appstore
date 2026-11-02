@@ -67,4 +67,28 @@ test.describe('App page', () => {
     expect(await panelOrder(page)).toEqual([])
     await expect(page.locator('#cy-app-platforms')).toHaveCount(0)
   })
+
+  test('install buttons keep their spacing and inline label', async ({ page }) => {
+    const styles = (selector: string) =>
+      page.locator(selector).evaluate((button) => {
+        const own = getComputedStyle(button)
+        return {
+          marginPx: parseFloat(own.marginBottom),
+          marginEm: parseFloat(own.marginBottom) / parseFloat(own.fontSize),
+          labelDisplay: getComputedStyle(button.querySelector('h4')!).display,
+        }
+      })
+    await page.goto('/apps/itmulti')
+    const desktop = await styles('#cy-app-install-btn-desktop')
+    expect(desktop.marginEm).toBeCloseTo(0.7, 2)
+    expect(desktop.labelDisplay).toBe('inline')
+    // the service button has always set its own 15px spacing in the page
+    const service = await styles('#cy-app-install-btn-service')
+    expect(service.marginPx).toBe(15)
+    expect(service.labelDisplay).toBe('inline')
+    await page.goto('/apps/itlegacy')
+    const legacy = await styles('#cy-app-2x-download-btn')
+    expect(legacy.marginEm).toBeCloseTo(0.7, 2)
+    expect(legacy.labelDisplay).toBe('inline')
+  })
 })

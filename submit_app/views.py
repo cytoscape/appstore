@@ -22,7 +22,7 @@ from django.core.files.storage import default_storage
 from django.core.files.storage import storages
 from django.shortcuts import get_object_or_404
 from django import forms
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 from util.view_util import html_response, json_response, get_object_or_none, is_ajax
 from util.id_util import IdentityOutcome, fullname_to_name, resolve_app_identity
@@ -471,7 +471,18 @@ def _pending_instance_decline(pending_app, request):
     elif isinstance(pending_app, WebBundlePending):
         return _pending_app_decline(pending_app, request)
 
+@transaction.atomic
 def _pending_instance_accept(pending_app, request):
+    """
+    Publishes 'pending_app'. All of its database changes happen together or not at
+    all: if publishing fails part way, no app or release is left behind and the
+    submission stays in the queue.
+    """
+    identity = pending_app.identity
+    if identity.outcome == IdentityOutcome.NOT_EDITOR:
+        # e.g. two people submitted the same new name, and the other one was accepted first
+        return HttpResponseBadRequest('%s already exists and %s is not one of its editors'
+                                      % (identity.app.fullname, pending_app.submitter.username))
     if isinstance(pending_app, AppPending):
         return _pending_app_accept(pending_app, request)
     if isinstance(pending_app, ServiceAppPending):

@@ -1134,3 +1134,61 @@ class PendingQueueTest(SubmissionFixtureMixin, TestCase):
             self.post('decline', pending.id, pending_platform)
             self.assertFalse(type(pending).objects.filter(id=pending.id).exists())
         self.assertEqual(['foo'], [app.name for app in App.objects.all()])
+
+
+class AcceptSafetyTest(SubmissionFixtureMixin, TestCase):
+    """Accepting a submission never publishes onto someone else's app, and a failed accept publishes nothing (#155)."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_user('admin', 'admin@example.org', 'secret', is_staff=True)
+        self.third = User.objects.create_user('third', 'third@example.org', 'secret')
+
+    def admin_post(self, action, pending, pending_platform):
+        self.client.force_login(self.admin)
+        return self.client.post(reverse('pending-apps'), {'action': action, 'pending_id': pending.id,
+                                                          'pending_platform': pending_platform})
+
+    def test_second_submission_of_the_same_new_name_is_refused(self):
+        # both submit before either is accepted, so both are new apps when submitted
+        self.submit_service(self.other, name='Brand New')
+        self.submit_bundle(self.third, name='Brand New')
+        first, second = ServiceAppPending.objects.get(), WebBundlePending.objects.get()
+        self.admin_post('accept', first, 'service')
+
+        response = self.admin_post('accept', second, 'web-bundle')
+        self.assertContains(response, 'Brand New already exists and third is not one of its editors', status_code=400)
+        app = App.objects.get(name='brandnew')
+        self.assertEqual([Platform.SERVICE], app.platforms)
+        self.assertEqual(['other'], [u.username for u in app.editors.all()])
+        self.assertFalse(WebBundleRelease.objects.filter(app=app).exists())
+        self.assertTrue(WebBundlePending.objects.filter(id=second.id).exists())
+
+        self.admin_post('decline', second, 'web-bundle')
+        self.assertFalse(WebBundlePending.objects.filter(id=second.id).exists())
+
+    def test_failed_accept_of_a_new_platform_publishes_nothing(self):
+        self.submit_bundle(self.editor)
+        pending = WebBundlePending.objects.get()
+        App.objects.filter(name='foo').update(active=False)
+        self.client.raise_request_exception = False
+        with patch.object(submit_models, '_copy_bundle_to_storage', side_effect=OSError('disk full')):
+            self.assertEqual(500, self.admin_post('accept', pending, 'web-bundle').status_code)
+
+        app = App.objects.get(name='foo')
+        self.assertEqual(([Platform.DESKTOP], False), (app.platforms, app.active))
+        self.assertFalse(WebBundleRelease.objects.exists())
+        self.assertTrue(WebBundlePending.objects.filter(id=pending.id).exists())
+        self.admin_post('decline', pending, 'web-bundle')
+        self.assertFalse(WebBundlePending.objects.exists())
+
+    def test_failed_accept_of_a_new_app_creates_no_app(self):
+        self.submit_bundle(self.other, name='Brand New')
+        pending = WebBundlePending.objects.get()
+        self.client.raise_request_exception = False
+        with patch.object(submit_models, '_copy_bundle_to_storage', side_effect=OSError('disk full')):
+            self.assertEqual(500, self.admin_post('accept', pending, 'web-bundle').status_code)
+
+        self.assertFalse(App.objects.filter(name='brandnew').exists())
+        self.assertFalse(WebBundleRelease.objects.exists())
+        self.assertTrue(WebBundlePending.objects.filter(id=pending.id).exists())
