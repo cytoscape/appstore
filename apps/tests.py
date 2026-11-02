@@ -1182,8 +1182,16 @@ class EditPageReleasesByPlatformTestCase(TestCase):
         self.assertEqual('web notes', self.web.notes)
         self.assertFalse(self.desktop.notes)
 
-    def test_platform_is_required(self):
-        response = self.post('save_release_notes', None, self.web, notes_0='notes')
+    def test_platform_is_required_when_the_app_has_several_platforms(self):
+        for action, extra in (('save_release_notes', {'notes_0': 'notes'}), ('delete_release', {})):
+            response = self.post(action, None, self.web, **extra)
+            self.assertContains(response, 'platform is required when an app has releases on more than one platform',
+                                status_code=400)
+        self.web.refresh_from_db()
+        self.assertEqual((True, None), (self.web.active, self.web.notes))
+
+    def test_unknown_platform_is_rejected(self):
+        response = self.post('save_release_notes', 'bogus', self.web, notes_0='notes')
         self.assertContains(response, 'platform must be one of', status_code=400)
 
     def test_deleting_the_last_web_release_takes_the_app_off_web(self):
@@ -1196,6 +1204,41 @@ class EditPageReleasesByPlatformTestCase(TestCase):
         self.assertEqual([Platform.DESKTOP, Platform.SERVICE], app.platforms)
         self.assertNotContains(self.client.get('/apps/platform/web/'), 'Multi')
         self.assertContains(self.client.get('/apps/platform/desktop/'), 'Multi')
+
+
+class EditPageDefaultPlatformTestCase(TestCase):
+    """
+    Release-notes and delete-release edits without a platform field apply to the
+    app's one released platform; the edit page sent no platform before #155.
+    """
+
+    def setUp(self):
+        self.editor = User.objects.create_user('editor', 'editor@example.org', 'secret')
+        self.app = App.objects.create(name='webonly', fullname='Web Only', active=True, has_releases=True)
+        self.app.editors.add(self.editor)
+        self.web = WebBundleRelease.objects.create(app=self.app, version='1.0', active=True, bundle_hash='0')
+        self.old_web = WebBundleRelease.objects.create(app=self.app, version='0.9', active=True, bundle_hash='1')
+        self.client.force_login(self.editor)
+
+    def post(self, action, release, **data):
+        data.update({'action': action, 'release_count': 1, 'release_id_0': release.id})
+        return self.client.post('/apps/webonly/edit', data, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+    def test_notes_without_platform_go_to_the_apps_only_platform(self):
+        self.assertEqual(200, self.post('save_release_notes', self.web, notes_0='web notes').status_code)
+        self.web.refresh_from_db()
+        self.assertEqual('web notes', self.web.notes)
+
+    def test_delete_without_platform_applies_to_the_apps_only_platform(self):
+        self.assertEqual(200, self.post('delete_release', self.old_web).status_code)
+        self.old_web.refresh_from_db()
+        self.assertFalse(self.old_web.active)
+        self.assertEqual([Platform.WEB], App.objects.get(name='webonly').platforms)
+
+    def test_app_without_releases_must_name_a_platform(self):
+        WebBundleRelease.objects.filter(app=self.app).update(active=False)
+        response = self.post('save_release_notes', self.web, notes_0='notes')
+        self.assertContains(response, 'platform is required', status_code=400)
 
 
 class AppPlatformFieldRemovedTestCase(TestCase):

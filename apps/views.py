@@ -468,7 +468,18 @@ def _save_authors(app, request):
         ordered_author = OrderedAuthor.objects.create(app = app, author = author, author_order = author_order)
 
 def _posted_platform_releases(app, request):
+    """
+    The releases a release-notes or delete-release edit applies to: those of the
+    platform named in its 'platform' field. Without that field, the platform is the
+    one the app has releases on; an app with releases on several platforms must
+    name one, since release ids are only unique within a platform.
+    """
     platform = request.POST.get('platform')
+    if platform is None:
+        platforms = app.platforms
+        if len(platforms) != 1:
+            raise ValueError('platform is required when an app has releases on more than one platform')
+        platform = platforms[0]
     if platform not in Platform.values:
         raise ValueError('platform must be one of: %s' % ', '.join(Platform.values))
     return app.get_releases(platform)
