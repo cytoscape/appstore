@@ -26,13 +26,14 @@ test.describe('Browsing by platform', () => {
     expect((await request.get('/apps/platform/bogus/')).status()).toBe(404)
   })
 
-  test("Cytoscape Desktop's app feed lists only apps with desktop releases", async ({ request }) => {
+  // Cytoscape Desktop's App Manager shows only apps with a compatible release in this
+  // feed, so service and web apps stay listed with no releases, as they were before #155
+  test("Cytoscape Desktop's app feed carries only desktop releases", async ({ request }) => {
     const apps = await (await request.get('/backend/all_apps')).json()
-    const names = apps.map((app) => app.fullname)
-    expect(names).toEqual(expect.arrayContaining(['IT Desktop', 'IT Multi']))
-    expect(names).not.toContain('IT Web')
-    expect(names).not.toContain('IT Service')
-    const multi = apps.find((app) => app.fullname === 'IT Multi')
-    expect(multi.releases.map((release) => release.version)).toEqual(['1.0'])
+    const releases = Object.fromEntries(apps.map((app) => [app.fullname, app.releases]))
+    expect(releases['IT Web']).toEqual([])
+    expect(releases['IT Service']).toEqual([])
+    expect(releases['IT Desktop'].map((release) => release.release_download_url)).toEqual(['/download/itdesktop/1.0'])
+    expect(releases['IT Multi'].map((release) => release.release_download_url)).toEqual(['/download/itmulti/1.0'])
   })
 })

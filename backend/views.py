@@ -1,4 +1,4 @@
-from apps.models import App, Platform
+from apps.models import App
 from util.view_util import obj_to_dict, iter_to_dict, json_response
 
 
@@ -22,12 +22,11 @@ def _app_to_obj(app):
 
 def all_apps_func(request):
     """
-    Gets all App objects that are active with desktop releases: this feeds
-    Cytoscape Desktop's App Manager, which can install only those
+    Gets all App objects that are active with releases
 
     :param request:
-    :return: active App objects with desktop releases in json format
+    :return: active App objects with releases in json format
     """
-    all_apps = App.objects.filter(active=True).on_platform(Platform.DESKTOP)
+    all_apps = App.objects.filter(active=True)
     all_apps_fmt = [_app_to_obj(app) for app in all_apps if app.has_releases]
     return json_response(all_apps_fmt)

@@ -107,8 +107,10 @@ class BackendViewsTestCase(TestCase):
 class AllAppsReleaseShapeTestCase(TestCase):
     """
     Desktop's app-list reader expects every entry in all_apps releases to be a
-    downloadable jar release, and fails the whole catalog otherwise. all_apps
-    lists only apps with desktop releases, and only their desktop releases (#155).
+    downloadable jar release, and fails the whole catalog otherwise. Service and
+    web apps must only ever appear with releases: [], and an app on several
+    platforms lists only its desktop releases (#155). Desktop's App Manager shows
+    only apps with a compatible release, so it never lists service or web apps.
     """
 
     def setUp(self):
@@ -130,8 +132,11 @@ class AllAppsReleaseShapeTestCase(TestCase):
         self.assertEqual(200, response.status_code)
         return {app['fullname']: app for app in response.json()}
 
-    def test_service_and_web_only_apps_are_not_listed(self):
-        self.assertEqual({'Jar App'}, set(self.get_all_apps()))
+    def test_service_and_web_apps_listed_without_releases(self):
+        apps = self.get_all_apps()
+        self.assertEqual({'Service App', 'Web App', 'Jar App'}, set(apps))
+        self.assertEqual([], apps['Service App']['releases'])
+        self.assertEqual([], apps['Web App']['releases'])
 
     def test_app_on_several_platforms_lists_only_its_desktop_releases(self):
         multi_app = App.objects.create(name='multiapp', fullname='Multi App', active=True, has_releases=True)
@@ -141,8 +146,9 @@ class AllAppsReleaseShapeTestCase(TestCase):
         ServiceRelease.objects.create(app=multi_app, version='1.2', service_endpoint='https://example.org/multi')
 
         apps = self.get_all_apps()
-        self.assertEqual({'Jar App', 'Multi App'}, set(apps))
+        self.assertEqual({'Service App', 'Web App', 'Jar App', 'Multi App'}, set(apps))
         self.assertEqual(['1.0'], [release['version'] for release in apps['Multi App']['releases']])
+        self.assertEqual('/download/multiapp/1.0', apps['Multi App']['releases'][0]['release_download_url'])
         self.assertEqual(set(apps['Jar App']), set(apps['Multi App']))
 
     def test_jar_app_lists_downloadable_release(self):
