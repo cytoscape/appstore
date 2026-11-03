@@ -83,11 +83,12 @@ class AppPending(PendingIdentity, models.Model):
             _deploy_artifact_async(api)
 
     def delete_files(self):
-        self.release_file.delete()
+        # save=False: this runs after the row is deleted when an accept commits, and saving would re-create it
+        self.release_file.delete(save=False)
         if self.javadocs_jar_file:
-            self.javadocs_jar_file.delete()
+            self.javadocs_jar_file.delete(save=False)
         if self.pom_xml_file:
-            self.pom_xml_file.delete()
+            self.pom_xml_file.delete(save=False)
 
 def _deploy_artifact_async(api):
     def run_deploy():
@@ -222,7 +223,8 @@ class WebBundlePending(PendingIdentity, models.Model):
         ordering = ['-created']
 
     def delete_files(self):
-        self.bundle.delete()
+        # save=False: this runs after the row is deleted when an accept commits, and saving would re-create it
+        self.bundle.delete(save=False)
         web_storage = storages['webbundles']
         assert self.bundle_path.startswith('pending/'),"refusing to delete outside pending/ namespace"
         for f in web_storage.listdir(self.bundle_path)[1]:

@@ -19,6 +19,7 @@ from django.urls import reverse
 from django.contrib.staticfiles import finders
 
 from django.conf import settings
+from django.core.files.storage import storages
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.uploadedfile import TemporaryUploadedFile
@@ -1002,8 +1003,10 @@ class PlatformAcceptTest(SubmissionFixtureMixin, TestCase):
 
     def admin_accept(self, pending, pending_platform):
         self.client.force_login(self.admin)
-        return self.client.post(reverse('pending-apps'), {'action': 'accept', 'pending_id': pending.id,
-                                                          'pending_platform': pending_platform})
+        # TestCase never commits, so run what the accept defers to its commit
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(reverse('pending-apps'), {'action': 'accept', 'pending_id': pending.id,
+                                                              'pending_platform': pending_platform})
 
     def assert_one_app_on(self, name, *platforms):
         app = App.objects.get(name=name)
@@ -1098,8 +1101,9 @@ class PendingQueueTest(SubmissionFixtureMixin, TestCase):
         self.client.force_login(self.admin)
 
     def post(self, action, pending_id, pending_platform, **headers):
-        return self.client.post(reverse('pending-apps'), {'action': action, 'pending_id': pending_id,
-                                                          'pending_platform': pending_platform}, **headers)
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(reverse('pending-apps'), {'action': action, 'pending_id': pending_id,
+                                                              'pending_platform': pending_platform}, **headers)
 
     def test_rows_say_new_app_or_new_platform(self):
         response = self.client.get(reverse('pending-apps'))
@@ -1146,8 +1150,9 @@ class AcceptSafetyTest(SubmissionFixtureMixin, TestCase):
 
     def admin_post(self, action, pending, pending_platform):
         self.client.force_login(self.admin)
-        return self.client.post(reverse('pending-apps'), {'action': action, 'pending_id': pending.id,
-                                                          'pending_platform': pending_platform})
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(reverse('pending-apps'), {'action': action, 'pending_id': pending.id,
+                                                              'pending_platform': pending_platform})
 
     def test_second_submission_of_the_same_new_name_is_refused(self):
         # both submit before either is accepted, so both are new apps when submitted
@@ -1192,3 +1197,53 @@ class AcceptSafetyTest(SubmissionFixtureMixin, TestCase):
         self.assertFalse(App.objects.filter(name='brandnew').exists())
         self.assertFalse(WebBundleRelease.objects.exists())
         self.assertTrue(WebBundlePending.objects.filter(id=pending.id).exists())
+
+    def pending_bundle_files(self, pending):
+        return storages['webbundles'].listdir(pending.bundle_path)[1]
+
+    def test_failed_accept_keeps_the_pending_bundle(self):
+        # fails after the release and its public files are written, but before the accept commits
+        self.submit_bundle(self.editor)
+        pending = WebBundlePending.objects.get()
+        self.client.raise_request_exception = False
+        with patch.object(WebBundlePending, 'delete', side_effect=OSError('database gone')):
+            self.assertEqual(500, self.admin_post('accept', pending, 'web-bundle').status_code)
+
+        self.assertFalse(WebBundleRelease.objects.exists())
+        pending = WebBundlePending.objects.get(id=pending.id)
+        self.assertTrue(pending.bundle.storage.exists(pending.bundle.name))
+        self.assertIn('remoteEntry.js', self.pending_bundle_files(pending))
+
+        # so the admin can accept it again
+        self.admin_post('accept', pending, 'web-bundle')
+        self.assertTrue(WebBundleRelease.objects.filter(app=self.desktop_app, version='1.0').exists())
+        self.assertFalse(WebBundlePending.objects.exists())
+        self.assertFalse(pending.bundle.storage.exists(pending.bundle.name))
+        self.assertFalse(storages['webbundles'].exists(pending.bundle_path))
+
+    def test_failed_accept_keeps_the_pending_jar(self):
+        jar = SimpleUploadedFile('BrandNew-1.0.jar', b'jar', content_type='application/zip')
+        pending = views._create_pending(self.other, 'Brand New', '1.0', '3.10', [], jar)
+        self.client.raise_request_exception = False
+        with patch.object(AppPending, 'delete', side_effect=OSError('database gone')):
+            self.assertEqual(500, self.admin_post('accept', pending, 'desktop').status_code)
+
+        self.assertFalse(App.objects.filter(name='brandnew').exists())
+        pending = AppPending.objects.get(id=pending.id)
+        self.assertTrue(pending.release_file.storage.exists(pending.release_file.name))
+
+    def test_failure_after_the_accept_commits_keeps_it_published(self):
+        self.submit_service(self.editor)
+        self.submit_bundle(self.editor)
+        service, bundle = ServiceAppPending.objects.get(), WebBundlePending.objects.get()
+        # TestCase logs a failed robust on_commit callback to django.test; a real commit logs it to django.db
+        with patch.object(views, '_send_email_for_accepted', side_effect=RuntimeError('mail server down')), \
+                self.assertLogs('django.test', 'ERROR') as logs:
+            self.assertRedirects(self.admin_post('accept', service, 'service'), reverse('pending-apps'))
+            self.assertRedirects(self.admin_post('accept', bundle, 'web-bundle'), reverse('pending-apps'))
+
+        self.assertEqual(2, sum('mail server down' in line for line in logs.output))
+        self.assertEqual([Platform.DESKTOP, Platform.WEB, Platform.SERVICE], App.objects.get(name='foo').platforms)
+        self.assertFalse(ServiceAppPending.objects.exists())
+        self.assertFalse(WebBundlePending.objects.exists())
+        self.assertFalse(bundle.bundle.storage.exists(bundle.bundle.name))

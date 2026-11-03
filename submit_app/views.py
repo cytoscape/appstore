@@ -409,6 +409,20 @@ def _get_or_create_app_for_pending(pending):
     return app, existed
 
 
+def _after_accept_commits(request, pending, app, existed, platform, delete_files=True):
+    """
+    Deletes the pending upload and emails the submitter only once the accept has committed.
+    A database rollback cannot bring back deleted files, so a failed accept must leave them
+    in place; and a failure in either of these, after the release is published, is logged
+    rather than undoing the accept.
+    """
+    submitter_email = pending.submitter.email
+    if delete_files:
+        transaction.on_commit(pending.delete_files, robust=True)
+    transaction.on_commit(lambda: _send_email_for_accepted(request, submitter_email, app, existed, platform),
+                          robust=True)
+
+
 def _send_email_for_accepted(request, submitter_email, app, existed, platform):
     server_url = _get_server_url(request)
     if existed:
@@ -422,9 +436,8 @@ def _send_email_for_accepted(request, submitter_email, app, existed, platform):
 def _pending_app_accept(pending, request):
     app, existed = _get_or_create_app_for_pending(pending)
     pending.make_release(app)
-    pending.delete_files()
+    _after_accept_commits(request, pending, app, existed, Platform.DESKTOP)
     pending.delete()
-    _send_email_for_accepted(request, pending.submitter.email, app, existed, Platform.DESKTOP)
 
 def _pending_app_decline(pending_app, request):
     pending_app.delete_files()
@@ -442,22 +455,19 @@ def _pending_web_accept(pending, request): #INCLUDES PATH FOR REPO URL, MAY OR M
             print(e)
             raise  # re-raise so you still see it fail — just now with a full traceback in the console
 
-        pending.delete_files()
+        _after_accept_commits(request, pending, app, existed, Platform.WEB)
         pending.delete()
 
     else:
         return HttpResponseBadRequest('Approving GitHub-URL web submissions is not supported yet')
-
-    _send_email_for_accepted(request, pending.submitter.email, app, existed, Platform.WEB)
 
 
 @csrf_exempt
 def _pending_service_accept(pending, request):
     app, existed = _get_or_create_app_for_pending(pending)
     pending.make_service_release(app)
-    submitter_email = pending.submitter.email
+    _after_accept_commits(request, pending, app, existed, Platform.SERVICE, delete_files=False)
     pending.delete()
-    _send_email_for_accepted(request, submitter_email, app, existed, Platform.SERVICE)
 
 def _pending_url_decline(pending_app, request): #originally _pending_service_decline, change to just url for repo url as well
     pending_app.delete()
@@ -476,7 +486,8 @@ def _pending_instance_accept(pending_app, request):
     """
     Publishes 'pending_app'. All of its database changes happen together or not at
     all: if publishing fails part way, no app or release is left behind and the
-    submission stays in the queue.
+    submission stays in the queue with its upload. Deleting that upload and emailing
+    the submitter wait for the commit (_after_accept_commits).
     """
     identity = pending_app.identity
     if identity.outcome == IdentityOutcome.NOT_EDITOR:
