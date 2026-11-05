@@ -481,6 +481,18 @@ def _pending_instance_decline(pending_app, request):
     elif isinstance(pending_app, WebBundlePending):
         return _pending_app_decline(pending_app, request)
 
+# Submissions whose published versions are locked, and their release models: accepting a
+# version that is already published would overwrite that release and its files.
+_LOCKED_VERSIONS = ((AppPending, Release), (WebBundlePending, WebBundleRelease))
+
+def _is_published(app, pending):
+    """Whether 'pending''s version is already an active release of 'app' on its platform."""
+    for pending_model, release_model in _LOCKED_VERSIONS:
+        if isinstance(pending, pending_model):
+            return app is not None and release_model.objects.filter(app=app, version=pending.version,
+                                                                    active=True).exists()
+    return False
+
 @transaction.atomic
 def _pending_instance_accept(pending_app, request):
     """
@@ -494,6 +506,10 @@ def _pending_instance_accept(pending_app, request):
         # e.g. two people submitted the same new name, and the other one was accepted first
         return HttpResponseBadRequest('%s already exists and %s is not one of its editors'
                                       % (identity.app.fullname, pending_app.submitter.username))
+    if _is_published(identity.app, pending_app):
+        # e.g. the same version was submitted twice, and the other submission was accepted first
+        return HttpResponseBadRequest('Version %s of %s is already published; decline this submission'
+                                      % (pending_app.version, identity.app.fullname))
     if isinstance(pending_app, AppPending):
         return _pending_app_accept(pending_app, request)
     if isinstance(pending_app, ServiceAppPending):

@@ -82,7 +82,8 @@ History
     returns the same apps and content as before.
 
   * **Deploying:** this release adds database migrations, so run ``makemigrations`` and ``migrate``
-    without ``--dry-run``.
+    without ``--dry-run``. They drop the ``App.platform`` column, which 2.0.x releases need, so back
+    up the database before deploying: rolling back to 2.0.x means restoring that backup.
 
 * **Version in the footer:** every page shows the running version after **Contact Us**: the git tag
   the checkout is at, else its short commit hash, else ``develop`` when git can't tell.

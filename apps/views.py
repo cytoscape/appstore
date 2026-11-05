@@ -148,7 +148,8 @@ def apps_with_tag(request, tag_name):
     return html_response('apps_with_tag.html', c, request, processors = (_nav_panel_context, ))
 
 def apps_with_author(request, author_name):
-    apps = App.objects.filter(active = True, authors__name__exact = author_name).order_by('name')
+    # distinct: an app lists an author once for its own content and once per platform that has its own
+    apps = App.objects.filter(active = True, authors__name__exact = author_name).distinct().order_by('name')
     if not apps:
         raise Http404('No such author "%s".' % author_name)
 

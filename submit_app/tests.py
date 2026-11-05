@@ -14,6 +14,7 @@ import json
 
 from unittest.mock import MagicMock, patch
 from django.core import mail
+from django.core.files.base import ContentFile
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.staticfiles import finders
@@ -1247,3 +1248,35 @@ class AcceptSafetyTest(SubmissionFixtureMixin, TestCase):
         self.assertFalse(ServiceAppPending.objects.exists())
         self.assertFalse(WebBundlePending.objects.exists())
         self.assertFalse(bundle.bundle.storage.exists(bundle.bundle.name))
+
+    def test_a_published_web_version_is_not_overwritten(self):
+        # the same version submitted twice; both pass the submit-time check, as neither is published yet
+        self.submit_bundle(self.editor)
+        first = WebBundlePending.objects.get()
+        second = WebBundlePending.objects.get(id=first.id)
+        second.pk = None
+        second.save()
+        self.admin_post('accept', first, 'web-bundle')
+        release = WebBundleRelease.objects.get(app=self.desktop_app, version='1.0')
+
+        response = self.admin_post('accept', second, 'web-bundle')
+        self.assertContains(response, 'Version 1.0 of Foo is already published', status_code=400)
+        self.assertEqual(release.created, WebBundleRelease.objects.get(id=release.id).created)
+        self.assertTrue(WebBundlePending.objects.filter(id=second.id).exists())
+        self.admin_post('decline', second, 'web-bundle')
+        self.assertFalse(WebBundlePending.objects.exists())
+
+    def test_a_published_desktop_version_is_not_overwritten(self):
+        pending = AppPending.objects.create(submitter=self.editor, fullname='Foo', version='1.0', cy_works_with='3.10')
+        response = self.admin_post('accept', pending, 'desktop')
+        self.assertContains(response, 'Version 1.0 of Foo is already published', status_code=400)
+        self.assertEqual(['3.10'], [r.works_with for r in Release.objects.filter(app=self.desktop_app)])
+        self.assertTrue(AppPending.objects.filter(id=pending.id).exists())
+
+    def test_a_deleted_version_can_be_published_again(self):
+        Release.objects.filter(app=self.desktop_app, version='1.0').update(active=False)
+        pending = AppPending.objects.create(submitter=self.editor, fullname='Foo', version='1.0', cy_works_with='3.11')
+        pending.release_file.save('Foo-1.0.jar', ContentFile(b'jar'))
+        self.assertRedirects(self.admin_post('accept', pending, 'desktop'), reverse('pending-apps'))
+        release = Release.objects.get(app=self.desktop_app, version='1.0')
+        self.assertEqual((True, '3.11'), (release.active, release.works_with))

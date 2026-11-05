@@ -289,7 +289,7 @@ class Command(BaseCommand):
                 res += '\n'
 
             res += 'Authors:\n'
-            for auth in app.authors.all():
+            for auth in app.authors.distinct():
                 # auth = Author.objects.filter(id=o_a.author.id)[0]
                 res += '\t' + str(auth.name) + '\n'
             res += 'Editors:\n'

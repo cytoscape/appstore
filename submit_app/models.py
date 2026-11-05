@@ -227,6 +227,10 @@ class WebBundlePending(PendingIdentity, models.Model):
         self.bundle.delete(save=False)
         web_storage = storages['webbundles']
         assert self.bundle_path.startswith('pending/'),"refusing to delete outside pending/ namespace"
+        if not web_storage.exists(self.bundle_path):
+            # another submission of the same name and version shared this folder, and its
+            # accept or decline already removed it
+            return
         for f in web_storage.listdir(self.bundle_path)[1]:
             web_storage.delete(f"{self.bundle_path}{f}")
         try:

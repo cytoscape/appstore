@@ -1644,3 +1644,20 @@ class PlatformContentListingsTestCase(TestCase):
         [entry] = [a for a in json.loads(self.client.get('/backend/all_apps').content) if a['fullname'] == 'Multi']
         self.assertEqual('Desktop description', entry['description'])
         self.assertEqual(['desktop tag'], entry['tags'])
+
+
+class AuthorPageTestCase(TestCase):
+    """An app lists each author once, whichever platforms' content names them (#155)."""
+
+    def test_app_listed_once_after_a_platform_copies_its_authors(self):
+        app = App.objects.create(name='multi', fullname='Multi', active=True, has_releases=True)
+        Release.objects.create(app=app, version='1.0', works_with='3.10')
+        WebBundleRelease.objects.create(app=app, version='1.0', active=True, bundle_hash='0')
+        OrderedAuthor.objects.create(app=app, author=Author.objects.create(name='Shared Author'), author_order=0)
+        app.content_for_edit(Platform.WEB)  # copies the author for the web content
+        self.assertEqual(2, OrderedAuthor.objects.filter(app=app).count())
+
+        content = self.client.get('/apps/with_author/Shared Author').content.decode('utf-8')
+        # each tile shows the name twice (compact and full)
+        self.assertEqual(2, content.count('<h5>Multi</h5>'))
+        self.assertEqual(['Shared Author'], [a.name for a in app.authors.distinct()])
