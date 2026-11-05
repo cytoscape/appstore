@@ -33,7 +33,7 @@ def sessions_file():
 
 # Specs that change data own the seeded objects they change, so the specs stay independent:
 # admin-accept.spec.ts accepts IT Desktop's pending Cytoscape Web bundle, and
-# admin-queue.spec.ts declines IT Url App, and tiles-edit.spec.ts edits IT Edit.
+# admin-queue.spec.ts declines IT Url App and IT Republish's resubmission, and tiles-edit.spec.ts edits IT Edit.
 class Command(BaseCommand):
     help = ('Replaces all apps, pending submissions and it-* users with the integration test data, '
             'and writes a logged-in session key per test user to build/it_sessions.json. '
@@ -178,6 +178,36 @@ class Command(BaseCommand):
         retired_release = Release.objects.create(app=retired, version='1.0', works_with='3.10', active=False)
         ReleaseDownloadsByDate.objects.create(release=retired_release, when=datetime.date(2026, 1, 15), count=3)
 
+        # author-page.spec.ts: an author its own content and its copied Web content share,
+        # listed once; and a Web-only app whose Web authors replaced its own
+        authors = self.create_app('IT Authors', editor, has_releases=True)
+        authors_desktop = Release.objects.create(app=authors, version='1.0', works_with='3.10')
+        write_manifest_json(WebBundleRelease.objects.create(app=authors, version='1.0', cy_app_id='itauthors',
+                                                            active=True, bundle_hash='0' * 64))
+        self.mark_released(authors, authors_desktop)
+        shared_author = Author.objects.create(name='IT Shared Author')
+        OrderedAuthor.objects.create(app=authors, author=shared_author, author_order=0)
+        AppPlatformContent.objects.create(app=authors, platform=Platform.WEB, details='IT Authors for the web')
+        OrderedAuthor.objects.create(app=authors, platform=Platform.WEB, author=shared_author, author_order=0)
+
+        replaced = self.create_app('IT Replaced Authors', editor, has_releases=True)
+        replaced_web = WebBundleRelease.objects.create(app=replaced, version='1.0', cy_app_id='itreplacedauthors',
+                                                       active=True, bundle_hash='0' * 64)
+        write_manifest_json(replaced_web)
+        self.mark_released(replaced, replaced_web)
+        OrderedAuthor.objects.create(app=replaced, author=Author.objects.create(name='IT Former Author'),
+                                     author_order=0)
+        AppPlatformContent.objects.create(app=replaced, platform=Platform.WEB)
+        OrderedAuthor.objects.create(app=replaced, platform=Platform.WEB,
+                                     author=Author.objects.create(name='IT Current Author'), author_order=0)
+
+        # admin-queue.spec.ts: its Cytoscape Web 1.0 is published, and submitted again below
+        republish = self.create_app('IT Republish', editor, has_releases=True)
+        republish_web = WebBundleRelease.objects.create(app=republish, version='1.0', cy_app_id='itrepublish',
+                                                        active=True, bundle_hash='0' * 64)
+        write_manifest_json(republish_web)
+        self.mark_released(republish, republish_web)
+
         self.create_app('IT Legacy', editor,
                         cy_2x_plugin_download='https://example.org/itlegacy-1.0.jar',
                         cy_2x_plugin_version='1.0', cy_2x_versions='2.8')
@@ -203,6 +233,14 @@ class Command(BaseCommand):
         name_taken = AppPending.objects.create(submitter=users['other'], fullname='IT Web', version='2.0',
                                                cy_works_with='3.10')
         name_taken.release_file.save('itweb-2.0.jar', ContentFile(b'integration test jar'))
+        # IT Republish's editor submitted its already-published Cytoscape Web 1.0 again
+        republish = WebBundlePending.objects.create(
+            submitter=users['editor'], fullname='IT Republish', cy_app_id='itrepublish', version='1.0',
+            author='it-editor', bundle_hash='2' * 64, status=WebBundlePending.Status.PENDING_REVIEW)
+        republish.bundle.save('itrepublish-1.0.zip',
+                              ContentFile(self.web_bundle('itrepublish', 'IT Republish', '1.0')))
+        _copy_bundle_to_storage(republish.bundle, republish.bundle_path)
+        write_pending_manifest_json(republish)
         WebUrlPending.objects.create(submitter=users['other'], fullname='IT Url App', version='1.0',
                                      repo_url='https://github.com/cytoscape/it-url-app')
 

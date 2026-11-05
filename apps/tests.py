@@ -865,7 +865,7 @@ class SeedIntegrationDataTestCase(TestCase):
 
         apps = {app.name: app for app in App.objects.all()}
         self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itlicensed', 'itretired', 'itlegacy',
-                          'itcy2', 'itswitch', 'itcontent'},
+                          'itcy2', 'itswitch', 'itcontent', 'itauthors', 'itreplacedauthors', 'itrepublish'},
                          set(apps))
         self.assertTrue(apps['itlicensed'].license_confirm)
         self.assertEqual([], apps['itretired'].platforms)
@@ -897,7 +897,7 @@ class SeedIntegrationDataTestCase(TestCase):
         self.assertEqual([Platform.DESKTOP, Platform.WEB], apps['itcy2'].platforms)
         self.assertTrue(apps['itcy2'].cy_2x_plugin_download)
 
-        pending = WebBundlePending.objects.get()
+        pending = WebBundlePending.objects.get(fullname='IT Desktop')
         self.assertEqual(('IT Desktop', '1.0', 'it-editor'), (pending.fullname, pending.version, pending.submitter.username))
         self.assertTrue(pending.is_new_platform)
         self.assertTrue(os.path.exists(os.path.join(self.tmp, 'media', 'webbundles', pending.bundle_path, 'remoteEntry.js')))
@@ -905,6 +905,10 @@ class SeedIntegrationDataTestCase(TestCase):
         self.assertEqual('not_editor', AppPending.objects.get(fullname='IT Web').identity.outcome.value)
         self.assertTrue(ServiceAppPending.objects.get(fullname='IT Desktop').is_new_platform)
         self.assertEqual(['IT Url App'], [p.fullname for p in WebUrlPending.objects.all()])
+        # a resubmission of IT Republish's published Cytoscape Web 1.0, which accepting must refuse
+        republish = WebBundlePending.objects.get(fullname='IT Republish')
+        self.assertTrue(WebBundleRelease.objects.filter(app=apps['itrepublish'], version=republish.version,
+                                                        active=True).exists())
 
     def test_sessions_sign_in_each_user(self):
         sessions = self.seed()
@@ -914,9 +918,9 @@ class SeedIntegrationDataTestCase(TestCase):
     def test_reseeding_replaces_the_data(self):
         self.seed()
         sessions = self.seed()
-        self.assertEqual(11, App.objects.count())
-        self.assertEqual(2, AppPlatformContent.objects.count())
-        self.assertEqual(1, WebBundlePending.objects.count())
+        self.assertEqual(14, App.objects.count())
+        self.assertEqual(4, AppPlatformContent.objects.count())
+        self.assertEqual(2, WebBundlePending.objects.count())
         self.assertEqual(1, ServiceAppPending.objects.count())
         self.assertEqual(3, User.objects.filter(username__startswith='it-').count())
         self.assertEqual('it-editor', self.signed_in_user(sessions['editor']).username)
@@ -1644,6 +1648,29 @@ class PlatformContentListingsTestCase(TestCase):
         [entry] = [a for a in json.loads(self.client.get('/backend/all_apps').content) if a['fullname'] == 'Multi']
         self.assertEqual('Desktop description', entry['description'])
         self.assertEqual(['desktop tag'], entry['tags'])
+
+
+class AuthorReportsTestCase(TestCase):
+    """The author reports count an app's author once, though its Web content has its own copy (#155)."""
+
+    def setUp(self):
+        self.app = App.objects.create(name='multi', fullname='Multi', active=True, has_releases=True)
+        Release.objects.create(app=self.app, version='1.0', works_with='3.10')
+        WebBundleRelease.objects.create(app=self.app, version='1.0', active=True, bundle_hash='0')
+        OrderedAuthor.objects.create(app=self.app, author=Author.objects.create(name='Shared Author'), author_order=0)
+        self.app.content_for_edit(Platform.WEB)  # copies the author for the web content
+        self.assertEqual(2, OrderedAuthor.objects.filter(app=self.app).count())
+
+    def test_appsbyauthors_lists_the_author_once(self):
+        out = io.StringIO()
+        call_command('appsbyauthors', '--authors', 'Shared Author', stdout=out)
+        report = out.getvalue()
+        self.assertEqual(1, report.count('\tShared Author **'))
+        self.assertIn('Number of Apps co-authored by authors: 1', report)
+
+    def test_usagereport_new_app_contacts_list_the_author_once(self):
+        from apps.management.commands.usagereport import Command
+        self.assertEqual(1, Command().get_new_app_contacts(['multi']).count('\tShared Author\n'))
 
 
 class AuthorPageTestCase(TestCase):
