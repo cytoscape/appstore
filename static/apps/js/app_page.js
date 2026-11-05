@@ -536,6 +536,36 @@ var AppPage = (function($) {
     }
 
     /*
+     ================================================================
+       Platform selector
+     ================================================================
+    */
+
+    // The Available on buttons reload the page for another platform. They carry
+    // the open tab as a hash (#releases), and the page opens the tab its hash names,
+    // so switching platform keeps the reader on the same tab.
+    function setup_platform_tabs() {
+        var tabs = {'details': '#cy-app-details-tab', 'releases': '#cy-app-releases-tab'};
+
+        function remember(tab) {
+            $('.cy-app-platform-chip').each(function() {
+                var href = $(this).attr('href').split('#')[0];
+                $(this).attr('href', tab === 'details' ? href : href + '#' + tab);
+            });
+            if (window.history && history.replaceState)
+                history.replaceState(null, '', location.pathname + location.search + (tab === 'details' ? '' : '#' + tab));
+        }
+
+        $('#cy-app-info-tabs a[data-toggle="tab"]').on('shown', function(e) {
+            remember($(e.target).attr('href') === tabs.releases ? 'releases' : 'details');
+        });
+
+        var tab = location.hash.substring(1);
+        if (tabs[tab] && tab !== 'details')
+            $('#cy-app-info-tabs a[href="' + tabs[tab] + '"]').tab('show');
+    }
+
+    /*
 	 ================================================================
         Release Notes
       ================================================================
@@ -562,6 +592,7 @@ var AppPage = (function($) {
         'setup_cy_2x_download_popover': setup_cy_2x_download_popover,
         'setup_stars': setup_stars,
         'setup_details': setup_details,
+        'setup_platform_tabs': setup_platform_tabs,
         'setup_release_notes': setup_release_notes,
     }
 })($);

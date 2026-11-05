@@ -128,14 +128,20 @@
 </div>
 {# End app usage info #}
 
-{# Platforms the app is on; each chip shows that platform's panel and releases first #}
+{# Platforms the app is on; the selected one's panel comes first and its releases fill Release History #}
 {% if platform_chips %}
 <div class="row">
 	<div class="span12" id="cy-app-platforms">
 		<strong>Available on</strong>
-		{% for platform, platform_name in platform_chips %}
-		<a href="?platform={{ platform }}" class="label cy-app-platform-chip{% if platform == selected_platform %} label-info{% endif %}" data-platform="{{ platform }}">{{ platform_name }}</a>
-		{% endfor %}
+		<div class="btn-group">
+			{% for platform, platform_name in platform_chips %}
+			{% if platform == selected_platform %}
+			<a href="?platform={{ platform }}" class="btn btn-large btn-primary active cy-app-platform-chip" aria-current="true" data-platform="{{ platform }}">{{ platform_name }}</a>
+			{% else %}
+			<a href="?platform={{ platform }}" class="btn btn-large cy-app-platform-chip" data-platform="{{ platform }}">{{ platform_name }}</a>
+			{% endif %}
+			{% endfor %}
+		</div>
 	</div>
 </div>
 {% endif %}
@@ -224,16 +230,10 @@
 			{# Releases tab #}
 			{% if app.has_releases %}
 			<div class="tab-pane" id="cy-app-releases-tab">
-				{% if releases_by_platform|length > 1 %}
-				<ul class="nav nav-pills" id="cy-app-release-platforms">
-					{% for platform, platform_name, releases in releases_by_platform %}
-					<li{% if forloop.first %} class="active"{% endif %}><a href="#cy-app-releases-{{ platform }}" data-toggle="pill">{{ platform_name }}</a></li>
-					{% endfor %}
-				</ul>
-				{% endif %}
-				<div class="tab-content">
-				{% for platform, platform_name, releases in releases_by_platform %}
-				<div class="tab-pane{% if forloop.first %} active{% endif %} cy-app-platform-releases" id="cy-app-releases-{{ platform }}" data-platform="{{ platform }}">
+				{# Only the selected platform's releases; the Available on buttons switch platform #}
+				{% with platform=selected_platform platform_name=selected_platform_name releases=selected_releases %}
+				<div class="cy-app-platform-releases" id="cy-app-releases-{{ platform }}" data-platform="{{ platform }}">
+				<h3 class="cy-app-releases-heading">{{ platform_name }} releases</h3>
 				{% for release in releases %}
 				<div class="row">
 					<div class="span8">
@@ -312,8 +312,7 @@
 				</div>
 				{% endfor %} {# end looping thru each release #}
 				</div>
-				{% endfor %} {# end looping thru each platform #}
-				</div>
+				{% endwith %}
 			</div>
 			{% endif %}
 			{# End Releases tab #}
@@ -510,5 +509,7 @@ AppPage.setup_details();
 AppPage.setup_stars();
 
 AppPage.setup_release_notes();
+
+AppPage.setup_platform_tabs();
 </script>
 {% endblock %}

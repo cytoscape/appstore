@@ -1073,15 +1073,34 @@ class UnifiedAppPageTestCase(TestCase):
         positions = {platform: content.find('id="%s"' % panel) for platform, panel in self.PANELS.items()}
         return sorted((platform for platform, at in positions.items() if at != -1), key=positions.get)
 
-    def test_panels_chips_and_release_sections_per_platform(self):
+    def chip(self, content, platform):
+        return re.search(r'<a href="\?platform=%s" class="btn btn-large[^"]*cy-app-platform-chip"[^>]*>' % platform, content)
+
+    def test_panels_and_a_selector_button_per_platform(self):
         for name, platforms in self.apps.items():
             content = self.page(name)
             self.assertEqual(platforms, self.panel_order(content), name)
             for platform in self.PANELS:
-                chip = re.search(r'class="label cy-app-platform-chip[^"]*" data-platform="%s"' % platform, content)
-                self.assertEqual(platform in platforms, bool(chip), (name, platform))
-                self.assertEqual(platform in platforms, 'id="cy-app-releases-%s"' % platform in content, (name, platform))
-            self.assertEqual(len(platforms) > 1, 'id="cy-app-release-platforms"' in content, name)
+                self.assertEqual(platform in platforms, bool(self.chip(content, platform)), (name, platform))
+            # Release History lists the selected (first) platform only, with no second set of buttons
+            self.assertEqual([platforms[0]], [p for p in self.PANELS if 'id="cy-app-releases-%s"' % p in content], name)
+            self.assertNotIn('cy-app-release-platforms', content, name)
+
+    def test_selector_marks_the_selected_platform(self):
+        for query, selected in (('', 'desktop'), ('?platform=web', 'web'), ('?platform=service', 'service'),
+                                ('?platform=bogus', 'desktop')):
+            content = self.page('multi', query)
+            for platform in self.PANELS:
+                tag = self.chip(content, platform).group(0)
+                self.assertEqual(platform == selected, 'btn-primary active' in tag and 'aria-current="true"' in tag,
+                                 (query, platform))
+
+    def test_release_history_lists_the_selected_platform(self):
+        for platform, heading in (('desktop', 'Cytoscape Desktop releases'), ('web', 'Cytoscape Web releases'),
+                                  ('service', 'Service releases')):
+            releases_tab = self.page('multi', '?platform=' + platform).split('id="cy-app-releases-tab"', 1)[1]
+            self.assertIn('<h3 class="cy-app-releases-heading">%s</h3>' % heading, releases_tab)
+            self.assertEqual([platform], [p for p in self.PANELS if 'id="cy-app-releases-%s"' % p in releases_tab])
 
     def test_no_duplicate_element_ids(self):
         for name in self.apps:
@@ -1093,8 +1112,6 @@ class UnifiedAppPageTestCase(TestCase):
     def test_selected_platform_comes_first(self):
         self.assertEqual(['web', 'desktop', 'service'], self.panel_order(self.page('multi', '?platform=web')))
         self.assertEqual(['service', 'desktop', 'web'], self.panel_order(self.page('multi', '?platform=service')))
-        content = self.page('multi', '?platform=service')
-        self.assertLess(content.find('id="cy-app-releases-service"'), content.find('id="cy-app-releases-desktop"'))
 
     def test_invalid_platform_falls_back_to_the_first(self):
         self.assertEqual(['desktop', 'web', 'service'], self.panel_order(self.page('multi', '?platform=bogus')))

@@ -224,7 +224,7 @@ _PLATFORM_NAMES = {
 def _mk_app_page(app, user, request):
     """
     One page for every platform the app is on (#155). ?platform= picks the
-    platform whose panel and release history come first.
+    platform whose panel comes first and whose releases Release History lists.
     """
     platforms = app.platforms
     selected_platform = request.GET.get('platform')
@@ -237,8 +237,8 @@ def _mk_app_page(app, user, request):
         'platform_chips': [(platform, _PLATFORM_NAMES[platform]) for platform in platforms],
         'selected_platform': selected_platform,
         'panel_order': panel_order,
-        'releases_by_platform': [(platform, _PLATFORM_NAMES[platform], app.releases_for_display(platform))
-                                 for platform in panel_order],
+        'selected_platform_name': _PLATFORM_NAMES.get(selected_platform),
+        'selected_releases': app.releases_for_display(selected_platform) if selected_platform else [],
         'is_editor': (user and app.is_editor(user)),
         'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
         'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),

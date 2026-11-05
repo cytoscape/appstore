@@ -5,7 +5,7 @@ test.describe('App page', () => {
   const panelOrder = (page) =>
     page.locator('.cy-app-platform-panel').evaluateAll((panels) => panels.map((panel) => panel.dataset.platform))
 
-  test('an app on three platforms shows a chip and a panel for each, without script errors', async ({ page }) => {
+  test('an app on three platforms shows a button and a panel for each, without script errors', async ({ page }) => {
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))
     await page.goto('/apps/itmulti')
@@ -18,24 +18,62 @@ test.describe('App page', () => {
     expect(errors).toEqual([])
   })
 
-  test("a platform chip puts that platform's panel first", async ({ page }) => {
+  test('the Available on buttons are large and mark the selected platform', async ({ page }) => {
+    const selected = page.locator('.cy-app-platform-chip[aria-current="true"]')
     await page.goto('/apps/itmulti')
+    for (const button of await page.locator('.cy-app-platform-chip').all()) {
+      expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(30)
+    }
+    // the primary platform when none is chosen, or an unknown one is
+    await expect(selected).toHaveText('Cytoscape Desktop')
+    await page.goto('/apps/itmulti?platform=bogus')
+    await expect(selected).toHaveText('Cytoscape Desktop')
+
     await page.locator('.cy-app-platform-chip', { hasText: 'Service' }).click()
     await expect(page).toHaveURL(/\?platform=service$/)
+    await expect(selected).toHaveText('Service')
+    await expect(page.locator('.cy-app-platform-chip.btn-primary')).toHaveCount(1)
     expect(await panelOrder(page)).toEqual(['service', 'desktop', 'web'])
-    await expect(page.locator('.cy-app-platform-chip.label-info')).toHaveText('Service')
   })
 
-  test('release history switches between platforms', async ({ page }) => {
+  test('release history lists only the selected platform, with no second set of buttons', async ({ page }) => {
+    const releases = page.locator('#cy-app-releases-tab')
+    for (const [platform, heading] of [['desktop', 'Cytoscape Desktop releases'], ['web', 'Cytoscape Web releases'],
+                                       ['service', 'Service releases']]) {
+      await page.goto(`/apps/itmulti?platform=${platform}`)
+      await page.getByRole('link', { name: 'Release History' }).click()
+      await expect(releases.locator('.cy-app-releases-heading')).toHaveText(heading)
+      await expect(releases.locator('.cy-app-platform-releases')).toHaveCount(1)
+      await expect(releases.locator(`#cy-app-releases-${platform}`)).toBeVisible()
+      await expect(page.locator('#cy-app-release-platforms')).toHaveCount(0)
+      await expect(releases.locator('.cy-app-platform-chip')).toHaveCount(0)
+    }
+
+    await page.goto('/apps/itmulti?platform=desktop#releases')
+    await expect(releases.locator('h4 a[href*="/itmulti/"][href$="/1.0"]')).toBeVisible()
+    await expect(releases.locator('.cy-app-url-copy')).toHaveCount(0)
+    await page.goto('/apps/itmulti?platform=web#releases')
+    await expect(releases.locator('.cy-app-url-copy input')).toHaveValue(/\/web\/itmulti\/1\.0\/manifest\.json$/)
+    await page.goto('/apps/itmulti?platform=service#releases')
+    await expect(releases.getByText('Service URL', { exact: true })).toBeVisible()
+    await expect(releases.locator('.cy-app-url-copy input')).toHaveValue('https://service.example.org/itmulti')
+  })
+
+  test('switching platform keeps the open tab', async ({ page }) => {
     await page.goto('/apps/itmulti')
     await page.getByRole('link', { name: 'Release History' }).click()
-    await expect(page.locator('#cy-app-releases-desktop')).toBeVisible()
-    await expect(page.locator('#cy-app-releases-web')).toBeHidden()
-
-    await page.locator('#cy-app-release-platforms').getByRole('link', { name: 'Cytoscape Web' }).click()
+    await page.locator('.cy-app-platform-chip', { hasText: 'Cytoscape Web' }).click()
+    await expect(page).toHaveURL(/\?platform=web#releases$/)
+    await expect(page.locator('#cy-app-releases-tab')).toHaveClass(/active/)
     await expect(page.locator('#cy-app-releases-web')).toBeVisible()
-    await expect(page.locator('#cy-app-releases-desktop')).toBeHidden()
-    await expect(page.locator('#cy-app-releases-web .cy-app-url-copy input')).toHaveValue(/\/web\/itmulti\/1\.0\/manifest\.json$/)
+    await expect(page.locator('.cy-app-platform-chip[aria-current="true"]')).toHaveText('Cytoscape Web')
+
+    await page.getByRole('link', { name: 'Details' }).click()
+    await page.locator('.cy-app-platform-chip', { hasText: 'Service' }).click()
+    await expect(page).toHaveURL(/\?platform=service$/)
+    // IT Multi's details are empty, so check which tab is open rather than what is visible
+    await expect(page.locator('#cy-app-details-tab')).toHaveClass(/active/)
+    await expect(page.locator('#cy-app-releases-tab')).not.toHaveClass(/active/)
   })
 
   test('editors can submit a release for any platform', async ({ asEditor }) => {
@@ -53,11 +91,15 @@ test.describe('App page', () => {
     await expect(asOther.getByRole('link', { name: /^Submit a / })).toHaveCount(0)
   })
 
-  test('single-platform apps show one chip and one panel', async ({ page }) => {
+  test('single-platform apps show one selected button, one panel and their releases', async ({ page }) => {
     for (const [name, platform] of [['itweb', 'web'], ['itservice', 'service']]) {
       await page.goto(`/apps/${name}`)
       expect(await panelOrder(page)).toEqual([platform])
       await expect(page.locator('.cy-app-platform-chip')).toHaveCount(1)
+      await expect(page.locator('.cy-app-platform-chip[aria-current="true"]')).toHaveCount(1)
+      await page.getByRole('link', { name: 'Release History' }).click()
+      await expect(page.locator(`#cy-app-releases-${platform}`)).toBeVisible()
+      await expect(page.locator('#cy-app-release-platforms')).toHaveCount(0)
     }
   })
 
