@@ -51,7 +51,7 @@
 				<span class="caret"></span>
 			</a>
 			<ul class="dropdown-menu pull-right">
-				<li><a href="{% url 'app_page_edit' app.name %}">Edit this page</a></li>
+				<li><a href="{% url 'app_page_edit' app.name %}{% if selected_platform %}?platform={{ selected_platform }}{% endif %}">Edit this page</a></li>
 				<li><a href="{% url 'submit-app' %}?expect_app_name={{ app.fullname|urlencode }}">Submit a desktop release</a></li>
 				<li><a href="{% url 'submit-web-bundle' %}?expect_app_name={{ app.fullname|urlencode }}">Submit a Cytoscape Web bundle</a></li>
 				<li><a href="{% url 'submit-service-app' %}?expect_app_name={{ app.fullname|urlencode }}">Submit a service release</a></li>

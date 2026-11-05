@@ -327,6 +327,34 @@ def _mk_basic_field_saver(field, func = None):
         setattr(app, field, value)
     return saver
 
+def _content_platform(app, request):
+    """
+    The platform whose content a content edit changes (#155): the POST's 'platform',
+    which must be one the app is on, or none for the app's own (Desktop's) content.
+    """
+    platform = request.POST.get('platform')
+    if not platform:
+        return None
+    if platform not in app.platforms:
+        raise ValueError('platform must be one this app is on: %s' % ', '.join(app.platforms))
+    return platform
+
+def _content_target(app, request):
+    """Where a content edit is saved: the app, or the platform's own content (see App.content_for_edit)."""
+    return app.content_for_edit(_content_platform(app, request))
+
+def _own_platform(target):
+    """The 'platform' of the screenshots and authors that belong with 'target': None for the app's own."""
+    return None if isinstance(target, App) else target.platform
+
+def _mk_content_field_saver(field, func = None):
+    save_field = _mk_basic_field_saver(field, func)
+    def saver(app, request):
+        target = _content_target(app, request)
+        save_field(target, request)
+        target.save()
+    return saver
+
 def _save_tags(app, request):
     tag_count = request.POST.get('tag_count')
     if not tag_count:
@@ -344,10 +372,11 @@ def _save_tags(app, request):
             raise ValueError('expected ' + tag_key)
         tags.append(tag)
 
-    app.tags.clear()
+    target = _content_target(app, request)
+    target.tags.clear()
     for tag in tags:
         tag_obj, _ = Tag.objects.get_or_create(fullname = tag, name = fullname_to_name(tag))
-        app.tags.add(tag_obj)
+        target.tags.add(tag_obj)
 
     _flush_tag_caches()
 
@@ -378,7 +407,7 @@ def _upload_screenshot(app, request):
     thumbnail_f = scale_img(screenshot_f, screenshot_f.name,
                             _AppPageEditConfig.thumbnail_height_px,
                             scale_on_height=True)
-    screenshot = Screenshot.objects.create(app=app)
+    screenshot = Screenshot.objects.create(app=app, platform=_own_platform(_content_target(app, request)))
     screenshot.screenshot.save(screenshot_f.name, screenshot_f)
     screenshot.thumbnail.save(thumbnail_f.name, thumbnail_f)
     screenshot.save()
@@ -388,10 +417,16 @@ def _delete_screenshot(app, request):
     screenshot_id = request.POST.get('screenshot_id')
     if not screenshot_id:
         raise ValueError('no screenshot_id specified')
+    platform = _own_platform(_content_target(app, request))
     try:
-        screenshot_id = int(screenshot_id)
-        screenshot = Screenshot.objects.get(id = screenshot_id)
+        screenshot = Screenshot.objects.get(id = int(screenshot_id), app = app)
     except (ValueError, Screenshot.DoesNotExist) as e:
+        raise ValueError('invalid screenshot_id')
+    if screenshot.platform is None and platform is not None:
+        # the page showed the app's screenshot, which this platform's first edit has just copied
+        screenshot = Screenshot.objects.filter(app = app, platform = platform,
+                                               screenshot = screenshot.screenshot.name).first()
+    if screenshot is None or screenshot.platform != platform:
         raise ValueError('invalid screenshot_id')
     screenshot.delete()
 
@@ -470,10 +505,12 @@ def _save_authors(app, request):
             institution = None
         authors.append((name, institution, i))
 
-    app.authors.clear()
+    # replaces only this platform's authors; the other platforms keep theirs
+    platform = _own_platform(_content_target(app, request))
+    OrderedAuthor.objects.filter(app = app, platform = platform).delete()
     for name, institution, author_order in authors:
         author, _ = Author.objects.get_or_create(name = name, institution = institution)
-        ordered_author = OrderedAuthor.objects.create(app = app, author = author, author_order = author_order)
+        OrderedAuthor.objects.create(app = app, platform = platform, author = author, author_order = author_order)
 
 def _posted_platform_releases(app, request):
     """
@@ -548,16 +585,16 @@ _AppEditActions = {
     'save_cy_2x_plugin_version':      _mk_basic_field_saver('cy_2x_plugin_version'),
     'save_cy_2x_plugin_release_date': _mk_basic_field_saver('cy_2x_plugin_release_date', func=_parse_iso_date),
     'save_cy_2x_versions':            _mk_basic_field_saver('cy_2x_versions'),
-    'save_description':   _mk_basic_field_saver('description'),
-    'save_license_text':  _mk_basic_field_saver('license_text'),
-    'save_license_confirm':  _mk_basic_field_saver('license_confirm', func = lambda s: s.lower() == 'true'),
-    'save_website':       _mk_basic_field_saver('website'),
-    'save_tutorial':      _mk_basic_field_saver('tutorial'),
-    'save_citation':      _mk_basic_field_saver('citation'),
-    'save_coderepo':      _mk_basic_field_saver('coderepo'),
-    'save_automation':  _mk_basic_field_saver('automation'),
-    'save_contact':       _mk_basic_field_saver('contact'),
-    'save_details':       _mk_basic_field_saver('details'),
+    'save_description':   _mk_content_field_saver('description'),
+    'save_license_text':  _mk_content_field_saver('license_text'),
+    'save_license_confirm':  _mk_content_field_saver('license_confirm', func = lambda s: s.lower() == 'true'),
+    'save_website':       _mk_content_field_saver('website'),
+    'save_tutorial':      _mk_content_field_saver('tutorial'),
+    'save_citation':      _mk_content_field_saver('citation'),
+    'save_coderepo':      _mk_content_field_saver('coderepo'),
+    'save_automation':  _mk_content_field_saver('automation'),
+    'save_contact':       _mk_content_field_saver('contact'),
+    'save_details':       _mk_content_field_saver('details'),
     'save_tags':          _save_tags,
     'upload_icon':        _upload_icon,
     'upload_screenshot':  _upload_screenshot,
@@ -590,11 +627,19 @@ def app_page_edit(request, app_name):
         if is_ajax(request):
             return json_response(result)
 
+    # ?platform= picks the platform whose content and releases the page edits (#155)
+    platforms = app.platforms
+    selected_platform = request.GET.get('platform')
+    if selected_platform not in platforms:
+        selected_platform = app.primary_platform
     all_tags = [tag.fullname for tag in Tag.objects.all()]
     c = {
         'app': app,
-        'releases_by_platform': [(platform, _PLATFORM_NAMES[platform], app.releases_for_display(platform))
-                                 for platform in app.platforms],
+        'content': app.content(selected_platform),
+        'platform_chips': [(platform, _PLATFORM_NAMES[platform]) for platform in platforms],
+        'selected_platform': selected_platform,
+        'selected_platform_name': _PLATFORM_NAMES.get(selected_platform),
+        'selected_releases': app.releases_for_display(selected_platform) if selected_platform else [],
         'all_tags': all_tags,
         'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
         'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,

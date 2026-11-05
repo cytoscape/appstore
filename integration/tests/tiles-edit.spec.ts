@@ -18,13 +18,13 @@ test.describe('Tiles and the edit page', () => {
   })
 
   test("an editor's release notes go to the platform's release they were written for", async ({ asEditor }) => {
-    await asEditor.goto('/apps/itedit/edit')
+    await asEditor.goto('/apps/itedit/edit?platform=web')
     await asEditor.getByRole('link', { name: 'Release History' }).click()
-    await expect(asEditor.locator('.cy-release-platform')).toHaveText(['Cytoscape Desktop', 'Cytoscape Web', 'Service'])
+    await expect(asEditor.locator('.cy-release')).toHaveCount(1)
 
     await asEditor.locator('.cy-release[data-platform="web"] .cy-release-notes').pressSequentially('Notes for the web bundle')
     await asEditor.locator('#save-btn').click()
-    await expect(asEditor).toHaveURL(/\/apps\/itedit$/)
+    await expect(asEditor).toHaveURL(/\/apps\/itedit\?platform=web$/)
 
     await asEditor.goto('/apps/itedit?platform=web')
     await expect(asEditor.locator('#cy-app-releases-web .cy-app-release-notes')).toContainText('Notes for the web bundle')
@@ -32,11 +32,13 @@ test.describe('Tiles and the edit page', () => {
   })
 
   test('deleting the last web release takes the app off the web platform', async ({ asEditor }) => {
-    await asEditor.goto('/apps/itedit/edit')
+    await asEditor.goto('/apps/itedit/edit?platform=web')
     await asEditor.getByRole('link', { name: 'Release History' }).click()
     await asEditor.locator('.cy-release[data-platform="web"] .cy-release-delete').click()
     await asEditor.locator('#save-btn').click()
-    await expect(asEditor).toHaveURL(/\/apps\/itedit$/)
+    // the app is no longer on Cytoscape Web, so its page shows its primary platform
+    await expect(asEditor).toHaveURL(/\/apps\/itedit\?platform=web$/)
+    await expect(asEditor.locator('.cy-app-platform-chip[aria-current="true"]')).toHaveText('Cytoscape Desktop')
 
     await expect(asEditor.locator('.cy-app-platform-chip')).toHaveText(['Cytoscape Desktop', 'Service'])
     await asEditor.goto('/apps/platform/web/')

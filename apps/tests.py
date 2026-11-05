@@ -804,8 +804,8 @@ class ServiceReleaseOrderingTestCase(TestCase):
         self.client.login(username='editor', password='secret')
         response = self.client.get('/apps/svcapp/edit')
         self.assertEqual(200, response.status_code)
-        [(platform, _, releases)] = response.context['releases_by_platform']
-        self.assertEqual(('service', ['1.10', '1.9']), (platform, [r.version for r in releases]))
+        self.assertEqual(('service', ['1.10', '1.9']),
+                         (response.context['selected_platform'], [r.version for r in response.context['selected_releases']]))
 
     def test_service_page_works_with_web_and_desktop(self):
         self.make_release('1.10', days_old=1)
@@ -864,7 +864,7 @@ class SeedIntegrationDataTestCase(TestCase):
 
         apps = {app.name: app for app in App.objects.all()}
         self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itlicensed', 'itretired', 'itlegacy',
-                          'itcy2', 'itswitch'},
+                          'itcy2', 'itswitch', 'itcontent'},
                          set(apps))
         self.assertTrue(apps['itlicensed'].license_confirm)
         self.assertEqual([], apps['itretired'].platforms)
@@ -910,7 +910,7 @@ class SeedIntegrationDataTestCase(TestCase):
     def test_reseeding_replaces_the_data(self):
         self.seed()
         sessions = self.seed()
-        self.assertEqual(10, App.objects.count())
+        self.assertEqual(11, App.objects.count())
         self.assertEqual(2, AppPlatformContent.objects.count())
         self.assertEqual(1, WebBundlePending.objects.count())
         self.assertEqual(1, ServiceAppPending.objects.count())
@@ -1208,11 +1208,16 @@ class EditPageReleasesByPlatformTestCase(TestCase):
             data['platform'] = platform
         return self.client.post('/apps/multi/edit', data, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
 
-    def test_edit_page_groups_releases_by_platform(self):
-        content = self.client.get('/apps/multi/edit').content.decode('utf-8')
-        for platform, release in (('desktop', self.desktop), ('web', self.web), ('service', self.service)):
-            self.assertIn('<h3 class="cy-release-platform" id="cy-releases-%s">' % platform, content)
-            self.assertIn('release_id="%d" data-platform="%s"' % (release.id, platform), content)
+    def test_edit_page_lists_the_selected_platforms_releases(self):
+        releases = {'desktop': self.desktop, 'web': self.web, 'service': self.service}
+        for selected, heading in (('desktop', 'Cytoscape Desktop releases'), ('web', 'Cytoscape Web releases'),
+                                  ('service', 'Service releases')):
+            content = self.client.get('/apps/multi/edit?platform=' + selected).content.decode('utf-8')
+            self.assertIn('<h3 class="cy-app-releases-heading">%s</h3>' % heading, content)
+            self.assertNotIn('cy-release-platform', content)
+            for platform, release in releases.items():
+                self.assertEqual(platform == selected,
+                                 'release_id="%d" data-platform="%s"' % (release.id, platform) in content, (selected, platform))
 
     def test_notes_go_to_the_named_platforms_release(self):
         self.assertEqual(200, self.post('save_release_notes', 'web', self.web, notes_0='web notes').status_code)
@@ -1443,3 +1448,136 @@ class PlatformContentPageTestCase(TestCase):
             content = self.page(query)
             self.assertIn('<h2 id="app-name">\n\t\t\tMulti\n\t\t</h2>', content, query)
             self.assertIn('0 downloads', content, query)
+
+
+class EditPagePlatformContentTestCase(TestCase):
+    """The edit page edits the selected platform's content (#155)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.media = self.settings(MEDIA_ROOT=self.tmp)
+        self.media.enable()
+        self.editor = User.objects.create_user('editor', 'editor@example.org', 'secret')
+        self.app = App.objects.create(name='multi', fullname='Multi', active=True, has_releases=True,
+                                      description='Desktop description', details='Desktop details',
+                                      website='https://example.org/desktop')
+        self.app.editors.add(self.editor)
+        self.app.tags.add(Tag.objects.create(name='desktoptag', fullname='desktop tag'))
+        OrderedAuthor.objects.create(app=self.app, author=Author.objects.create(name='Desktop Author'), author_order=0)
+        self.shot = Screenshot.objects.create(app=self.app, screenshot='multi/shot.png', thumbnail='multi/shot_t.png')
+        Release.objects.create(app=self.app, version='1.0', works_with='3.10')
+        WebBundleRelease.objects.create(app=self.app, version='1.0', active=True, bundle_hash='0')
+        self.client.force_login(self.editor)
+
+    def tearDown(self):
+        self.media.disable()
+        shutil.rmtree(self.tmp)
+
+    def post(self, data, platform='web'):
+        if platform:
+            data = dict(data, platform=platform)
+        return self.client.post('/apps/multi/edit', data, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+    def assert_desktop_unchanged(self):
+        app = App.objects.get(name='multi')
+        desktop = app.content(Platform.DESKTOP)
+        self.assertEqual(('Desktop description', 'Desktop details', 'https://example.org/desktop'),
+                         (desktop.description, desktop.details, desktop.website))
+        self.assertEqual(['desktop tag'], [t.fullname for t in desktop.tags])
+        self.assertEqual(['Desktop Author'], [a.name for a in desktop.authors])
+        self.assertEqual([self.shot.id], [s.id for s in desktop.screenshots])
+
+    def test_each_field_with_web_changes_only_the_web_content(self):
+        for action, field, value in (('save_description', 'description', 'Web description'),
+                                     ('save_details', 'details', 'Web details'),
+                                     ('save_website', 'website', 'https://example.org/web'),
+                                     ('save_tutorial', 'tutorial', 'https://example.org/web-tutorial'),
+                                     ('save_citation', 'citation', '222'),
+                                     ('save_coderepo', 'coderepo', 'https://example.org/web-code'),
+                                     ('save_automation', 'automation', 'https://example.org/web-automation'),
+                                     ('save_contact', 'contact', 'web@example.org'),
+                                     ('save_license_text', 'license_text', 'https://example.org/web-license')):
+            self.assertEqual(200, self.post({'action': action, field: value}).status_code, action)
+            self.assertEqual(value, getattr(App.objects.get(name='multi').content(Platform.WEB), field), action)
+        self.assertEqual(200, self.post({'action': 'save_license_confirm', 'license_confirm': 'true'}).status_code)
+        self.assertTrue(App.objects.get(name='multi').content(Platform.WEB).license_confirm)
+        self.assert_desktop_unchanged()
+        content = self.client.get('/apps/multi?platform=web').content.decode('utf-8')
+        self.assertIn('Web details', content)
+        self.assertNotIn('Desktop details', content)
+        self.assertIn('Desktop details', self.client.get('/apps/multi?platform=desktop').content.decode('utf-8'))
+
+    def test_tags_and_authors_with_web_change_only_the_web_content(self):
+        self.assertEqual(200, self.post({'action': 'save_tags', 'tag_count': 1, 'tag_0': 'web tag'}).status_code)
+        self.assertEqual(200, self.post({'action': 'save_authors', 'authors_count': 1, 'author_0': 'Web Author',
+                                         'institution_0': 'Web Institute'}).status_code)
+        web = App.objects.get(name='multi').content(Platform.WEB)
+        self.assertEqual(['web tag'], [t.fullname for t in web.tags])
+        self.assertEqual([('Web Author', 'Web Institute')], [(a.name, a.institution) for a in web.authors])
+        self.assert_desktop_unchanged()
+        # and saving the desktop authors leaves the web ones
+        self.assertEqual(200, self.post({'action': 'save_authors', 'authors_count': 1, 'author_0': 'New Desktop Author'},
+                                        platform='desktop').status_code)
+        self.assertEqual(['Web Author'], [a.name for a in App.objects.get(name='multi').content(Platform.WEB).authors])
+        self.assertEqual(['New Desktop Author'], [a.name for a in App.objects.get(name='multi').ordered_authors])
+
+    def test_screenshots_with_web_change_only_the_web_content(self):
+        image = io.BytesIO()
+        Image.new('RGB', (20, 20)).save(image, 'PNG')
+        upload = SimpleUploadedFile('web.png', image.getvalue(), content_type='image/png')
+        self.assertEqual(200, self.post({'action': 'upload_screenshot', 'file': upload}).status_code)
+        web = App.objects.get(name='multi').content(Platform.WEB)
+        # the first edit copied the app's screenshot, then added the new one
+        self.assertEqual(2, web.screenshots.count())
+        self.assert_desktop_unchanged()
+        content = self.client.get('/apps/multi?platform=web').content.decode('utf-8')
+        new_shot = web.screenshots.last()
+        self.assertIn(new_shot.thumbnail.url, content)
+        self.assertNotIn(new_shot.thumbnail.url, self.client.get('/apps/multi?platform=desktop').content.decode('utf-8'))
+
+    def test_deleting_a_screenshot_the_web_page_showed_before_its_first_edit(self):
+        # the web edit page showed the app's screenshot (its id), as web had no content yet
+        self.assertEqual(200, self.post({'action': 'delete_screenshot', 'screenshot_id': self.shot.id}).status_code)
+        self.assertEqual(0, App.objects.get(name='multi').content(Platform.WEB).screenshots.count())
+        self.assert_desktop_unchanged()
+
+    def test_screenshot_of_another_app_or_platform_cannot_be_deleted(self):
+        other = App.objects.create(name='other', fullname='Other', active=True)
+        other_shot = Screenshot.objects.create(app=other, screenshot='other/shot.png', thumbnail='other/shot_t.png')
+        response = self.post({'action': 'delete_screenshot', 'screenshot_id': other_shot.id}, platform='desktop')
+        self.assertContains(response, 'invalid screenshot_id', status_code=400)
+        self.assertTrue(Screenshot.objects.filter(id=other_shot.id).exists())
+        web_shot = Screenshot.objects.create(app=self.app, platform=Platform.WEB, screenshot='multi/web.png',
+                                             thumbnail='multi/web_t.png')
+        response = self.post({'action': 'delete_screenshot', 'screenshot_id': web_shot.id}, platform='desktop')
+        self.assertContains(response, 'invalid screenshot_id', status_code=400)
+        self.assertTrue(Screenshot.objects.filter(id=web_shot.id).exists())
+
+    def test_without_a_platform_edits_the_app_as_before(self):
+        self.assertEqual(200, self.post({'action': 'save_details', 'details': 'Changed details'}, platform=None).status_code)
+        self.assertEqual('Changed details', App.objects.get(name='multi').details)
+        self.assertEqual(0, AppPlatformContent.objects.count())
+
+    def test_platform_must_be_one_the_app_is_on(self):
+        for platform in ('bogus', 'service'):
+            response = self.post({'action': 'save_details', 'details': 'x'}, platform=platform)
+            self.assertContains(response, 'platform must be one this app is on', status_code=400)
+        self.assertEqual(0, AppPlatformContent.objects.count())
+
+    def test_edit_page_shows_the_selected_platforms_content(self):
+        self.post({'action': 'save_details', 'details': 'Web details'})
+        web_page = self.client.get('/apps/multi/edit?platform=web').content.decode('utf-8')
+        self.assertIn('>Web details</textarea>', web_page)
+        self.assertIn("AppPageEdit.set_platform('web');", web_page)
+        self.assertIn('AppPageEdit.set_app_page_url("/apps/multi?platform=web");', web_page)
+        self.assertNotIn('Cytoscape 2.x Plugin', web_page)
+        desktop_page = self.client.get('/apps/multi/edit?platform=desktop').content.decode('utf-8')
+        self.assertIn('>Desktop details</textarea>', desktop_page)
+        self.assertIn('Cytoscape 2.x Plugin', desktop_page)
+        # an unknown platform edits the primary one
+        self.assertIn("AppPageEdit.set_platform('desktop');",
+                      self.client.get('/apps/multi/edit?platform=bogus').content.decode('utf-8'))
+
+    def test_editor_menu_edits_the_selected_platform(self):
+        content = self.client.get('/apps/multi?platform=web').content.decode('utf-8')
+        self.assertIn('<a href="/apps/multi/edit?platform=web">Edit this page</a>', content)

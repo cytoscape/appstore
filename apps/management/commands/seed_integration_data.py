@@ -149,6 +149,16 @@ class Command(BaseCommand):
                                                             active=True, bundle_hash='0' * 64))
         self.mark_released(cy2, cy2_desktop)
 
+        # edit-platform.spec.ts edits its Cytoscape Web content
+        content = self.create_app('IT Content', editor, has_releases=True, details='IT Content desktop details',
+                                  website='https://example.org/content-desktop')
+        content_desktop = Release.objects.create(app=content, version='1.0', works_with='3.10')
+        write_manifest_json(WebBundleRelease.objects.create(app=content, version='1.0', cy_app_id='itcontent',
+                                                            active=True, bundle_hash='0' * 64))
+        self.add_content(content, None, tag='it-content-desktop', author='Content Desktop Author',
+                         screenshot='itcontent-desktop.png')
+        self.mark_released(content, content_desktop)
+
         # the edit page's platform-switch dialog specs own it
         switch = self.create_app('IT Switch', editor, has_releases=True, details='IT Switch details',
                                  website='https://example.org/switch')

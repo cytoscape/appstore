@@ -28,10 +28,28 @@
         {{ app.fullname }}
       </span>
     </h2>
-    <input class="span7" id="cy-app-description" type="text" placeholder="Enter a short description of your app here" value="{% if app.description %}{{ app.description|escape }}{% endif %}" maxlength="{{ app_description_maxlength }}">
+    <input class="span7" id="cy-app-description" type="text" placeholder="Enter a short description of your app here" value="{% if content.description %}{{ content.description|escape }}{% endif %}" maxlength="{{ app_description_maxlength }}">
   </div>
 </div>
 {# end app header #}
+
+{# The platform whose details and releases this page edits; the name, icon and editors are shared #}
+{% if platform_chips %}
+<div class="row">
+  <div class="span12" id="cy-app-platforms">
+    <strong>Editing</strong>
+    <div class="btn-group">
+      {% for platform, platform_name in platform_chips %}
+      {% if platform == selected_platform %}
+      <a href="?platform={{ platform }}" class="btn btn-large btn-primary active cy-app-platform-chip" aria-current="true" data-platform="{{ platform }}">{{ platform_name }}</a>
+      {% else %}
+      <a href="?platform={{ platform }}" class="btn btn-large cy-app-platform-chip" data-platform="{{ platform }}">{{ platform_name }}</a>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <div class="row">
   {# tabs #}
@@ -95,7 +113,7 @@
 
         <div class="row">
           <div class="span8">
-            <textarea id="cy-app-details" class="span8" rows="15">{% if app.details %}{{ app.details }}{% endif %}</textarea>
+            <textarea id="cy-app-details" class="span8" rows="15">{% if content.details %}{{ content.details }}{% endif %}</textarea>
           </div>
         </div>
 
@@ -134,10 +152,9 @@
       <div class="tab-pane" id="cy-app-releases-tab">
         <div class="row">
           <div class="span7">
-            {% for platform, platform_name, releases in releases_by_platform %}
-            {% if releases_by_platform|length > 1 %}
-            <h3 class="cy-release-platform" id="cy-releases-{{ platform }}">{{ platform_name }}</h3>
-            {% endif %}
+            {# Only the selected platform's releases #}
+            {% with platform=selected_platform platform_name=selected_platform_name releases=selected_releases %}
+            <h3 class="cy-app-releases-heading">{{ platform_name }} releases</h3>
             {% for release in releases %}
               <div class="cy-release" release_id="{{ release.id }}" data-platform="{{ platform }}">
                 <h4>
@@ -183,7 +200,7 @@
                 <hr>
               </div>
               {% endfor %}
-            {% endfor %}
+            {% endwith %}
 
             {# end outer div #}
           </div>
@@ -216,7 +233,7 @@
     {# end editors #}
         
     {# 2.x #}
-    {% if app.has_desktop or not app.has_releases %}
+    {% if selected_platform == 'desktop' or not app.has_releases %}
     <div class="well cy-right-panel">
       <h6 class="muted panel-title">Cytoscape 2.x Plugin</h6>
                 
@@ -248,35 +265,35 @@
 
       <fieldset class="control-group" id="cy-app-license-text">
         <label>License:</label>
-        <input type="text" placeholder="License URL (https://...)" value="{% if app.license_text %}{{ app.license_text }}{% endif %}">
-        <input type="checkbox" {% if app.license_confirm %}checked{% endif %}> Require confirmation
+        <input type="text" placeholder="License URL (https://...)" value="{% if content.license_text %}{{ content.license_text }}{% endif %}">
+        <input type="checkbox" {% if content.license_confirm %}checked{% endif %}> Require confirmation
         <span class="help-block">If checked, must be a string or SSL URL ie: <em>https://foo.com/license.txt</em></span>
       </fieldset>
       <fieldset class="control-group" id="cy-app-website">
         <label><i class="icon-home"></i> Website:</label>
-        <input type="text"  value="{% if app.website %}{{ app.website }}{% endif %}">
+        <input type="text"  value="{% if content.website %}{{ content.website }}{% endif %}">
       </fieldset>
       <fieldset class="control-group" id="cy-app-tutorial">
         <label><i class="icon-book"></i> Tutorial:</label>
-        <input type="text" value="{% if app.tutorial %}{{ app.tutorial }}{% endif %}">
+        <input type="text" value="{% if content.tutorial %}{{ content.tutorial }}{% endif %}">
       </fieldset>
       <fieldset class="control-group" id="cy-app-citation" validate_regexp="^\d+$">
         <label><i class="icon-heart"></i> Citation:</label>
-        <input type="text" placeholder="PubMed ID" value="{% if app.citation %}{{ app.citation }}{% endif %}">
+        <input type="text" placeholder="PubMed ID" value="{% if content.citation %}{{ content.citation }}{% endif %}">
         <span class="help-block">Example: <em>23595664</em></span>
       </fieldset>
       <fieldset class="control-group" id="cy-app-coderepo">
         <label><i class="icon-list-alt"></i> Code Repository:</label>
-        <input type="text" value="{% if app.coderepo %}{{ app.coderepo }}{% endif %}">
+        <input type="text" value="{% if content.coderepo %}{{ content.coderepo }}{% endif %}">
       </fieldset>
       <fieldset class="control-group" id="cy-app-automation">
 	  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
         <label><i class="fa fa-gear fa-spin" style="color:black"></i> Automation Support:</label>
-        <input type="text" value="{% if app.automation %}{{ app.automation }}{% endif %}">
+        <input type="text" value="{% if content.automation %}{{ content.automation }}{% endif %}">
       </fieldset>
       <fieldset class="control-group" id="cy-app-contact">
         <label><i class="icon-envelope"></i> Contact Email:</label>
-        <input type="text" value="{% if app.contact %}{{ app.contact }}{% endif %}">
+        <input type="text" value="{% if content.contact %}{{ content.contact }}{% endif %}">
       </fieldset>
     </div>
     {# end resources #}
@@ -304,11 +321,28 @@
     Are you sure you want to cancel editing this app page? All unsaved changes will be lost.
   </div>
   <div class="modal-footer">
-    <a href="{% url 'app_page' app.name %}" class="btn btn-danger">Yes, Discard Changes</a>
+    <a href="{% url 'app_page' app.name %}{% if selected_platform %}?platform={{ selected_platform }}{% endif %}" class="btn btn-danger">Yes, Discard Changes</a>
     <a href="#" class="btn" data-dismiss="modal">No, Continue Editing</a>
   </div>
 </div>
 {# end cancel dialog #}
+
+{# switch-platform dialog: shown when another platform is chosen with unsaved changes #}
+<div class="modal hide fade in" id="switch-modal">
+  <div class="modal-header">
+    <a class="close" data-dismiss="modal">&times;</a>
+    <h3>Unsaved Changes</h3>
+  </div>
+  <div class="modal-body">
+    You have unsaved changes to this platform's page. Save them before switching platform?
+  </div>
+  <div class="modal-footer">
+    <a href="#" class="btn btn-primary" id="switch-save-btn">Save and switch</a>
+    <a href="#" class="btn btn-danger" id="switch-discard-btn">Discard and switch</a>
+    <a href="#" class="btn" data-dismiss="modal" id="switch-stay-btn">Stay</a>
+  </div>
+</div>
+{# end switch-platform dialog #}
 
 {# save dialog #}
 <div class="modal hide fade in" id="save-modal">
@@ -400,21 +434,18 @@ AppPageEdit.setup_text_fields();
 AppPageEdit.setup_icon_selection({{ max_icon_dim_px }});
 
 AppPageEdit.setup_add_tag_btn();
-{% if app.tags %}
-{% for tag in app.tags.all %}
+{% for tag in content.tags %}
 AppPageEdit.add_tag('{{ tag.fullname|escapejs}}', false);
 {% endfor %}
-{% endif %}
 
 AppPageEdit.setup_screenshot_btns({{ thumbnail_height_px }});
-{% if app.screenshot_set.all %}
-{% for screenshot in app.screenshot_set.all %}
+{% for screenshot in content.screenshots %}
 AppPageEdit.add_screenshot('{{ screenshot.thumbnail.url|escapejs }}').attr('backend_id', '{{screenshot.id}}');
 {% endfor %}
-{% endif %}
 
 AppPageEdit.setup_details();
-AppPageEdit.set_app_page_url("{% url 'app_page' app.name %}");
+AppPageEdit.set_app_page_url("{% url 'app_page' app.name %}{% if selected_platform %}?platform={{ selected_platform }}{% endif %}");
+AppPageEdit.set_platform({% if selected_platform %}'{{ selected_platform }}'{% else %}null{% endif %});
 AppPageEdit.set_loading_icon_url('{% get_static_prefix %}common/img/loading_small.gif');
 
 AppPageEdit.setup_add_editor_btn();
@@ -423,8 +454,8 @@ AppPageEdit.add_editor('{{ editor.email|escapejs }}', '{{ editor.username|escape
 {% endfor %}
 
 AppPageEdit.setup_author_add_btn();
-{% for author in app.ordered_authors %}
-AppPageEdit.add_author('{{ author.name }}', {% if author.institution %}'{{ author.institution }}'{% else %}null{% endif %});
+{% for author in content.authors %}
+AppPageEdit.add_author('{{ author.name|escapejs }}', {% if author.institution %}'{{ author.institution|escapejs }}'{% else %}null{% endif %});
 {% endfor %}
 $(function() {
   AppPageEdit.setup_authors_typeahead();
@@ -437,5 +468,6 @@ AppPageEdit.setup_release_notes();
 
 AppPageEdit.setup_cancel_btn();
 AppPageEdit.setup_save_btn();
+AppPageEdit.setup_platform_switch();
 </script>
 {% endblock %}

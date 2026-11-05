@@ -11,9 +11,17 @@ function sessionKey(role: Role): string {
   return sessions[role]
 }
 
+// Signs the page's browser in as 'role', in place of whoever it was signed in as.
+// The asAdmin/asEditor/asOther fixtures share one page, so a spec that needs two users
+// signs in as the second with this.
+export async function signInAs(page: Page, role: Role, baseURL: string) {
+  await page.context().clearCookies({ name: 'sessionid' })
+  await page.context().addCookies([{ name: 'sessionid', value: sessionKey(role), url: baseURL }])
+}
+
 function signedIn(role: Role) {
-  return async ({ context, page, baseURL }, use: (page: Page) => Promise<void>) => {
-    await context.addCookies([{ name: 'sessionid', value: sessionKey(role), url: baseURL! }])
+  return async ({ page, baseURL }, use: (page: Page) => Promise<void>) => {
+    await signInAs(page, role, baseURL!)
     await use(page)
   }
 }

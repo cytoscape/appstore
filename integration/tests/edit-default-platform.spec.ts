@@ -5,7 +5,7 @@ import { expect, test } from './fixtures'
 // an app with releases on several platforms must name the platform.
 test.describe('Release edits without a platform', () => {
   const releaseId = async (page, app: string, platform: string) => {
-    await page.goto(`/apps/${app}/edit`)
+    await page.goto(`/apps/${app}/edit?platform=${platform}`)
     return page.locator(`.cy-release[data-platform="${platform}"]`).first().getAttribute('release_id')
   }
 

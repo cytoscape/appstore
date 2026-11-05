@@ -555,9 +555,17 @@ var AppPageEdit = (function($)
     
     var app_page_url;
     var loading_icon_url;
+    // where to go once saving finishes: the app page, or another platform's edit page
+    var after_save_url;
+    // the platform whose content the page edits (null for an app on no platform)
+    var content_platform = null;
     
     function set_app_page_url(_app_page_url) {
         app_page_url = _app_page_url;
+    }
+
+    function set_platform(platform) {
+        content_platform = platform;
     }
     
     function set_loading_icon_url(_loading_icon_url) {
@@ -792,6 +800,19 @@ var AppPageEdit = (function($)
     
     
     var queue = new Array();
+
+    // The SaveActions entries that change the selected platform's content (#155);
+    // the others (icon, editors, 2.x plugin, releases) are the app's or name their own platform.
+    var ContentActions = ['description', 'license_text', 'license_confirm', 'website', 'tutorial', 'citation',
+                         'coderepo', 'automation', 'contact', 'details', 'tags', 'screenshots',
+                         'delete_screenshots', 'authors'];
+
+    function add_content_platform(query) {
+        if (query.data instanceof FormData)
+            query.data.append('platform', content_platform);
+        else
+            query.data['platform'] = content_platform;
+    }
     
     // {'desktop:12': true, 'web:3': true} -> {'desktop': ['12'], 'web': ['3']}
     function releases_by_platform(release_keys) {
@@ -810,10 +831,10 @@ var AppPageEdit = (function($)
             var value = SaveActions[action];
             delete SaveActions[action];
             var query = SaveActionsToAjax[action](value);
-            if (query instanceof Array)
-                queue = queue.concat(query);
-            else
-                queue.push(query);
+            var queries = (query instanceof Array) ? query : [query];
+            if (content_platform && $.inArray(action, ContentActions) !== -1)
+                $.each(queries, function(i, q) { add_content_platform(q); });
+            queue = queue.concat(queries);
             return true;
         }
         return false;
@@ -829,7 +850,7 @@ var AppPageEdit = (function($)
         
         if (!queue.length) {
             if (!next_action()) {
-                window.location.href = app_page_url;
+                window.location.href = after_save_url || app_page_url;
                 return;
             }
         }
@@ -903,17 +924,53 @@ var AppPageEdit = (function($)
         return all_valid;
     }
     
+    // Saves the changes, then goes to 'next_url' (or the app page); false if the input is invalid.
+    function save(next_url) {
+        if (!validate_input()) {
+            save_btn_tag.addClass('disabled');
+            return false;
+        }
+        after_save_url = next_url;
+        save_modal.modal({'keyboard': false, 'show': true});
+        process_queue();
+        return true;
+    }
+
     function setup_save_btn() {
         $('#save-btn').click(function() {
             if ($(this).hasClass('disabled'))
                 return;
-            
-            if (!validate_input()) {
-                $(this).addClass('disabled');
+            save();
+        });
+    }
+
+    // Choosing another platform edits that platform's page. With unsaved changes, the
+    // switch dialog offers to save them first, discard them, or stay on this platform.
+    function setup_platform_switch() {
+        var switch_modal = $('#switch-modal');
+        var target_url;
+
+        $('.cy-app-platform-chip').click(function(e) {
+            if ($(this).attr('aria-current') === 'true') {
+                e.preventDefault();
                 return;
             }
-            save_modal.modal({'keyboard': false, 'show': true});
-            process_queue();
+            if (save_btn_tag.hasClass('disabled'))
+                return; // nothing unsaved: just follow the link
+            e.preventDefault();
+            target_url = $(this).attr('href');
+            switch_modal.modal('show');
+        });
+
+        $('#switch-save-btn').click(function(e) {
+            e.preventDefault();
+            switch_modal.modal('hide');
+            save(target_url);
+        });
+
+        $('#switch-discard-btn').click(function(e) {
+            e.preventDefault();
+            window.location.href = target_url;
         });
     }
     
@@ -928,6 +985,7 @@ var AppPageEdit = (function($)
         'setup_screenshot_btns': setup_screenshot_btns,
         'setup_details': setup_details,
         'set_app_page_url': set_app_page_url,
+        'set_platform': set_platform,
         'set_loading_icon_url': set_loading_icon_url,
         'setup_add_editor_btn': setup_add_editor_btn,
         'add_editor': add_editor,
@@ -938,6 +996,7 @@ var AppPageEdit = (function($)
         'setup_release_notes': setup_release_notes,
         'setup_cancel_btn': setup_cancel_btn,
         'setup_save_btn': setup_save_btn,
+        'setup_platform_switch': setup_platform_switch,
         '_SaveActions': SaveActions,
         '_SaveActionsToAjax': SaveActionsToAjax,
     };
