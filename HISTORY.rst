@@ -2,8 +2,31 @@
 History
 =======
 
-Unreleased
+2.1.0 (2026-11-05)
 ---------------------
+
+* Cytoscape Web apps can be submitted to, reviewed in and installed from the App Store.
+
+  * **Submitting:** a developer uploads a built bundle (a zip of the build's ``dist``). The Store
+    checks it (zip integrity, safe paths, a ``remoteEntry.js`` and the ``cy-manifest.json`` app id)
+    and keeps it under ``pending/`` until an admin accepts it. Submitting from a GitHub URL is
+    stored but can't be approved yet.
+
+  * **Hosting:** an accepted bundle is served under ``/web/<app>/<version>/`` with a generated
+    ``manifest.json``, which publishes the bundle's own app id rather than the URL slug.
+    `Issue #144 <https://github.com/cytoscape/appstore/issues/144>`_
+
+  * **Installing:** the app page's **Install in Cytoscape Web** button opens Cytoscape Web with
+    ``?installApp=<manifest URL>``, and counts the install. Each release shows its Manifest URL with
+    a copy button. Web apps are marked beta, and older versions are listed in Release History.
+
+* Service apps, backed by a hosted endpoint, can be submitted to and installed from the App Store.
+
+  * **Submitting:** the Store checks the endpoint is reachable, answers its status check and isn't
+    on a private network, then queues it for review.
+
+  * **Installing:** **Open in Cytoscape Web** opens the service in Cytoscape Web, and installs are
+    counted per release.
 
 * Service apps can be installed into Cytoscape Desktop from their App Store page, using the
   Desktop Service App's ``serviceapps`` commands, as part of
@@ -29,7 +52,56 @@ Unreleased
   * **Tests and CI:** ``make test`` now builds a ``uv`` virtualenv (Python 3.12), runs
     headless-Chromium browser tests of the install button against a fake CyREST, and runs in GitHub
     Actions on pull requests. ``uv`` is a new host prerequisite, and ``social-auth-core`` is pinned
-    to 4.5.4.
+    to 4.5.4. ``make integration-test`` runs a Playwright suite, in Chromium and Firefox, against the
+    App Store in a Docker container; it also runs in GitHub Actions on pull requests.
+
+* One app, many platforms: an app's name is its identity, and its page covers every platform it is
+  released on. `Issue #155 <https://github.com/cytoscape/appstore/issues/155>`_
+
+  * **Identity:** a Desktop, Cytoscape Web or Service version submitted under an existing app's name
+    by one of its editors joins that app, after admin review, instead of being refused as a name
+    collision. Someone who isn't an editor can't submit under the name. The review queue labels each
+    submission **New app** or **New platform**.
+
+  * **Platform selector:** the app page's **Available on** buttons choose a platform. Details and
+    Release History show the selected platform's, and switching keeps the open tab.
+
+  * **Per-platform content:** each platform keeps its own description, details, categories,
+    screenshots, authors, links and licence. The name, icon, editors, ratings and the downloads
+    total are shared. A platform without content of its own shows the app's existing content, so
+    pages look the same until an editor changes them.
+
+  * **Editing:** the edit page edits one platform at a time, and asks whether to save or discard
+    unsaved changes before switching platform.
+
+  * **Listings and search:** a platform's listing describes each app as that platform's page does,
+    category pages and counts include categories on any platform, and search covers every
+    platform's content. Apps that are only Cytoscape 2.x plugins have their own page.
+
+  * **Unchanged for Cytoscape Desktop:** ``/backend/all_apps``, which Desktop's App Manager reads,
+    returns the same apps and content as before.
+
+  * **Deploying:** this release adds database migrations, so run ``makemigrations`` and ``migrate``
+    without ``--dry-run``.
+
+* **Version in the footer:** every page shows the running version after **Contact Us**: the git tag
+  the checkout is at, else its short commit hash, else ``develop`` when git can't tell.
+
+* Fixes and platform updates since 2.0.3.
+
+  * **Submitting:** the **Submit an API** page no longer hangs on ``pom.xml`` upload
+    (`Issue #149 <https://github.com/cytoscape/appstore/issues/149>`_), and accepting new apps works
+    again.
+
+  * **Installing from Cytoscape:** the Desktop install button works inside Cytoscape's CyBrowser,
+    offers the jar as a download link, and accepting an app's licence installs only once
+    (CYTOSCAPE-13032).
+
+  * **Download statistics:** a unique constraint stops concurrent downloads from creating duplicate
+    statistics rows.
+
+  * **Platform:** Django 4.2.15, MariaDB and Rocky Linux 9.
+
 
 2.0.3 (2021-01-23)
 ---------------------
