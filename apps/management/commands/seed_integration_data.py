@@ -11,7 +11,10 @@ from django.contrib.sessions.backends.db import SessionStore
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.models import App, Release, ServiceRelease, WebBundleRelease
+from PIL import Image
+
+from apps.models import (App, AppPlatformContent, Author, OrderedAuthor, Platform, Release, Screenshot,
+                         ServiceRelease, Tag, WebBundleRelease)
 from download.models import ReleaseDownloadsByDate
 from submit_app.bundle_storage import _copy_bundle_to_storage, write_manifest_json, write_pending_manifest_json
 from submit_app.models import AppPending, ServiceAppPending, WebBundlePending, WebUrlPending
@@ -106,6 +109,16 @@ class Command(BaseCommand):
         ServiceRelease.objects.create(app=multi, version='1.0', service_endpoint='https://service.example.org/itmulti',
                                       metadata={'name': 'IT Multi', 'version': '1.0'})
         self.mark_released(multi, multi_desktop)
+        # its own (Desktop) content, and Cytoscape Web content of its own; Service has none, so shows the app's
+        multi.details = 'IT Multi for the desktop'
+        multi.website = 'https://example.org/desktop'
+        multi.save()
+        self.add_content(multi, None, tag='it-desktop', author='Desktop Author', screenshot='itmulti-desktop.png')
+        multi_web = AppPlatformContent.objects.create(
+            app=multi, platform=Platform.WEB, description='IT Multi in the browser', details='IT Multi for the web',
+            website='https://example.org/web', contact='it-multi-web@example.org')
+        self.add_content(multi, Platform.WEB, tag='it-web-only', author='Web Author', screenshot='itmulti-web.png',
+                         tags=multi_web.tags)
 
         # edited by tiles-edit.spec.ts, so it has all three platforms of its own
         edited = self.create_app('IT Edit', editor, has_releases=True)
@@ -123,6 +136,26 @@ class Command(BaseCommand):
         ServiceRelease.objects.create(app=licensed, version='1.0', service_endpoint='https://service.example.org/itlicensed',
                                       metadata={'name': 'IT Licensed', 'version': '1.0'})
         self.mark_released(licensed, licensed_desktop)
+        # the service version has its own license
+        AppPlatformContent.objects.create(app=licensed, platform=Platform.SERVICE, license_confirm=True,
+                                          license_text='https://example.org/it-licensed-service-license')
+
+        # desktop and web, and a Cytoscape 2.x plugin, which only the desktop view shows
+        cy2 = self.create_app('IT Cy2', editor, has_releases=True,
+                              cy_2x_plugin_download='https://example.org/itcy2-0.9.jar',
+                              cy_2x_plugin_version='0.9', cy_2x_versions='2.8')
+        cy2_desktop = Release.objects.create(app=cy2, version='1.0', works_with='3.10')
+        write_manifest_json(WebBundleRelease.objects.create(app=cy2, version='1.0', cy_app_id='itcy2',
+                                                            active=True, bundle_hash='0' * 64))
+        self.mark_released(cy2, cy2_desktop)
+
+        # the edit page's platform-switch dialog specs own it
+        switch = self.create_app('IT Switch', editor, has_releases=True, details='IT Switch details',
+                                 website='https://example.org/switch')
+        switch_desktop = Release.objects.create(app=switch, version='1.0', works_with='3.10')
+        write_manifest_json(WebBundleRelease.objects.create(app=switch, version='1.0', cy_app_id='itswitch',
+                                                            active=True, bundle_hash='0' * 64))
+        self.mark_released(switch, switch_desktop)
 
         # every release deleted (inactive), but its downloads stay in the app's stats
         retired = self.create_app('IT Retired', editor)
@@ -163,6 +196,19 @@ class Command(BaseCommand):
             zf.writestr('dist/remoteEntry.js', 'var %s;' % cy_app_id)
             zf.writestr('dist/cy-manifest.json', json.dumps({'id': cy_app_id, 'name': fullname, 'version': version}))
         return data.getvalue()
+
+    def add_content(self, app, platform, tag, author, screenshot, tags=None):
+        """Adds a category, an author and a screenshot to 'platform''s content (None for the app's own)."""
+        tag_obj, _ = Tag.objects.get_or_create(name=fullname_to_name(tag), defaults={'fullname': tag})
+        (tags if tags is not None else app.tags).add(tag_obj)
+        author_obj, _ = Author.objects.get_or_create(name=author, institution=None)
+        OrderedAuthor.objects.create(app=app, platform=platform, author=author_obj, author_order=0)
+        image = io.BytesIO()
+        Image.new('RGB', (8, 8), (40, 120, 200)).save(image, 'PNG')
+        shot = Screenshot.objects.create(app=app, platform=platform)
+        shot.screenshot.save(screenshot, ContentFile(image.getvalue()), save=False)
+        shot.thumbnail.save('thumb-' + screenshot, ContentFile(image.getvalue()), save=False)
+        shot.save()
 
     def mark_released(self, app, release):
         app.latest_release_date = release.created

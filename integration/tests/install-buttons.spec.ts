@@ -53,26 +53,31 @@ test.describe('Install buttons for desktop and service together', () => {
     await expect(serviceButton(page)).not.toHaveClass(/\bdisabled\b/)
   })
 
-  test('accepting the license installs what the clicked button installs', async ({ page }) => {
-    // IT Licensed needs its license accepted; the desktop and service buttons share one license dialog
+  test("each install button asks for its own platform's license, and accepting installs what it installs", async ({ page }) => {
+    // IT Licensed's desktop version and its service version each have a license to accept
     await page.route('https://example.org/**', (route) => route.fulfill({ body: '<p>IT Licensed license</p>', contentType: 'text/html' }))
     const cyrest = await fakeCyRest(page)
     const installs = () => cyrest.paths().filter((path) => path.endsWith('/install'))
-    const accept = page.locator('#license_modal .btn-primary')
+    const dialog = (platform: string) => page.locator(`#license_modal_${platform}`)
     await page.goto('/apps/itlicensed')
     await expect(desktopButton(page).locator('h4')).toHaveText('Install')
     await expect(serviceButton(page).locator('h4')).toHaveText('Install service app in Cytoscape Desktop')
+    await expect(page.locator('#cy-app-panel-desktop .cy-app-license a')).toHaveAttribute('href', 'https://example.org/it-licensed-license')
+    await expect(page.locator('#cy-app-panel-service .cy-app-license a')).toHaveAttribute('href', 'https://example.org/it-licensed-service-license')
 
     await desktopButton(page).click()
-    await expect(accept).toBeVisible()
-    await accept.click()
+    await expect(dialog('desktop')).toBeVisible()
+    await expect(dialog('desktop').locator('iframe')).toHaveAttribute('src', 'https://example.org/it-licensed-license')
+    await expect(dialog('service')).toBeHidden()
+    await dialog('desktop').locator('.btn-primary').click()
     await expect(desktopButton(page).locator('h4')).toHaveText('Installed')
     expect(installs()).toEqual(['/v1/commands/apps/install'])
 
-    await expect(accept).toBeHidden()
+    await expect(dialog('desktop')).toBeHidden()
     await serviceButton(page).click()
-    await expect(accept).toBeVisible()
-    await accept.click()
+    await expect(dialog('service')).toBeVisible()
+    await expect(dialog('service').locator('iframe')).toHaveAttribute('src', 'https://example.org/it-licensed-service-license')
+    await dialog('service').locator('.btn-primary').click()
     await expect(serviceButton(page).locator('h4')).toHaveText('Service app installed in Cytoscape Desktop')
     expect(installs()).toEqual(['/v1/commands/apps/install', '/v1/commands/serviceapps/install'])
   })

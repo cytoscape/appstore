@@ -231,9 +231,17 @@ def _mk_app_page(app, user, request):
     if selected_platform not in platforms:
         selected_platform = app.primary_platform
     panel_order = sorted(platforms, key=lambda platform: platform != selected_platform)
+    # each platform's content: the selected one fills the page, and each panel shows its own licence
+    contents = {platform: app.content(platform) for platform in platforms}
+    content = contents.get(selected_platform) or app.content()
 
     c = {
         'app': app,
+        'content': content,
+        'contents': contents,
+        'license_modals': [(platform, contents[platform]) for platform in (Platform.DESKTOP, Platform.SERVICE)
+                           if platform in contents and contents[platform].license_confirm
+                           and contents[platform].license_text],
         'platform_chips': [(platform, _PLATFORM_NAMES[platform]) for platform in platforms],
         'selected_platform': selected_platform,
         'panel_order': panel_order,

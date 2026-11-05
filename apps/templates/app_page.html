@@ -38,7 +38,7 @@
 		<h2 id="app-name">
 			{{ app.fullname }}
 		</h2>
-		{% if app.description %}<b>{{ app.description }}</b>{% endif %}
+		{% if content.description %}<b>{{ content.description }}</b>{% endif %}
 	</div>
 
 	{# Editor menu #}
@@ -87,9 +87,9 @@
 		{# End Downloads #}
 
 		{# Citations #}
-		{% if app.citation %}
+		{% if content.citation %}
 		<a> | </a>
-		<a href="https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed_citedin&from_uid={{ app.citation }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search PubMed for articles citing this app.">{% trans "  citations" %}</a>
+		<a href="https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed_citedin&from_uid={{ content.citation }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search PubMed for articles citing this app.">{% trans "  citations" %}</a>
 
 		{% endif %}
 		{# End Citations #}
@@ -113,13 +113,13 @@
 		</a>
 		{% endif %}
 
-		{% if app.coderepo %}
-		<a href="{{ app.coderepo }}" target="_blank">
+		{% if content.coderepo %}
+		<a href="{{ content.coderepo }}" target="_blank">
 			<img src="{% get_static_prefix %}apps/img/open-source.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is open source.">
 		</a>
 		{% endif %}
-		{% if app.automation %}
-		<a href="{{ app.automation }}" target="_blank">
+		{% if content.automation %}
+		<a href="{{ content.automation }}" target="_blank">
 			<img src="{% get_static_prefix %}apps/img/automation.png" class="has-tooltip" data-toggle="tooltip" data-title="This app supports automation.">
 		</a>
 		{% endif %}
@@ -172,11 +172,13 @@
 			{# Details tab #}
 			<div class="tab-pane active" id="cy-app-details-tab">
 				{# Categories #}
-				{% if app.tags.all %}
+				{# The selected platform's content; a platform without its own shows the app's #}
+				{% with tags=content.tags screenshots=content.screenshots authors=content.authors %}
+				{% if tags %}
 				<div class="row">
-					<div class="span8">
+					<div class="span8" id="cy-app-categories">
 						Categories:
-						{% for tag in app.tags.all %}
+						{% for tag in tags %}
 						<a class="link" href="{% url 'tag_page' tag.name %}">{{ tag.fullname }}</a>{% if not forloop.last %}, {% endif %}
 						{% endfor %}
 					</div>
@@ -185,10 +187,10 @@
 				{# End Categories #}
 
 				{# Screenshots #}
-				{% if app.screenshot_set.all %}
+				{% if screenshots %}
 				<div class="row">
 					<div class="span8" id="cy-app-screenshots">
-						{% for screenshot in app.screenshot_set.all %}
+						{% for screenshot in screenshots %}
 						<a href="{{ screenshot.screenshot.url }}" target="_blank">
 							<img src="{{ screenshot.thumbnail.url }}"/>
 						</a>
@@ -199,20 +201,20 @@
 				{# End Screenshots #}
 
 				{# Details #}
-				{% if app.details %}
+				{% if content.details %}
 				<div class="row">
-					<div class="span8" id="cy-app-details-md">{{ app.details }}</div>
+					<div class="span8" id="cy-app-details-md">{{ content.details }}</div>
 				</div>
 				{% endif %}
 				{# End Details #}
 
 				{# Authors #}
-				{% if app.authors.all %}
+				{% if authors %}
 				<div class="row">
-					<div class="span8">
+					<div class="span8" id="cy-app-authors">
 						Authors:
 						<ul>
-							{% for author in app.ordered_authors %}
+							{% for author in authors %}
 							<li>
 								<a href="{% url 'author_page' author.name %}">
 									{{ author.name }} {% if author.institution %} ({{ author.institution }}){% endif %}
@@ -224,6 +226,7 @@
 				</div>
 				{% endif %}
 				{# End Authors #}
+				{% endwith %}
 			</div>
 			{# End Details tab #}
 
@@ -335,8 +338,8 @@
 		{% endfor %}
 		{# end platform panels #}
 			
-		{# 2.x download panel #}
-		{% if app.cy_2x_plugin_download %}
+		{# 2.x download panel: a Desktop matter, so only with Desktop selected (or for a 2.x-only plugin) #}
+		{% if app.cy_2x_plugin_download and selected_platform != 'web' and selected_platform != 'service' %}
 		<div class="well" id="cy-app-panel-cy2x">
 			<h6 class="panel-title muted">CYTOSCAPE 2</h6>
 			{% if app.has_releases %}
@@ -379,40 +382,40 @@
 				<li><a href="https://www.biostars.org/post/search?query=cytoscape+{{ app.fullname }}" target="_blank"><i class="icon-comment"></i> Search BioStars</a></li>
 				<li class="divider"></li>
 
-				{% if app.website %}
-				<li><a href="{{ app.website }}" target="_blank">
+				{% if content.website %}
+				<li><a href="{{ content.website }}" target="_blank">
 					<i class="icon-home"></i> Website
 				</a></li>
 				{% endif %}
 
-				{% if app.tutorial %}
-				<li><a href="{{ app.tutorial }}" target="_blank">
+				{% if content.tutorial %}
+				<li><a href="{{ content.tutorial }}" target="_blank">
 					<i class="icon-book"></i> Tutorial
 				</a></li>
 				{% endif %}
 
-				{% if app.citation %}
-				<li><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ app.citation }}" target="_blank">
+				{% if content.citation %}
+				<li><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ content.citation }}" target="_blank">
 					<i class="icon-heart"></i> Cite this App
 				</a></li>
 				{% endif %}
 
-				{% if app.coderepo %}
-				<li><a href="{{ app.coderepo }}" target="_blank">
+				{% if content.coderepo %}
+				<li><a href="{{ content.coderepo }}" target="_blank">
 					<i class="icon-list-alt"></i> Code Repository
 				</a></li>
 				{% endif %}
 				<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-				{% if app.automation %}
-				<li><a href="{{app.automation}}" target="_blank">
+				{% if content.automation %}
+				<li><a href="{{content.automation}}" target="_blank">
 						
 						<i class="fa fa-gear fa-spin" style="color:black"></i>
  Automation Support
 				</a></li>
 				{% endif %}
 
-				{% if app.contact %}
-				<li><a href="mailto:{{ app.contact }}" target="_blank">
+				{% if content.contact %}
+				<li><a href="mailto:{{ content.contact }}" target="_blank">
 					<i class="icon-envelope"></i> E-mail
 				</a></li>
 				{% endif %}
@@ -444,22 +447,22 @@
 </div>
 {# End modal dialog #}
 
-{# License modal dialog #}
-{% if app.license_confirm and app.license_text %}
-<div class="modal hide fade in" id="license_modal">
+{# License modal dialogs: one per platform whose install button asks to accept its licence #}
+{% for platform, platform_content in license_modals %}
+<div class="modal hide fade in cy-license-modal" id="license_modal_{{ platform }}" data-platform="{{ platform }}">
 	<div class="modal-header">
 		<a class="close" data-dismiss="modal">&times;</a>
 		<h3>License Agreement</h3>
 	</div>
 	<div class="modal-body">
-		<iframe data-src="{{ app.license_text }}" width="500" height="400"></iframe>
+		<iframe data-src="{{ platform_content.license_text }}" width="500" height="400"></iframe>
 	</div>
 	<div class="modal-footer">
 		<a href="#" class="btn" data-dismiss="modal">Don't Accept</a>
 		<a href="#" class="btn btn-primary">Accept</a>
 	</div>
 </div>
-{% endif %}
+{% endfor %}
 {# End license modal dialog #}
 
 {# Vote popover content #}
@@ -502,7 +505,7 @@ AppPage.setup_service_install({
 AppPage.setup_cy_2x_download_popover('{% get_static_prefix %}apps/img/plugins_dir.png');
 AppPage.setup_url_copy();
 
-{% if app.details %}
+{% if content.details %}
 AppPage.setup_details();
 {% endif %}
 

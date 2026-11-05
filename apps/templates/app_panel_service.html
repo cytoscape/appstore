@@ -16,7 +16,7 @@
 		<h4>Install service app in Cytoscape Desktop</h4>
 	</button>
 	<p><strong>Version</strong> {{ service_latest_release.version }}</p>
-	{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
+	{% with license_text=contents.service.license_text %}{% if license_text %}<p class="cy-app-license"><strong>License</strong> <a href="{{ license_text }}" target="_blank">Click here</a></p>{% endif %}{% endwith %}
 	<p><strong>Released</strong> {{ service_latest_release.created|date:'j M Y' }}</p>
 	<p>{% include 'service_works_with.html' %}</p>
 	<p><strong>Install Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>

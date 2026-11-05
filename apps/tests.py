@@ -863,7 +863,8 @@ class SeedIntegrationDataTestCase(TestCase):
         self.assertFalse(User.objects.get(username='it-other').is_staff)
 
         apps = {app.name: app for app in App.objects.all()}
-        self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itlicensed', 'itretired', 'itlegacy'},
+        self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itlicensed', 'itretired', 'itlegacy',
+                          'itcy2', 'itswitch'},
                          set(apps))
         self.assertTrue(apps['itlicensed'].license_confirm)
         self.assertEqual([], apps['itretired'].platforms)
@@ -874,8 +875,23 @@ class SeedIntegrationDataTestCase(TestCase):
         self.assertEqual(['1.0'], [r.version for r in apps['itservice'].servicereleases])
         self.assertFalse(apps['itlegacy'].has_releases)
         self.assertTrue(apps['itlegacy'].cy_2x_plugin_download)
-        for name in ('itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itlicensed', 'itretired', 'itlegacy'):
+        for name in apps:
             self.assertEqual(['it-editor'], [u.username for u in apps[name].editors.all()])
+
+        # IT Multi's own content and its web content; its service version shows the app's
+        multi = apps['itmulti']
+        self.assertEqual(('IT Multi for the desktop', ['it-desktop'], ['Desktop Author']),
+                         (multi.content(Platform.DESKTOP).details, [t.fullname for t in multi.content(Platform.DESKTOP).tags],
+                          [a.name for a in multi.content(Platform.DESKTOP).authors]))
+        web = multi.content(Platform.WEB)
+        self.assertEqual(('IT Multi in the browser', 'IT Multi for the web', ['it-web-only'], ['Web Author']),
+                         (web.description, web.details, [t.fullname for t in web.tags], [a.name for a in web.authors]))
+        self.assertTrue(os.path.exists(web.screenshots.get().thumbnail.path))
+        self.assertEqual('IT Multi for the desktop', multi.content(Platform.SERVICE).details)
+        self.assertEqual('https://example.org/it-licensed-service-license',
+                         apps['itlicensed'].content(Platform.SERVICE).license_text)
+        self.assertEqual([Platform.DESKTOP, Platform.WEB], apps['itcy2'].platforms)
+        self.assertTrue(apps['itcy2'].cy_2x_plugin_download)
 
         pending = WebBundlePending.objects.get()
         self.assertEqual(('IT Desktop', '1.0', 'it-editor'), (pending.fullname, pending.version, pending.submitter.username))
@@ -894,7 +910,8 @@ class SeedIntegrationDataTestCase(TestCase):
     def test_reseeding_replaces_the_data(self):
         self.seed()
         sessions = self.seed()
-        self.assertEqual(8, App.objects.count())
+        self.assertEqual(10, App.objects.count())
+        self.assertEqual(2, AppPlatformContent.objects.count())
         self.assertEqual(1, WebBundlePending.objects.count())
         self.assertEqual(1, ServiceAppPending.objects.count())
         self.assertEqual(3, User.objects.filter(username__startswith='it-').count())
@@ -1346,3 +1363,83 @@ class AppContentTestCase(TestCase):
         self.assertEqual(0, AppPlatformContent.objects.count())
         self.assertEqual(0, Screenshot.objects.count())
         self.assertEqual(0, OrderedAuthor.objects.count())
+
+
+class PlatformContentPageTestCase(TestCase):
+    """The app page shows the selected platform's content (#155)."""
+
+    def setUp(self):
+        self.app = App.objects.create(name='multi', fullname='Multi', active=True, has_releases=True,
+                                      description='Desktop description', details='Desktop details',
+                                      website='https://example.org/desktop', citation='111',
+                                      license_text='https://example.org/desktop-license', license_confirm=True,
+                                      cy_2x_plugin_download='https://example.org/multi.jar', cy_2x_plugin_version='0.9')
+        self.app.tags.add(Tag.objects.create(name='desktoptag', fullname='desktop tag'))
+        OrderedAuthor.objects.create(app=self.app, author=Author.objects.create(name='Desktop Author'), author_order=0)
+        Release.objects.create(app=self.app, version='1.0', works_with='3.10')
+        WebBundleRelease.objects.create(app=self.app, version='1.0', active=True, bundle_hash='0')
+        ServiceRelease.objects.create(app=self.app, version='1.0', service_endpoint='https://example.org/multi')
+        web = AppPlatformContent.objects.create(app=self.app, platform=Platform.WEB, description='Web description',
+                                                details='Web details', website='https://example.org/web',
+                                                citation='222', license_text='https://example.org/web-license')
+        web.tags.add(Tag.objects.create(name='webtag', fullname='web tag'))
+        OrderedAuthor.objects.create(app=self.app, platform=Platform.WEB,
+                                     author=Author.objects.create(name='Web Author'), author_order=0)
+
+    def page(self, query=''):
+        response = self.client.get('/apps/multi' + query)
+        self.assertEqual(200, response.status_code)
+        return response.content.decode('utf-8')
+
+    DESKTOP = ('Desktop description', 'Desktop details', 'desktop tag', 'Desktop Author',
+               'href="https://example.org/desktop"', 'from_uid=111')
+    WEB = ('Web description', 'Web details', 'web tag', 'Web Author', 'href="https://example.org/web"', 'from_uid=222')
+
+    def test_each_platform_shows_its_own_content(self):
+        for query, shown, hidden in (('?platform=web', self.WEB, self.DESKTOP), ('?platform=desktop', self.DESKTOP, self.WEB),
+                                     ('', self.DESKTOP, self.WEB)):
+            content = self.page(query)
+            for text in shown:
+                self.assertIn(text, content, (query, text))
+            for text in hidden:
+                self.assertNotIn(text, content, (query, text))
+
+    def test_platform_without_content_shows_the_apps(self):
+        content = self.page('?platform=service')
+        for text in self.DESKTOP:
+            self.assertIn(text, content, text)
+        for text in self.WEB:
+            self.assertNotIn(text, content, text)
+
+    def test_each_panel_shows_its_own_license(self):
+        content = self.page('?platform=web')
+        # each panel runs to the next panel's opening tag
+        panels = {platform: content.split('id="cy-app-panel-%s"' % platform, 1)[1].split('<div class="well', 1)[0]
+                  for platform in ('desktop', 'web', 'service')}
+        self.assertIn('https://example.org/desktop-license', panels['desktop'])
+        self.assertIn('https://example.org/web-license', panels['web'])
+        self.assertNotIn('desktop-license', panels['web'])
+        # the service version has no content of its own, so the app's license
+        self.assertIn('https://example.org/desktop-license', panels['service'])
+
+    def test_license_dialog_per_platform_that_asks_for_it(self):
+        AppPlatformContent.objects.create(app=self.app, platform=Platform.SERVICE, license_confirm=True,
+                                          license_text='https://example.org/service-license')
+        content = self.page()
+        self.assertIn('<div class="modal hide fade in cy-license-modal" id="license_modal_desktop"', content)
+        self.assertIn('data-src="https://example.org/desktop-license"', content)
+        self.assertIn('id="license_modal_service"', content)
+        self.assertIn('data-src="https://example.org/service-license"', content)
+        self.assertNotIn('id="license_modal_web"', content)
+        self.assertNotIn('id="license_modal"', content)
+
+    def test_cytoscape_2_panel_only_with_desktop(self):
+        self.assertIn('id="cy-app-panel-cy2x"', self.page('?platform=desktop'))
+        self.assertNotIn('id="cy-app-panel-cy2x"', self.page('?platform=web'))
+        self.assertNotIn('id="cy-app-panel-cy2x"', self.page('?platform=service'))
+
+    def test_shared_name_and_counts_on_every_platform(self):
+        for query in ('?platform=desktop', '?platform=web', '?platform=service'):
+            content = self.page(query)
+            self.assertIn('<h2 id="app-name">\n\t\t\tMulti\n\t\t</h2>', content, query)
+            self.assertIn('0 downloads', content, query)

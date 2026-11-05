@@ -71,9 +71,82 @@ test.describe('App page', () => {
     await page.getByRole('link', { name: 'Details' }).click()
     await page.locator('.cy-app-platform-chip', { hasText: 'Service' }).click()
     await expect(page).toHaveURL(/\?platform=service$/)
-    // IT Multi's details are empty, so check which tab is open rather than what is visible
     await expect(page.locator('#cy-app-details-tab')).toHaveClass(/active/)
     await expect(page.locator('#cy-app-releases-tab')).not.toHaveClass(/active/)
+  })
+
+  test("each platform shows its own details, categories, authors, screenshots and links", async ({ page }) => {
+    const details = page.locator('#cy-app-details-md')
+    const website = page.getByRole('link', { name: 'Website' })
+    const expected = {
+      web: { description: 'IT Multi in the browser', details: 'IT Multi for the web', tag: 'it-web-only',
+             author: 'Web Author', website: 'https://example.org/web', screenshot: /itmulti-web/ },
+      desktop: { description: 'IT Multi, seeded for the integration tests', details: 'IT Multi for the desktop',
+                 tag: 'it-desktop', author: 'Desktop Author', website: 'https://example.org/desktop',
+                 screenshot: /itmulti-desktop/ },
+    }
+    for (const [platform, other] of [['web', 'desktop'], ['desktop', 'web']]) {
+      const own = expected[platform], theirs = expected[other]
+      await page.goto(`/apps/itmulti?platform=${platform}`)
+      await expect(page.locator('#app-name').locator('xpath=following-sibling::b')).toHaveText(own.description)
+      await expect(details).toHaveText(own.details)
+      await expect(page.locator('#cy-app-categories')).toContainText(own.tag)
+      await expect(page.locator('#cy-app-categories')).not.toContainText(theirs.tag)
+      await expect(page.locator('#cy-app-authors')).toContainText(own.author)
+      await expect(page.locator('#cy-app-authors')).not.toContainText(theirs.author)
+      await expect(page.locator('#cy-app-screenshots img')).toHaveCount(1)
+      await expect(page.locator('#cy-app-screenshots img')).toHaveAttribute('src', own.screenshot)
+      await expect(website).toHaveAttribute('href', own.website)
+      await expect(page.getByText(theirs.details)).toHaveCount(0)
+    }
+    await page.goto('/apps/itmulti?platform=web')
+    await expect(page.getByRole('link', { name: 'E-mail' })).toHaveAttribute('href', 'mailto:it-multi-web@example.org')
+    await page.goto('/apps/itmulti?platform=desktop')
+    await expect(page.getByRole('link', { name: 'E-mail' })).toHaveCount(0)
+  })
+
+  test('a platform without content of its own shows the app\'s, even beside one that has its own', async ({ page }) => {
+    await page.goto('/apps/itmulti?platform=service')
+    await expect(page.locator('#cy-app-details-md')).toHaveText('IT Multi for the desktop')
+    await expect(page.locator('#cy-app-categories')).toContainText('it-desktop')
+    await expect(page.locator('#cy-app-authors')).toContainText('Desktop Author')
+    await expect(page.getByText('IT Multi for the web')).toHaveCount(0)
+    await expect(page.locator('#cy-app-categories')).not.toContainText('it-web-only')
+
+    // an app with no per-platform content at all is shown as before
+    await page.goto('/apps/itweb')
+    await expect(page.locator('#app-name').locator('xpath=following-sibling::b')).toHaveText('IT Web, seeded for the integration tests')
+  })
+
+  test('the name, icon and download count are shared by every platform', async ({ page }) => {
+    const shared = async () => ({
+      name: (await page.locator('#app-name').innerText()).trim(),
+      icon: await page.locator('img').first().getAttribute('src'),
+      usage: (await page.locator('#app-usage-info a[href*="/stats/"]').first().innerText()).trim(),
+    })
+    await page.goto('/apps/itmulti?platform=desktop')
+    const desktop = await shared()
+    expect(desktop.name).toBe('IT Multi')
+    for (const platform of ['web', 'service']) {
+      await page.goto(`/apps/itmulti?platform=${platform}`)
+      expect(await shared()).toEqual(desktop)
+    }
+  })
+
+  test('the Cytoscape 2 panel shows only with Desktop selected', async ({ page }) => {
+    await page.goto('/apps/itcy2?platform=desktop')
+    await expect(page.locator('#cy-app-panel-cy2x')).toBeVisible()
+    await page.goto('/apps/itcy2?platform=web')
+    await expect(page.locator('#cy-app-panel-cy2x')).toHaveCount(0)
+  })
+
+  test("the selected platform's content stays while switching tabs", async ({ page }) => {
+    await page.goto('/apps/itmulti?platform=web')
+    await page.getByRole('link', { name: 'Release History' }).click()
+    await expect(page.locator('#cy-app-releases-web')).toBeVisible()
+    await page.getByRole('link', { name: 'Details' }).click()
+    await expect(page.locator('#cy-app-details-md')).toHaveText('IT Multi for the web')
+    await expect(page.locator('.cy-app-platform-chip[aria-current="true"]')).toHaveText('Cytoscape Web')
   })
 
   test('editors can submit a release for any platform', async ({ asEditor }) => {

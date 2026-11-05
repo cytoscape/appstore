@@ -128,8 +128,9 @@ var AppPage = (function($) {
             callback);
     }
 
-    // An install button on the page; each platform's panel has its own, with its own state.
-    function make_install_button(selector) {
+    // An install button on the page; each platform's panel has its own, with its own state
+    // and its own platform's licence to accept.
+    function make_install_button(selector, platform) {
         var btn = $(selector);
         var last_class = [];
 
@@ -148,11 +149,11 @@ var AppPage = (function($) {
             btn.removeClass('disabled');
 
             if (func) {
-                var license_modal = $('#license_modal');
+                var license_modal = $('#license_modal_' + platform);
                 if (license_modal.length !== 0) {
                     btn.click(function() {
-                        // Every install button shares the modal, so accepting runs the action
-                        // of the button that opened it, replacing any earlier button's action
+                        // Accepting runs this button's action, replacing any action an earlier
+                        // click of the button left on the modal
                         license_modal.find('.btn-primary').off('click').click(function() {
                             license_modal.modal('hide');
                             func();
@@ -174,7 +175,7 @@ var AppPage = (function($) {
     }
 
     function setup_install(selector, app_name, app_fullname, latest_release_url, latest_release_version, install_app_help_url) {
-        var install_btn = make_install_button(selector);
+        var install_btn = make_install_button(selector, 'desktop');
 
         function set_install_btn_to_download(release_url) {
             install_btn.setup('btn-primary', 'icon-cy-install-download', 'Download',
@@ -327,7 +328,7 @@ var AppPage = (function($) {
 
     function setup_service_install(opts) {
         var cyrest_url = opts.cyrest_url || AppManagerURL;
-        var install_btn = make_install_button(opts.selector);
+        var install_btn = make_install_button(opts.selector, 'service');
 
         function set_btn(btn_class, icon_class, btn_text, tooltip, func) {
             install_btn.setup(btn_class, icon_class, btn_text, func);

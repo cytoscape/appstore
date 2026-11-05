@@ -18,7 +18,15 @@ function signedIn(role: Role) {
   }
 }
 
+// Every page loads analytics and an icon stylesheet from the internet; a slow fetch of either
+// holds up the page's load event, and the specs don't need them, so the browser never fetches them.
+const INTERNET_ASSETS = /^https:\/\/(www\.googletagmanager\.com|www\.google-analytics\.com|cdnjs\.cloudflare\.com)\//
+
 export const test = base.extend<{ asAdmin: Page; asEditor: Page; asOther: Page }>({
+  context: async ({ context }, use) => {
+    await context.route(INTERNET_ASSETS, (route) => route.abort())
+    await use(context)
+  },
   asAdmin: signedIn('admin'),
   asEditor: signedIn('editor'),
   asOther: signedIn('other'),
