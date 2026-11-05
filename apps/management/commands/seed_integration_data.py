@@ -119,6 +119,12 @@ class Command(BaseCommand):
             website='https://example.org/web', contact='it-multi-web@example.org')
         self.add_content(multi, Platform.WEB, tag='it-web-only', author='Web Author', screenshot='itmulti-web.png',
                          tags=multi_web.tags)
+        # a category on two apps, and on a third only through its web content: the side menu,
+        # which lists categories of three or more apps, shows it only when it counts all three
+        shared, _ = Tag.objects.get_or_create(name='itsharedcategory', defaults={'fullname': 'it-shared-category'})
+        App.objects.get(name='itdesktop').tags.add(shared)
+        App.objects.get(name='itweb').tags.add(shared)
+        multi_web.tags.add(shared)
 
         # edited by tiles-edit.spec.ts, so it has all three platforms of its own
         edited = self.create_app('IT Edit', editor, has_releases=True)

@@ -36,4 +36,42 @@ test.describe('Browsing by platform', () => {
     expect(releases['IT Desktop'].map((release) => release.release_download_url)).toEqual(['/download/itdesktop/1.0'])
     expect(releases['IT Multi'].map((release) => release.release_download_url)).toEqual(['/download/itmulti/1.0'])
   })
+
+  test("a platform's listing describes each app as that platform's page does", async ({ page }) => {
+    const description = (name: string) => tile(page, name).first().locator('.description').first()
+    await page.goto('/apps/platform/web/')
+    await expect(description('IT Multi')).toHaveText('IT Multi in the browser')
+    for (const url of ['/apps/platform/desktop/', '/apps/all']) {
+      await page.goto(url)
+      await expect(description('IT Multi')).toHaveText('IT Multi, seeded for the integration tests')
+    }
+  })
+
+  test('category pages and counts include categories on any platform', async ({ page }) => {
+    await page.goto('/apps/with_tag/itwebonly')
+    await expect(tile(page, 'IT Multi').first()).toBeVisible()
+    await page.goto('/apps/with_tag/itdesktop')
+    await expect(tile(page, 'IT Multi').first()).toBeVisible()
+
+    // on two apps, and on IT Multi only through its web content; the side menu lists categories of 3 or more
+    await page.goto('/apps/all')
+    const shared = page.locator('#cy-tag-list li', { hasText: 'it-shared-category' })
+    await expect(shared.locator('.count')).toHaveText('(3)')
+    await shared.getByRole('link').click()
+    for (const name of ['IT Desktop', 'IT Web', 'IT Multi']) {
+      await expect(tile(page, name).first()).toBeVisible()
+    }
+  })
+
+  test('search finds an app by words only in its web content', async ({ page }) => {
+    await page.goto('/search?q=browser')
+    await expect(tile(page, 'IT Multi').first()).toBeVisible()
+  })
+
+  test("Cytoscape Desktop's feed gives the app's desktop content", async ({ request }) => {
+    const feed = await (await request.get('/backend/all_apps')).json()
+    const multi = feed.find((app) => app.fullname === 'IT Multi')
+    expect(multi.description).toBe('IT Multi, seeded for the integration tests')
+    expect(multi.tags).toEqual(['it-desktop'])
+  })
 })

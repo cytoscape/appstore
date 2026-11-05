@@ -32,9 +32,9 @@
         <tr valign="top">
           <td valign="top">
             <div class="description">
-              {% if app.description %}
-                {{ app.description }}
-              {% endif %}
+              {% with description=app.tile_description %}{% if description %}
+                {{ description }}
+              {% endif %}{% endwith %}
             </div>
           </td>
         </tr>
@@ -56,9 +56,9 @@
         <tr valign="top">
           <td>
             <div class="description">
-              {% if app.description %}
-                {{ app.description }}
-              {% endif %}
+              {% with description=app.tile_description %}{% if description %}
+                {{ description }}
+              {% endif %}{% endwith %}
             </div>
           </td>
         </tr>

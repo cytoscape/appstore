@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from util.view_util import json_response, html_response, obj_to_dict, get_object_or_none
 from util.img_util import scale_img
 from util.id_util import fullname_to_name
@@ -92,7 +93,7 @@ def apps_default(request):
     return html_response('apps_default.html', c, request, processors = (_nav_panel_context, ))
 
 def all_apps(request):
-    apps = App.objects.filter(active=True).order_by('name')
+    apps = App.objects.filter(active=True).order_by('name').prefetch_related('platform_contents')
     c = {
         'apps': apps,
         'navbar_selected_link': 'all',
@@ -135,7 +136,9 @@ def wall_of_apps(request):
 
 def apps_with_tag(request, tag_name):
     tag = get_object_or_404(Tag, name = tag_name)
-    apps = App.objects.filter(active = True, tags = tag).order_by('name')
+    # the category may be on the app or on one of its platforms' content (#155)
+    apps = App.objects.filter(Q(tags = tag) | Q(platform_contents__tags = tag), active = True) \
+                      .distinct().order_by('name').prefetch_related('platform_contents')
     c = {
         'tag': tag,
         'apps': apps,
@@ -161,7 +164,10 @@ def apps_with_author(request, author_name):
 def apps_with_platform(request, platform):
     if platform not in Platform.values:
         raise Http404('No such platform "%s"' % platform)
-    apps = App.objects.filter(active=True).on_platform(platform)
+    apps = list(App.objects.filter(active=True).on_platform(platform).prefetch_related('platform_contents'))
+    for app in apps:
+        # tiles describe the app as this platform's page does
+        app.listing_platform = platform
 
     c = {
         'platform': platform,

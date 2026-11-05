@@ -31,6 +31,7 @@ from apps.models import Screenshot
 from apps.models import ReleaseAPI
 from apps.models import Tag
 from apps import models as apps_models
+from apps import views as apps_views
 from apps.models import Release
 from apps.models import ServiceRelease
 from apps.models import WebBundleRelease
@@ -884,8 +885,11 @@ class SeedIntegrationDataTestCase(TestCase):
                          (multi.content(Platform.DESKTOP).details, [t.fullname for t in multi.content(Platform.DESKTOP).tags],
                           [a.name for a in multi.content(Platform.DESKTOP).authors]))
         web = multi.content(Platform.WEB)
-        self.assertEqual(('IT Multi in the browser', 'IT Multi for the web', ['it-web-only'], ['Web Author']),
-                         (web.description, web.details, [t.fullname for t in web.tags], [a.name for a in web.authors]))
+        self.assertEqual(('IT Multi in the browser', 'IT Multi for the web', ['it-shared-category', 'it-web-only'],
+                          ['Web Author']),
+                         (web.description, web.details, sorted(t.fullname for t in web.tags), [a.name for a in web.authors]))
+        # on two apps, and on IT Multi only through its web content
+        self.assertEqual(3, Tag.objects.get(name='itsharedcategory').count)
         self.assertTrue(os.path.exists(web.screenshots.get().thumbnail.path))
         self.assertEqual('IT Multi for the desktop', multi.content(Platform.SERVICE).details)
         self.assertEqual('https://example.org/it-licensed-service-license',
@@ -1581,3 +1585,62 @@ class EditPagePlatformContentTestCase(TestCase):
     def test_editor_menu_edits_the_selected_platform(self):
         content = self.client.get('/apps/multi?platform=web').content.decode('utf-8')
         self.assertIn('<a href="/apps/multi/edit?platform=web">Edit this page</a>', content)
+
+
+class PlatformContentListingsTestCase(TestCase):
+    """Listings, category pages, search and the Desktop feed with per-platform content (#155)."""
+
+    def setUp(self):
+        apps_views._flush_tag_caches()
+        self.app = App.objects.create(name='multi', fullname='Multi', active=True, has_releases=True,
+                                      description='Desktop description', details='Desktop details')
+        self.desktop_tag = Tag.objects.create(name='desktoptag', fullname='desktop tag')
+        self.app.tags.add(self.desktop_tag)
+        Release.objects.create(app=self.app, version='1.0', works_with='3.10')
+        WebBundleRelease.objects.create(app=self.app, version='1.0', active=True, bundle_hash='0')
+        web = AppPlatformContent.objects.create(app=self.app, platform=Platform.WEB, description='Web description',
+                                                details='Web details mentioning browsers')
+        self.web_tag = Tag.objects.create(name='webtag', fullname='web tag')
+        web.tags.add(self.web_tag)
+
+    def tearDown(self):
+        apps_views._flush_tag_caches()
+
+    def test_platform_listing_tiles_describe_that_platform(self):
+        web = self.client.get('/apps/platform/web/').content.decode('utf-8')
+        self.assertIn('Web description', web)
+        self.assertNotIn('Desktop description', web)
+        desktop = self.client.get('/apps/platform/desktop/').content.decode('utf-8')
+        self.assertIn('Desktop description', desktop)
+        self.assertNotIn('Web description', desktop)
+        # other lists use the primary platform's
+        self.assertIn('Desktop description', self.client.get('/apps/all').content.decode('utf-8'))
+
+    def test_web_only_app_tile_uses_its_web_content(self):
+        app = App.objects.create(name='webonly', fullname='Web Only', active=True, has_releases=True,
+                                 description='App description')
+        WebBundleRelease.objects.create(app=app, version='1.0', active=True, bundle_hash='0')
+        AppPlatformContent.objects.create(app=app, platform=Platform.WEB, description='Its web description')
+        self.assertIn('Its web description', self.client.get('/apps/all').content.decode('utf-8'))
+
+    def test_category_pages_list_apps_with_it_on_any_platform(self):
+        for tag in ('webtag', 'desktoptag'):
+            self.assertIn('<h5>Multi</h5>', self.client.get('/apps/with_tag/%s' % tag).content.decode('utf-8'), tag)
+        self.assertEqual(1, self.web_tag.count)
+        self.assertEqual(1, self.desktop_tag.count)
+        # an app with the category on the app and a platform counts once
+        AppPlatformContent.objects.get(app=self.app).tags.add(self.desktop_tag)
+        apps_views._flush_tag_caches()
+        self.assertEqual(1, Tag.objects.get(name='desktoptag').count)
+
+    def test_search_indexes_every_platforms_content(self):
+        from haystack import connections
+        text = connections['default'].get_unified_index().get_index(App).prepare(self.app)['text']
+        self.assertIn('Desktop details', text)
+        self.assertIn('Web details mentioning browsers', text)
+        self.assertIn('Web description', text)
+
+    def test_desktop_feed_keeps_the_apps_own_content(self):
+        [entry] = [a for a in json.loads(self.client.get('/backend/all_apps').content) if a['fullname'] == 'Multi']
+        self.assertEqual('Desktop description', entry['description'])
+        self.assertEqual(['desktop tag'], entry['tags'])

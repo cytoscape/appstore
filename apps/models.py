@@ -51,7 +51,9 @@ class Tag(models.Model):
         if self.name in _TagCountCache:
             count = _TagCountCache[self.name]
         else:
-            count = App.objects.filter(active=True, tags=self).count()
+            # apps with the category on any platform: the app's own, or a platform's content (#155)
+            count = App.objects.filter(models.Q(tags=self) | models.Q(platform_contents__tags=self),
+                                       active=True).distinct().count()
             _TagCountCache[self.name] = count
         return count
 
@@ -341,10 +343,19 @@ class App(models.Model):
         it. Until then it shows the app's content too.
         """
         if platform in PLATFORM_CONTENT_PLATFORMS:
-            own = self.platform_contents.filter(platform=platform).first()
+            # all(), so listings that prefetch platform_contents read it without a query per app
+            own = next((own for own in self.platform_contents.all() if own.platform == platform), None)
             if own is not None:
                 return AppContent(self, own, platform)
         return AppContent(self, self, None)
+
+    @property
+    def tile_description(self):
+        """
+        The description on the app's tile: its 'listing_platform''s, which a listing of one
+        platform's apps sets, else its primary platform's.
+        """
+        return self.content(getattr(self, 'listing_platform', None) or self.primary_platform).description
 
     @transaction.atomic
     def content_for_edit(self, platform=None):
