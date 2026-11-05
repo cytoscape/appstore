@@ -7,7 +7,7 @@ import logging
 import os.path 
 from os.path import join as pathjoin
 from urllib.parse import urljoin
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.urls import reverse
@@ -331,7 +331,46 @@ class App(models.Model):
 
     @property
     def ordered_authors(self):
-        return (a.author for a in OrderedAuthor.objects.filter(app=self))
+        # the app's own authors, which are Desktop's; other platforms' are in content(platform).authors
+        return (a.author for a in OrderedAuthor.objects.filter(app=self, platform__isnull=True))
+
+    def content(self, platform=None):
+        """
+        What the app page shows for 'platform' (#155): Desktop's content is the app's
+        own fields, and a Web or Service version has its own once an editor has edited
+        it. Until then it shows the app's content too.
+        """
+        if platform in PLATFORM_CONTENT_PLATFORMS:
+            own = self.platform_contents.filter(platform=platform).first()
+            if own is not None:
+                return AppContent(self, own, platform)
+        return AppContent(self, self, None)
+
+    @transaction.atomic
+    def content_for_edit(self, platform=None):
+        """
+        Where an edit to 'platform''s content is saved: the app itself for Desktop (or no
+        platform), else that platform's own content, which its first edit creates as a
+        copy of what the platform showed until then.
+        """
+        if platform is None or platform == Platform.DESKTOP:
+            return self
+        if platform not in PLATFORM_CONTENT_PLATFORMS:
+            raise ValueError('platform must be one of: %s' % ', '.join(Platform.values))
+        own = self.platform_contents.filter(platform=platform).first()
+        if own is not None:
+            return own
+        own = AppPlatformContent.objects.create(
+            app=self, platform=platform, **{field: getattr(self, field) for field in CONTENT_FIELDS})
+        own.tags.set(self.tags.all())
+        # the copies share the image files, which deleting a Screenshot never removes
+        for screenshot in Screenshot.objects.filter(app=self, platform__isnull=True):
+            Screenshot.objects.create(app=self, platform=platform, screenshot=screenshot.screenshot.name,
+                                      thumbnail=screenshot.thumbnail.name)
+        for ordered in OrderedAuthor.objects.filter(app=self, platform__isnull=True):
+            OrderedAuthor.objects.create(app=self, platform=platform, author=ordered.author,
+                                         author_order=ordered.author_order)
+        return own
 
     search_schema = ('^fullname', 'description', 'details')
     search_key = 'name'
@@ -345,6 +384,8 @@ class OrderedAuthor(models.Model):
     author = models.ForeignKey(Author, on_delete=models.CASCADE)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     author_order = models.PositiveSmallIntegerField(default=0)
+    # the platform whose content lists this author; null for the app's own (Desktop's) authors
+    platform = models.CharField(max_length=31, choices=Platform.choices, blank=True, null=True)
 
     def __str__(self):
         return str(self.author_order) + ': ' + self.app.name +\
@@ -352,6 +393,72 @@ class OrderedAuthor(models.Model):
 
     class Meta:
         ordering = ["author_order"]
+
+
+# The content fields an app keeps per platform, besides its categories, screenshots and authors
+CONTENT_FIELDS = ('description', 'details', 'license_text', 'license_confirm',
+                  'website', 'tutorial', 'citation', 'coderepo', 'automation', 'contact')
+
+# Platforms with content of their own; Desktop's content is the App's fields
+PLATFORM_CONTENT_PLATFORMS = (Platform.WEB, Platform.SERVICE)
+
+
+class AppPlatformContent(models.Model):
+    """
+    A Web or Service version's own page content (#155), created by its first edit.
+    The app's name and icon stay shared.
+    """
+    id = models.BigAutoField(primary_key=True)
+    app = models.ForeignKey(App, on_delete=models.CASCADE, related_name='platform_contents')
+    platform = models.CharField(max_length=31, choices=Platform.choices)
+
+    description = models.CharField(max_length=255, blank=True, null=True)
+    details = models.TextField(blank=True, null=True)
+    tags = models.ManyToManyField(Tag, blank=True, related_name='platform_contents')
+
+    license_text = models.URLField(blank=True, null=True)
+    license_confirm = models.BooleanField(default=False)
+
+    website = models.URLField(blank=True, null=True)
+    tutorial = models.URLField(blank=True, null=True)
+    citation = models.CharField(max_length=31, blank=True, null=True)
+    coderepo = models.URLField(blank=True, null=True)
+    automation = models.URLField(blank=True, null=True)
+    contact = models.EmailField(blank=True, null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['app', 'platform'], name='unique_app_platform_content'),
+        ]
+
+    def __str__(self):
+        return '%s (%s)' % (self.app.name, self.platform)
+
+
+class AppContent:
+    """
+    One platform's page content: the fields of 'source' (the App, or its
+    AppPlatformContent), with the screenshots and authors of 'own_platform'
+    (None for the app's own).
+    """
+    def __init__(self, app, source, own_platform):
+        self.app = app
+        self.own_platform = own_platform
+        for field in CONTENT_FIELDS:
+            setattr(self, field, getattr(source, field))
+        self._source = source
+
+    @property
+    def tags(self):
+        return self._source.tags.all()
+
+    @property
+    def screenshots(self):
+        return Screenshot.objects.filter(app=self.app, platform=self.own_platform).order_by('id')
+
+    @property
+    def authors(self):
+        return [ordered.author for ordered in OrderedAuthor.objects.filter(app=self.app, platform=self.own_platform)]
 
 
 VersionRE = re.compile(r'^(\d+)(?:\.(\d)+)?(?:\.(\d)+)?(?:\.([\w-]+))?$')
@@ -468,6 +575,8 @@ class Screenshot(models.Model):
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     screenshot = models.ImageField(upload_to=screenshot_path)
     thumbnail = models.ImageField(upload_to=thumbnail_path)
+    # the platform whose content shows this screenshot; null for the app's own (Desktop's)
+    platform = models.CharField(max_length=31, choices=Platform.choices, blank=True, null=True)
 
     def __str__(self):
         return '%s - %d' % (self.app.fullname, self.id)

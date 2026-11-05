@@ -35,6 +35,7 @@ from apps.models import Release
 from apps.models import ServiceRelease
 from apps.models import WebBundleRelease
 from apps.models import Platform
+from apps.models import AppPlatformContent
 from apps.views import _AppPageEditConfig
 from apps.templatetags import app_buttons
 from submit_app.models import ServiceAppPending
@@ -1267,3 +1268,81 @@ class AppPlatformFieldRemovedTestCase(TestCase):
     def test_app_has_no_stored_platform(self):
         with self.assertRaises(FieldDoesNotExist):
             App._meta.get_field('platform')
+
+
+class AppContentTestCase(TestCase):
+    """Each platform's page content, falling back to the app's own (#155)."""
+
+    def setUp(self):
+        self.app = App.objects.create(name='multi', fullname='Multi', active=True, description='Shared description',
+                                      details='Shared details', website='https://example.org/shared',
+                                      license_text='https://example.org/license', license_confirm=True)
+        self.app.tags.add(Tag.objects.create(name='shared', fullname='shared'))
+        self.shot = Screenshot.objects.create(app=self.app, screenshot='multi/shot.png', thumbnail='multi/shot_t.png')
+        OrderedAuthor.objects.create(app=self.app, author=Author.objects.create(name='Shared Author'), author_order=0)
+
+    def snapshot(self, content):
+        return {'description': content.description, 'details': content.details, 'website': content.website,
+                'license': (content.license_text, content.license_confirm),
+                'tags': [tag.name for tag in content.tags], 'screenshots': [s.screenshot.name for s in content.screenshots],
+                'authors': [author.name for author in content.authors]}
+
+    SHARED = {'description': 'Shared description', 'details': 'Shared details', 'website': 'https://example.org/shared',
+              'license': ('https://example.org/license', True), 'tags': ['shared'],
+              'screenshots': ['multi/shot.png'], 'authors': ['Shared Author']}
+
+    def test_desktop_reads_the_app(self):
+        self.assertEqual(self.SHARED, self.snapshot(self.app.content(Platform.DESKTOP)))
+        self.assertEqual(self.SHARED, self.snapshot(self.app.content()))
+
+    def test_platform_without_content_shows_the_apps(self):
+        for platform in (Platform.WEB, Platform.SERVICE):
+            self.assertEqual(self.SHARED, self.snapshot(self.app.content(platform)), platform)
+
+    def test_platform_with_content_shows_its_own(self):
+        own = AppPlatformContent.objects.create(app=self.app, platform=Platform.WEB, description='Web description',
+                                                details='Web details')
+        own.tags.add(Tag.objects.create(name='webonly', fullname='web only'))
+        OrderedAuthor.objects.create(app=self.app, platform=Platform.WEB,
+                                     author=Author.objects.create(name='Web Author'), author_order=0)
+        self.assertEqual({'description': 'Web description', 'details': 'Web details', 'website': None,
+                          'license': (None, False), 'tags': ['webonly'], 'screenshots': [],
+                          'authors': ['Web Author']},
+                         self.snapshot(self.app.content(Platform.WEB)))
+        # the others are untouched by it
+        self.assertEqual(self.SHARED, self.snapshot(self.app.content(Platform.DESKTOP)))
+        self.assertEqual(self.SHARED, self.snapshot(self.app.content(Platform.SERVICE)))
+        self.assertEqual(['Shared Author'], [author.name for author in self.app.ordered_authors])
+
+    def test_first_edit_copies_what_the_platform_showed(self):
+        own = self.app.content_for_edit(Platform.WEB)
+        self.assertIsInstance(own, AppPlatformContent)
+        self.assertEqual(self.SHARED, self.snapshot(self.app.content(Platform.WEB)))
+        web_shot = self.app.content(Platform.WEB).screenshots.get()
+        self.assertNotEqual(self.shot.id, web_shot.id)
+        self.assertEqual(self.shot.thumbnail.name, web_shot.thumbnail.name)
+
+        own.details = 'Web details'
+        own.save()
+        own.tags.clear()
+        self.assertEqual('Web details', self.app.content(Platform.WEB).details)
+        self.assertEqual([], list(self.app.content(Platform.WEB).tags))
+        self.app.refresh_from_db()
+        self.assertEqual(self.SHARED, self.snapshot(self.app.content(Platform.DESKTOP)))
+        # a second edit reuses it
+        self.assertEqual(own.id, self.app.content_for_edit(Platform.WEB).id)
+        self.assertEqual(1, AppPlatformContent.objects.count())
+
+    def test_desktop_edits_go_to_the_app(self):
+        self.assertIs(self.app, self.app.content_for_edit(Platform.DESKTOP))
+        self.assertIs(self.app, self.app.content_for_edit(None))
+        self.assertEqual(0, AppPlatformContent.objects.count())
+        with self.assertRaises(ValueError):
+            self.app.content_for_edit('bogus')
+
+    def test_deleting_the_app_deletes_its_content(self):
+        self.app.content_for_edit(Platform.SERVICE)
+        self.app.delete()
+        self.assertEqual(0, AppPlatformContent.objects.count())
+        self.assertEqual(0, Screenshot.objects.count())
+        self.assertEqual(0, OrderedAuthor.objects.count())
