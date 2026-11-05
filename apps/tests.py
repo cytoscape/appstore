@@ -1661,3 +1661,19 @@ class AuthorPageTestCase(TestCase):
         # each tile shows the name twice (compact and full)
         self.assertEqual(2, content.count('<h5>Multi</h5>'))
         self.assertEqual(['Shared Author'], [a.name for a in app.authors.distinct()])
+
+    def test_app_not_listed_under_authors_no_page_shows(self):
+        app = App.objects.create(name='webonly', fullname='Web Only', active=True, has_releases=True)
+        WebBundleRelease.objects.create(app=app, version='1.0', active=True, bundle_hash='0')
+        OrderedAuthor.objects.create(app=app, author=Author.objects.create(name='Old Author'), author_order=0)
+        self.assertEqual(2, self.client.get('/apps/with_author/Old Author').content.decode('utf-8')
+                         .count('<h5>Web Only</h5>'))
+        # replacing the web authors, as the edit page's save_authors does, keeps the app's own row,
+        # which no page of this Web-only app shows any more
+        app.content_for_edit(Platform.WEB)
+        OrderedAuthor.objects.filter(app=app, platform=Platform.WEB).delete()
+        OrderedAuthor.objects.create(app=app, platform=Platform.WEB,
+                                     author=Author.objects.create(name='New Author'), author_order=0)
+        self.assertEqual(404, self.client.get('/apps/with_author/Old Author').status_code)
+        self.assertEqual(2, self.client.get('/apps/with_author/New Author').content.decode('utf-8')
+                         .count('<h5>Web Only</h5>'))

@@ -147,9 +147,19 @@ def apps_with_tag(request, tag_name):
     }
     return html_response('apps_with_tag.html', c, request, processors = (_nav_panel_context, ))
 
+def _shows_author(app, author_name):
+    """Whether the page of any platform 'app' is on (or its own content, if it has none) names 'author_name'."""
+    return any(author.name == author_name
+               for platform in (app.platforms or [None])
+               for author in app.content(platform).authors)
+
 def apps_with_author(request, author_name):
     # distinct: an app lists an author once for its own content and once per platform that has its own
-    apps = App.objects.filter(active = True, authors__name__exact = author_name).distinct().order_by('name')
+    apps = App.objects.filter(active = True, authors__name__exact = author_name).distinct().order_by('name') \
+                      .prefetch_related('platform_contents')
+    # only where a page shows the author: once every platform an app is on has its own authors,
+    # the app's own authors are on no page (e.g. a Web-only app whose Web authors were replaced)
+    apps = [app for app in apps if _shows_author(app, author_name)]
     if not apps:
         raise Http404('No such author "%s".' % author_name)
 
