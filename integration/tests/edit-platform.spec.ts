@@ -30,10 +30,14 @@ test.describe('Editing per platform', () => {
     await asEditor.locator('#cy-app-description').press('End')
     await asEditor.locator('#cy-app-website input').press('End')
 
+    // remove the copied desktop category before the add-category popover is opened over it
+    const desktopTag = asEditor.locator('#cy-app-tags-list .cy-app-tag', { hasText: 'it-content-desktop' })
+    await desktopTag.locator('.cy-app-tag-remove').click()
+    await expect(desktopTag).toHaveCount(0)
     await asEditor.locator('#cy-app-tag-add-btn').click()
     await asEditor.locator('#cy-tag-add-popover input').pressSequentially('it-content-web')
     await asEditor.locator('#cy-tag-add-popover button').click()
-    await asEditor.locator('#cy-app-tags-list .cy-app-tag', { hasText: 'it-content-desktop' }).locator('.cy-app-tag-remove').click()
+    await expect(asEditor.locator('#cy-app-tags-list .cy-app-tag')).toHaveText([/it-content-web/])
 
     const authorName = asEditor.locator('.cy-app-author-name').first()
     await authorName.fill('')

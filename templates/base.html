@@ -90,6 +90,8 @@
       {% if footer_selected != 'about' %}<a href="{% url 'about' %}">{% endif %}About{% if footer_selected != 'about' %}</a>{% endif %}
       &bull;
       {% if footer_selected != 'contact' %}<a href="{% url 'contact' %}">{% endif %}Contact Us{% if footer_selected != 'contact' %}</a>{% endif %}
+      &bull;
+      <span id="cy-app-version">Version: {{ APP_VERSION }}</span>
 
       <span class="footer-divider"></span>
 

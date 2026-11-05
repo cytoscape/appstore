@@ -45,4 +45,23 @@ test.describe('App Store container', () => {
     expect(anonymous.status()).toBe(302)
     expect(anonymous.headers()['location']).toContain('/login')
   })
+
+  test('footer shows the running version', async ({ page, asAdmin }) => {
+    // the image leaves out .git (.dockerignore), so git can't tell the version: 'develop'
+    const check = async (p, url: string) => {
+      await p.goto(url)
+      const footer = p.locator('footer')
+      const version = footer.locator('#cy-app-version')
+      await expect(version).toBeVisible()
+      await expect(version).toHaveText(/^Version: \S+$/)
+      await expect(version).toHaveText('Version: develop')
+      const text = await footer.innerText()
+      expect(text.indexOf('Contact Us')).toBeLessThan(text.indexOf('Version: develop'))
+      expect(text.indexOf('Version: develop')).toBeLessThan(text.indexOf('Wall of Apps'))
+    }
+    for (const url of ['/', '/apps/itmulti', '/apps/cy2x_plugins']) {
+      await check(page, url)
+    }
+    await check(asAdmin, '/submit/pending')
+  })
 })

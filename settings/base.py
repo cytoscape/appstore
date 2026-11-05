@@ -47,7 +47,8 @@ TEMPLATES = [
                  'django.template.context_processors.static',
                  'django.template.context_processors.request',
                  'django.contrib.auth.context_processors.auth',
-                 'django.contrib.messages.context_processors.messages'
+                 'django.contrib.messages.context_processors.messages',
+                 'util.context_processors.app_version'
              ],
              'loaders': [
                  'django.template.loaders.filesystem.Loader',

@@ -8,6 +8,8 @@ import io
 import os
 import tempfile
 import shutil
+import subprocess
+from unittest.mock import patch
 import yaml
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -16,6 +18,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 from util.img_util import *
 from util.id_util import AppIdentity, IdentityOutcome, resolve_app_identity
+from util import version
 from apps.models import App, Platform, Release
 
 
@@ -175,3 +178,66 @@ class IntegrationContainerTestCase(TestCase):
             script = f.read()
         self.assertIn('-p "127.0.0.1:$PORT:8000"', script)
         self.assertNotIn('-p "$PORT:8000"', script)
+
+
+class AppVersionTestCase(TestCase):
+    """The footer's version comes from git: the tag at HEAD, else HEAD's short hash, else 'develop'."""
+
+    def setUp(self):
+        version.app_version.cache_clear()
+
+    def tearDown(self):
+        version.app_version.cache_clear()
+
+    @staticmethod
+    def git(results):
+        """A stand-in for subprocess.run answering each git command from 'results' (by its first argument)."""
+        calls = []
+
+        def run(args, **kwargs):
+            calls.append(args[1])
+            result = results[args[1]]
+            if isinstance(result, BaseException):
+                raise result
+            returncode, stdout = result
+            return subprocess.CompletedProcess(args, returncode, stdout=stdout, stderr='')
+        return run, calls
+
+    def test_tag_at_head(self):
+        run, calls = self.git({'describe': (0, '2.1.0\n'), 'rev-parse': (0, 'b27ca14\n')})
+        with patch.object(version.subprocess, 'run', run):
+            self.assertEqual('2.1.0', version.app_version())
+        self.assertEqual(['describe'], calls)
+
+    def test_short_hash_without_a_tag(self):
+        run, calls = self.git({'describe': (128, ''), 'rev-parse': (0, 'b27ca14\n')})
+        with patch.object(version.subprocess, 'run', run):
+            self.assertEqual('b27ca14', version.app_version())
+        self.assertEqual(['describe', 'rev-parse'], calls)
+
+    def test_develop_when_git_fails(self):
+        for name, results in (
+                ('git not installed', {'describe': FileNotFoundError('git'), 'rev-parse': FileNotFoundError('git')}),
+                ('not a repository', {'describe': (128, ''), 'rev-parse': (128, '')}),
+                ('timeout', {'describe': subprocess.TimeoutExpired('git', 5), 'rev-parse': subprocess.TimeoutExpired('git', 5)}),
+                ('empty output', {'describe': (0, ''), 'rev-parse': (0, '  \n')})):
+            version.app_version.cache_clear()
+            run, _ = self.git(results)
+            with patch.object(version.subprocess, 'run', run):
+                self.assertEqual('develop', version.app_version(), name)
+
+    def test_worked_out_once(self):
+        run, calls = self.git({'describe': (0, '2.1.0\n')})
+        with patch.object(version.subprocess, 'run', run):
+            version.app_version()
+            version.app_version()
+        self.assertEqual(['describe'], calls)
+
+    def test_footer_shows_it_after_contact_us(self):
+        run, _ = self.git({'describe': (0, '2.1.0\n')})
+        with patch.object(version.subprocess, 'run', run):
+            content = self.client.get('/apps/').content.decode('utf-8')
+        footer = content[content.index('<footer'):content.index('</footer>')]
+        self.assertIn('<span id="cy-app-version">Version: 2.1.0</span>', footer)
+        self.assertLess(footer.index('Contact Us'), footer.index('Version: 2.1.0'))
+        self.assertLess(footer.index('Version: 2.1.0'), footer.index('Wall of Apps'))
