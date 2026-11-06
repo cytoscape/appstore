@@ -100,6 +100,8 @@ Each platform shows only its own content; nothing is carried over from another p
 
 If you choose another platform with unsaved changes, the page asks whether to **Save and switch**, **Discard and switch**, or **Stay**.
 
+If a save fails, the page shows a red message saying what couldn't be saved and keeps your changes; click **Save** to try again. **Save and switch** stays on the current platform until its changes are saved.
+
 ---
 
 ## Which one should I submit?

@@ -64,7 +64,9 @@ History
     submission **New app** or **New platform**.
 
   * **Platform selector:** the app page's **Available on** buttons choose a platform. Details and
-    Release History show the selected platform's, and switching keeps the open tab.
+    Release History show the selected platform's, and switching keeps the open tab. A page opens
+    on the first platform and Details, and the Details / Release History tabs look like the
+    platform buttons (solid blue when selected).
 
   * **Per-platform content:** each platform keeps its own description, details, categories,
     screenshots, authors, links and licence, and never shows another platform's. The name, icon,
@@ -74,7 +76,8 @@ History
     before this rule.
 
   * **Editing:** the edit page edits one platform at a time, and asks whether to save or discard
-    unsaved changes before switching platform.
+    unsaved changes before switching platform. If a save fails, the saving dialog closes, the page
+    says what failed and keeps the unsaved changes, and it does not switch platform.
 
   * **Listings and search:** a platform's listing describes each app as that platform's page does,
     category pages and counts include categories on any platform, and search covers every
