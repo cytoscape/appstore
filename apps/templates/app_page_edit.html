@@ -67,81 +67,64 @@
     <div id="cy-app-info-content" class="tab-content">
       {# details tab #}
       <div class="tab-pane active" id="cy-app-details-tab">
-        {# categories #}
-        <div class="row"><div class="span8"><h6 class="muted">CATEGORIES</h6></div></div>
-                    
-        <div class="row">
-          <div class="span8" id="cy-app-tags-list">
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="span3">
-            <button id="cy-app-tag-add-btn" class="btn btn-small">
-              <i class="icon-plus"></i> Add
-            </button>
-          </div>
-        </div>
-        {# end categories #}
-
-        <div class="row"><div class="span8"><hr></div></div>
-
-        {# screenshots #}
-        <div class="row"><div class="span8"><h6 class="muted">SCREENSHOTS</h6></div></div>
-                    
-        <div class="row">
-          <div class="span8" id="cy-app-screenshots">
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="span4">
-            <button id="cy-app-screenshot-add-btn" class="btn btn-small">
-              <i class="icon-plus"></i> Add
-            </button>
-            <button id="cy-app-screenshot-delete-btn" class="btn btn-small disabled">
-              <i class="icon-trash"></i> Delete
-            </button>
-          </div>
-        </div>
-        {# end screenshots #}
-
-        <div class="row"><div class="span8"><hr></div></div>
+        {# The selected platform's details first, then its categories, screenshots and authors:
+           each of those has its title with its buttons beside it, then its content below #}
 
         {# app details #}
-        <div class="row"><div class="span8"><h6 class="muted">DETAILS</h6></div></div>
-
-        <div class="row">
-          <div class="span8">
-            <textarea id="cy-app-details" class="span8" rows="15">{% if content.details %}{{ content.details }}{% endif %}</textarea>
-          </div>
-        </div>
-
-        <div class="row"><div class="span3"><h6 class="muted">PREVIEW</h6></div></div>
-
-        <div class="row">
-          <div class="span8">
-            <div id="cy-app-details-preview"></div>
-          </div>
+        <div class="cy-edit-section" id="cy-edit-section-details">
+          <h6 class="muted">DETAILS</h6>
+          <textarea id="cy-app-details" class="span8" rows="15">{% if content.details %}{{ content.details }}{% endif %}</textarea>
+          <h6 class="muted">PREVIEW</h6>
+          <div id="cy-app-details-preview"></div>
         </div>
         {# end app details #}
 
-        <div class="row"><div class="span8"><hr></div></div>
+        <hr class="cy-edit-section-divider">
+
+        {# categories #}
+        <div class="cy-edit-section" id="cy-edit-section-categories">
+          <div class="cy-edit-section-head">
+            <h6 class="muted">CATEGORIES</h6>
+            <div class="cy-edit-section-actions">
+              <button id="cy-app-tag-add-btn" class="btn btn-small"><i class="icon-plus"></i> Add</button>
+            </div>
+          </div>
+          <div id="cy-app-tags-list"></div>
+        </div>
+        {# end categories #}
+
+        <hr class="cy-edit-section-divider">
+
+        {# screenshots #}
+        <div class="cy-edit-section" id="cy-edit-section-screenshots">
+          <div class="cy-edit-section-head">
+            <h6 class="muted">SCREENSHOTS</h6>
+            <div class="cy-edit-section-actions">
+              <button id="cy-app-screenshot-add-btn" class="btn btn-small"><i class="icon-plus"></i> Add</button>
+              <button id="cy-app-screenshot-delete-btn" class="btn btn-small disabled"><i class="icon-trash"></i> Delete</button>
+            </div>
+          </div>
+          <div id="cy-app-screenshots"></div>
+        </div>
+        {# end screenshots #}
+
+        <hr class="cy-edit-section-divider">
 
         {# authors #}
-        <div class="row"><div class="span8"><h6 class="muted">AUTHORS</h6></div></div>
-
-        <div class="row">
-          <div class="span8">
-            <table class="table table-bordered table-striped" id="cy-app-authors">
-              <thead>
-                <th>Name</th>
-                <th>Institution (Optional)</th>
-                <th></th>
-              </thead>
-            </table>
-            <button class="btn btn-small" id="cy-app-author-add"><i class="icon-plus"></i> Add</button>
+        <div class="cy-edit-section" id="cy-edit-section-authors">
+          <div class="cy-edit-section-head">
+            <h6 class="muted">AUTHORS</h6>
+            <div class="cy-edit-section-actions">
+              <button class="btn btn-small" id="cy-app-author-add"><i class="icon-plus"></i> Add</button>
+            </div>
           </div>
+          <table class="table table-bordered table-striped" id="cy-app-authors">
+            <thead>
+              <th>Name</th>
+              <th>Institution (Optional)</th>
+              <th></th>
+            </thead>
+          </table>
         </div>
         {# end authors #}
       </div>

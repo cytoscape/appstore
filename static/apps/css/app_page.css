@@ -244,15 +244,6 @@ small .timeago {
     font-size: 0.85em;
 }
 
-/* Available on: one large button per platform; the selected one is highlighted */
-#cy-app-platforms {
-    margin: 1em 0;
-}
-
-#cy-app-platforms .btn-group {
-    margin-left: 0.75em;
-    vertical-align: middle;
-}
 
 .cy-app-releases-heading {
     margin-top: 0;

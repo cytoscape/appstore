@@ -15,6 +15,17 @@ body {
   margin-left: 3em;
 }
 
+/* The platform buttons (Available on, or Editing on the edit page): one large button per platform,
+   the selected one highlighted, with the same space above the tabs on both pages (#155) */
+#cy-app-platforms {
+    margin: 1em 0;
+}
+
+#cy-app-platforms .btn-group {
+    margin-left: 0.75em;
+    vertical-align: middle;
+}
+
 /* App page tabs (Details, Release History), on the app page and its edit page: they look like
    the Available on buttons above them, solid blue when selected and white with a border when
    not (Bootstrap's .btn and .btn-primary.active), only smaller (#155) */
