@@ -510,6 +510,16 @@ def _pending_instance_accept(pending_app, request):
         # e.g. the same version was submitted twice, and the other submission was accepted first
         return HttpResponseBadRequest('Version %s of %s is already published; decline this submission'
                                       % (pending_app.version, identity.app.fullname))
+    # a platform joining an existing app starts with empty content of its own, and the platform
+    # the app was on until then keeps the app's content (#155)
+    app = identity.app
+    original = app.content_owner if app is not None and pending_app.PLATFORM not in app.platforms else None
+    response = _accept_by_type(pending_app, request)
+    if response is None and original is not None:
+        App.objects.get(pk=app.pk).separate_platform_content(original)
+    return response
+
+def _accept_by_type(pending_app, request):
     if isinstance(pending_app, AppPending):
         return _pending_app_accept(pending_app, request)
     if isinstance(pending_app, ServiceAppPending):

@@ -83,6 +83,7 @@ To add a platform to an app you already publish:
 1. **Sign in as one of the app's editors.** Only its editors can submit under its name.
 2. **Submit the new version under the same app name.** For a web bundle, that's the name in its `cy-manifest.json`. On the app's page, **Editor Actions** has a link for each kind of release, and those links fill in the name for you.
 3. **Wait for review.** The review queue labels the submission **New platform**. Once an admin accepts it, it appears on the app's existing page, under its own button in **Available on**.
+4. **Fill in its page.** The new platform's page starts empty: its description, details, categories, screenshots, authors, links and licence are its own, and nothing is copied from your other platforms. Edit it as described below. The platforms your app was already on keep their content unchanged.
 
 Someone who isn't one of the app's editors can't submit under its name.
 
@@ -95,7 +96,7 @@ Each platform on your app page has its own page content. On the app page, choose
 - **Shared by every platform:** the app's name, icon and editors, its ratings, and its downloads/installs total.
 - **Kept per platform:** the short description, details, categories, screenshots, authors, resource links (website, tutorial, citation, code repository, automation, contact) and licence, plus that platform's release notes.
 
-A platform you haven't edited yet shows the app's existing content, so nothing changes until you edit it. Its first save starts it off as a copy of that content.
+Each platform shows only its own content; nothing is carried over from another platform. Your app's existing content stays with the platform the app was on before you added others, and a platform you added starts empty until you edit it.
 
 If you choose another platform with unsaved changes, the page asks whether to **Save and switch**, **Discard and switch**, or **Stay**.
 

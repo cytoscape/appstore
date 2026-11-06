@@ -347,7 +347,7 @@ def _mk_basic_field_saver(field, func = None):
 def _content_platform(app, request):
     """
     The platform whose content a content edit changes (#155): the POST's 'platform',
-    which must be one the app is on, or none for the app's own (Desktop's) content.
+    which must be one the app is on, or none for the app's own fields.
     """
     platform = request.POST.get('platform')
     if not platform:
@@ -439,11 +439,7 @@ def _delete_screenshot(app, request):
         screenshot = Screenshot.objects.get(id = int(screenshot_id), app = app)
     except (ValueError, Screenshot.DoesNotExist) as e:
         raise ValueError('invalid screenshot_id')
-    if screenshot.platform is None and platform is not None:
-        # the page showed the app's screenshot, which this platform's first edit has just copied
-        screenshot = Screenshot.objects.filter(app = app, platform = platform,
-                                               screenshot = screenshot.screenshot.name).first()
-    if screenshot is None or screenshot.platform != platform:
+    if screenshot.platform != platform:
         raise ValueError('invalid screenshot_id')
     screenshot.delete()
 

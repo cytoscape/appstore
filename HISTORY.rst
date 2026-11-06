@@ -67,9 +67,11 @@ History
     Release History show the selected platform's, and switching keeps the open tab.
 
   * **Per-platform content:** each platform keeps its own description, details, categories,
-    screenshots, authors, links and licence. The name, icon, editors, ratings and the downloads
-    total are shared. A platform without content of its own shows the app's existing content, so
-    pages look the same until an editor changes them.
+    screenshots, authors, links and licence, and never shows another platform's. The name, icon,
+    editors, ratings and the downloads total are shared. An app's existing content stays with the
+    platform it was on, so existing pages look the same; a platform added later starts empty.
+    ``manage.py set_original_platform`` separates the content of an app that gained a platform
+    before this rule.
 
   * **Editing:** the edit page edits one platform at a time, and asks whether to save or discard
     unsaved changes before switching platform.

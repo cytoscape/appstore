@@ -33,7 +33,8 @@ def sessions_file():
 
 # Specs that change data own the seeded objects they change, so the specs stay independent:
 # admin-accept.spec.ts accepts IT Desktop's pending Cytoscape Web bundle, and
-# admin-queue.spec.ts declines IT Url App and IT Republish's resubmission, and tiles-edit.spec.ts edits IT Edit.
+# admin-queue.spec.ts declines IT Url App and IT Republish's resubmission, tiles-edit.spec.ts edits IT Edit,
+# and platform-content.spec.ts accepts the IT Grow apps' new platforms.
 class Command(BaseCommand):
     help = ('Replaces all apps, pending submissions and it-* users with the integration test data, '
             'and writes a logged-in session key per test user to build/it_sessions.json. '
@@ -109,7 +110,7 @@ class Command(BaseCommand):
         ServiceRelease.objects.create(app=multi, version='1.0', service_endpoint='https://service.example.org/itmulti',
                                       metadata={'name': 'IT Multi', 'version': '1.0'})
         self.mark_released(multi, multi_desktop)
-        # its own (Desktop) content, and Cytoscape Web content of its own; Service has none, so shows the app's
+        # its own (Desktop) content, and Cytoscape Web content of its own; Service has none, so is empty
         multi.details = 'IT Multi for the desktop'
         multi.website = 'https://example.org/desktop'
         multi.save()
@@ -212,6 +213,13 @@ class Command(BaseCommand):
                         cy_2x_plugin_download='https://example.org/itlegacy-1.0.jar',
                         cy_2x_plugin_version='1.0', cy_2x_versions='2.8')
 
+        # platform-content.spec.ts: apps on one platform, as every app was before #155, with every
+        # kind of content. The IT Only apps are only read; the IT Grow apps gain the platforms
+        # their editor submitted (create_pending), which the spec accepts.
+        for platform in Platform.values:
+            for kind in ('Only', 'Grow'):
+                self.create_single_platform_app('IT %s %s' % (kind, platform.capitalize()), editor, platform)
+
     def create_pending(self, users):
         # IT Desktop's editor submitted a Cytoscape Web version, which awaits review
         web_pending = WebBundlePending.objects.create(
@@ -243,6 +251,56 @@ class Command(BaseCommand):
         write_pending_manifest_json(republish)
         WebUrlPending.objects.create(submitter=users['other'], fullname='IT Url App', version='1.0',
                                      repo_url='https://github.com/cytoscape/it-url-app')
+
+        # each IT Grow app's editor submitted its two other platforms
+        for original in Platform.values:
+            fullname = 'IT Grow %s' % original.capitalize()
+            for platform in Platform.values:
+                if platform != original:
+                    self.create_new_platform_pending(users['editor'], fullname, platform)
+
+    def create_single_platform_app(self, fullname, editor, platform):
+        """An app on 'platform' alone, with a description, details, links, a licence and a category, author and screenshot."""
+        name = fullname_to_name(fullname)
+        app = self.create_app(fullname, editor, has_releases=True, details='%s details' % fullname,
+                              website='https://example.org/%s' % name, tutorial='https://example.org/%s-tutorial' % name,
+                              coderepo='https://example.org/%s-code' % name, contact='%s@example.org' % name,
+                              license_text='https://example.org/%s-license' % name)
+        if platform == Platform.DESKTOP:
+            release = Release.objects.create(app=app, version='1.0', works_with='3.10')
+            release.release_file.save('%s-1.0.jar' % name, ContentFile(b'integration test jar'))
+            release.calc_checksum()
+        elif platform == Platform.WEB:
+            release = WebBundleRelease.objects.create(app=app, version='1.0', cy_app_id=name, active=True,
+                                                      bundle_hash='0' * 64)
+            write_manifest_json(release)
+        else:
+            release = ServiceRelease.objects.create(app=app, version='1.0',
+                                                    service_endpoint='https://service.example.org/%s' % name,
+                                                    metadata={'name': fullname, 'version': '1.0'})
+        self.mark_released(app, release)
+        self.add_content(app, None, tag='%s category' % name, author='%s Author' % fullname,
+                         screenshot='%s.png' % name)
+        return app
+
+    def create_new_platform_pending(self, editor, fullname, platform):
+        """'editor''s submission of version 2.0 of the existing app 'fullname' for 'platform'."""
+        name = fullname_to_name(fullname)
+        if platform == Platform.DESKTOP:
+            pending = AppPending.objects.create(submitter=editor, fullname=fullname, version='2.0', cy_works_with='3.10')
+            pending.release_file.save('%s-2.0.jar' % name, ContentFile(b'integration test jar'))
+        elif platform == Platform.WEB:
+            pending = WebBundlePending.objects.create(
+                submitter=editor, fullname=fullname, cy_app_id=name, version='2.0', author='it-editor',
+                bundle_hash='3' * 64, status=WebBundlePending.Status.PENDING_REVIEW)
+            pending.bundle.save('%s-2.0.zip' % name, ContentFile(self.web_bundle(name, fullname, '2.0')))
+            _copy_bundle_to_storage(pending.bundle, pending.bundle_path)
+            write_pending_manifest_json(pending)
+        else:
+            ServiceAppPending.objects.create(
+                submitter=editor, fullname=fullname, name=name, version='2.0', author='it-editor',
+                service_endpoint='https://service.example.org/%s' % name,
+                status=ServiceAppPending.Status.PENDING_REVIEW)
 
     def web_bundle(self, cy_app_id, fullname, version):
         data = io.BytesIO()

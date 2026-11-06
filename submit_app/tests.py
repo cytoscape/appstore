@@ -31,6 +31,8 @@ from apps.models import Platform
 from apps.models import Release
 from apps.models import WebBundleRelease
 from apps.models import ServiceRelease
+from apps.models import AppPlatformContent
+from apps.models import Tag
 from submit_app.models import AppPending
 from submit_app.models import ServiceAppPending
 from submit_app.models import WebBundlePending
@@ -1184,6 +1186,7 @@ class AcceptSafetyTest(SubmissionFixtureMixin, TestCase):
         app = App.objects.get(name='foo')
         self.assertEqual(([Platform.DESKTOP], False), (app.platforms, app.active))
         self.assertFalse(WebBundleRelease.objects.exists())
+        self.assertFalse(AppPlatformContent.objects.exists())
         self.assertTrue(WebBundlePending.objects.filter(id=pending.id).exists())
         self.admin_post('decline', pending, 'web-bundle')
         self.assertFalse(WebBundlePending.objects.exists())
@@ -1280,3 +1283,73 @@ class AcceptSafetyTest(SubmissionFixtureMixin, TestCase):
         self.assertRedirects(self.admin_post('accept', pending, 'desktop'), reverse('pending-apps'))
         release = Release.objects.get(app=self.desktop_app, version='1.0')
         self.assertEqual((True, '3.11'), (release.active, release.works_with))
+
+
+class AcceptNewPlatformContentTest(SubmissionFixtureMixin, TestCase):
+    """
+    A platform joining an existing app starts with empty content of its own, and the platform
+    the app was on keeps the app's content (#155).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_user('admin', 'admin@example.org', 'secret', is_staff=True)
+        App.objects.filter(name='foo').update(description='Foo description', details='Foo details')
+        self.desktop_app.tags.add(Tag.objects.create(name='footag', fullname='foo tag'))
+
+    def accept(self, pending, pending_platform):
+        self.client.force_login(self.admin)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(reverse('pending-apps'), {'action': 'accept', 'pending_id': pending.id,
+                                                                  'pending_platform': pending_platform})
+        self.assertNotEqual(400, response.status_code)
+        return App.objects.get(name=fullname_to_name(pending.fullname))
+
+    def desktop_pending(self, fullname, version):
+        pending = AppPending.objects.create(submitter=self.editor, fullname=fullname, version=version,
+                                            cy_works_with='3.10')
+        pending.release_file.save('app.jar', SimpleUploadedFile('app.jar', b'data'))
+        return pending
+
+    def summary(self, content):
+        return (content.description, content.details, [t.name for t in content.tags])
+
+    def test_web_and_service_joining_a_desktop_app_start_empty(self):
+        self.submit_bundle(self.editor)
+        app = self.accept(WebBundlePending.objects.get(), 'web-bundle')
+        self.assertEqual(('Foo description', 'Foo details', ['footag']), self.summary(app.content(Platform.DESKTOP)))
+        self.assertEqual((None, None, []), self.summary(app.content(Platform.WEB)))
+        self.assertEqual([Platform.WEB], [c.platform for c in AppPlatformContent.objects.all()])
+
+        self.submit_service(self.editor)
+        app = self.accept(ServiceAppPending.objects.get(), 'service')
+        self.assertEqual(('Foo description', 'Foo details', ['footag']), self.summary(app.content(Platform.DESKTOP)))
+        self.assertEqual((None, None, []), self.summary(app.content(Platform.SERVICE)))
+
+    def test_desktop_joining_a_web_only_app_moves_its_content_to_web(self):
+        bar = App.objects.create(name='bar', fullname='Bar', active=True, description='Bar description',
+                                 details='Bar details')
+        bar.editors.add(self.editor)
+        bar.tags.add(Tag.objects.create(name='bartag', fullname='bar tag'))
+        WebBundleRelease.objects.create(app=bar, version='1.0', active=True, bundle_hash='0')
+
+        app = self.accept(self.desktop_pending('Bar', '2.0'), 'desktop')
+        self.assertEqual([Platform.DESKTOP, Platform.WEB], app.platforms)
+        self.assertEqual(('Bar description', 'Bar details', ['bartag']), self.summary(app.content(Platform.WEB)))
+        self.assertEqual((None, None, []), self.summary(app.content(Platform.DESKTOP)))
+        # Cytoscape Desktop's feed shows nothing of Web's
+        [entry] = [a for a in json.loads(self.client.get('/backend/all_apps').content) if a['fullname'] == 'Bar']
+        self.assertFalse(entry['description'])
+        self.assertEqual([], entry['tags'])
+
+    def test_a_new_version_of_a_platform_the_app_is_on_changes_no_content(self):
+        app = self.accept(self.desktop_pending('Foo', '2.0'), 'desktop')
+        self.assertFalse(AppPlatformContent.objects.exists())
+        self.assertEqual(('Foo description', 'Foo details', ['footag']), self.summary(app.content(Platform.DESKTOP)))
+
+    def test_a_new_app_keeps_its_content_as_its_own(self):
+        self.submit_bundle(self.other, name='Brand New')
+        app = self.accept(WebBundlePending.objects.get(), 'web-bundle')
+        self.assertEqual([Platform.WEB], app.platforms)
+        self.assertEqual(Platform.WEB, app.content_owner)
+        self.assertFalse(AppPlatformContent.objects.exists())

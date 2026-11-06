@@ -333,21 +333,41 @@ class App(models.Model):
 
     @property
     def ordered_authors(self):
-        # the app's own authors, which are Desktop's; other platforms' are in content(platform).authors
+        # the app's own authors; a platform with content of its own has its own in content(platform).authors
         return (a.author for a in OrderedAuthor.objects.filter(app=self, platform__isnull=True))
+
+    @property
+    def content_owner(self):
+        """
+        The platform whose content is the app's own fields (#155): Desktop when the app is on
+        Desktop, since Cytoscape Desktop reads them, else the app's one platform without content
+        of its own. Before #155 every app was on one platform, whose content these fields are;
+        a platform that joins later gets content of its own (separate_platform_content).
+        None when that can't tell, e.g. two non-Desktop platforms without content of their own.
+        """
+        platforms = self.platforms
+        if Platform.DESKTOP in platforms:
+            return Platform.DESKTOP
+        own = {content.platform for content in self.platform_contents.all()}
+        without = [platform for platform in platforms if platform not in own]
+        return without[0] if len(without) == 1 else None
 
     def content(self, platform=None):
         """
-        What the app page shows for 'platform' (#155): Desktop's content is the app's
-        own fields, and a Web or Service version has its own once an editor has edited
-        it. Until then it shows the app's content too.
+        What the app page shows for 'platform' (#155): that platform's own content if it has
+        some, the app's own fields for the platform they belong to (content_owner), and
+        otherwise nothing. No platform ever shows another platform's content.
+        Without a platform, the app's own fields.
         """
-        if platform in PLATFORM_CONTENT_PLATFORMS:
-            # all(), so listings that prefetch platform_contents read it without a query per app
-            own = next((own for own in self.platform_contents.all() if own.platform == platform), None)
-            if own is not None:
-                return AppContent(self, own, platform)
-        return AppContent(self, self, None)
+        if platform is None:
+            return AppContent(self, self, None)
+        # all(), so listings that prefetch platform_contents read it without a query per app
+        own = next((own for own in self.platform_contents.all() if own.platform == platform), None)
+        if own is not None:
+            return AppContent(self, own, platform)
+        if platform == self.content_owner:
+            return AppContent(self, self, None)
+        return AppContent(self, None, platform)
 
     @property
     def tile_description(self):
@@ -360,28 +380,70 @@ class App(models.Model):
     @transaction.atomic
     def content_for_edit(self, platform=None):
         """
-        Where an edit to 'platform''s content is saved: the app itself for Desktop (or no
-        platform), else that platform's own content, which its first edit creates as a
-        copy of what the platform showed until then.
+        Where an edit to 'platform''s content is saved: the app's own fields for the platform
+        they belong to (content_owner), or without a platform; else the platform's own
+        content, which its first edit creates empty. Nothing is copied from another platform.
         """
-        if platform is None or platform == Platform.DESKTOP:
+        if platform is None:
             return self
-        if platform not in PLATFORM_CONTENT_PLATFORMS:
+        if platform not in Platform.values:
             raise ValueError('platform must be one of: %s' % ', '.join(Platform.values))
         own = self.platform_contents.filter(platform=platform).first()
         if own is not None:
             return own
+        if platform == self.content_owner:
+            return self
+        if platform == Platform.DESKTOP:
+            raise ValueError('%s is not on %s' % (self.name, platform))
+        return AppPlatformContent.objects.create(app=self, platform=platform)
+
+    @transaction.atomic
+    def separate_platform_content(self, original, apply=True):
+        """
+        Makes the app's own fields the content of 'original', a platform the app is on, and
+        gives each of its other platforms content of its own, empty unless it has some (#155).
+        Accepting a new platform runs it with the platform the app was on until then.
+
+        Desktop's content must stay the app's own fields, which Cytoscape Desktop reads, so when
+        the app is also on Desktop an 'original' other than Desktop gets those fields moved to
+        content of its own, and Desktop's starts empty.
+
+        :return: what it changed, or without 'apply' what it would change, one line each
+        """
+        platforms = self.platforms
+        if original not in platforms:
+            raise ValueError('%s is not on %s; it is on: %s'
+                             % (self.name, original, ', '.join(platforms) or 'no platform'))
+        own = {content.platform for content in self.platform_contents.all()}
+        changes = []
+        if original != Platform.DESKTOP and Platform.DESKTOP in platforms:
+            if original in own:
+                changes.append("left as is: %s already has content of its own, so the app's own content "
+                               "stays with desktop" % original)
+            else:
+                changes.append("moved the app's own content to %s; desktop's starts empty" % original)
+                if apply:
+                    self._move_own_content_to(original)
+                own.add(original)
+        for platform in platforms:
+            if platform in own or platform in (original, Platform.DESKTOP):
+                continue
+            changes.append('gave %s empty content of its own' % platform)
+            if apply:
+                AppPlatformContent.objects.create(app=self, platform=platform)
+        return changes
+
+    def _move_own_content_to(self, platform):
+        """Moves the app's own fields, categories, screenshots and authors to 'platform''s own content."""
         own = AppPlatformContent.objects.create(
             app=self, platform=platform, **{field: getattr(self, field) for field in CONTENT_FIELDS})
         own.tags.set(self.tags.all())
-        # the copies share the image files, which deleting a Screenshot never removes
-        for screenshot in Screenshot.objects.filter(app=self, platform__isnull=True):
-            Screenshot.objects.create(app=self, platform=platform, screenshot=screenshot.screenshot.name,
-                                      thumbnail=screenshot.thumbnail.name)
-        for ordered in OrderedAuthor.objects.filter(app=self, platform__isnull=True):
-            OrderedAuthor.objects.create(app=self, platform=platform, author=ordered.author,
-                                         author_order=ordered.author_order)
-        return own
+        Screenshot.objects.filter(app=self, platform__isnull=True).update(platform=platform)
+        OrderedAuthor.objects.filter(app=self, platform__isnull=True).update(platform=platform)
+        for field in CONTENT_FIELDS:
+            setattr(self, field, False if field == 'license_confirm' else None)
+        self.tags.clear()
+        self.save()
 
     search_schema = ('^fullname', 'description', 'details')
     search_key = 'name'
@@ -410,14 +472,10 @@ class OrderedAuthor(models.Model):
 CONTENT_FIELDS = ('description', 'details', 'license_text', 'license_confirm',
                   'website', 'tutorial', 'citation', 'coderepo', 'automation', 'contact')
 
-# Platforms with content of their own; Desktop's content is the App's fields
-PLATFORM_CONTENT_PLATFORMS = (Platform.WEB, Platform.SERVICE)
-
-
 class AppPlatformContent(models.Model):
     """
-    A Web or Service version's own page content (#155), created by its first edit.
-    The app's name and icon stay shared.
+    A platform's own page content (#155), for each platform but the one whose content is
+    the app's own fields (App.content_owner). The app's name and icon stay shared.
     """
     id = models.BigAutoField(primary_key=True)
     app = models.ForeignKey(App, on_delete=models.CASCADE, related_name='platform_contents')
@@ -450,25 +508,31 @@ class AppContent:
     """
     One platform's page content: the fields of 'source' (the App, or its
     AppPlatformContent), with the screenshots and authors of 'own_platform'
-    (None for the app's own).
+    (None for the app's own). With no 'source', the platform has no content
+    yet, and everything is empty.
     """
     def __init__(self, app, source, own_platform):
         self.app = app
         self.own_platform = own_platform
         for field in CONTENT_FIELDS:
-            setattr(self, field, getattr(source, field))
+            setattr(self, field, getattr(source, field) if source is not None
+                                 else (False if field == 'license_confirm' else None))
         self._source = source
 
     @property
     def tags(self):
-        return self._source.tags.all()
+        return self._source.tags.all() if self._source is not None else Tag.objects.none()
 
     @property
     def screenshots(self):
+        if self._source is None:
+            return Screenshot.objects.none()
         return Screenshot.objects.filter(app=self.app, platform=self.own_platform).order_by('id')
 
     @property
     def authors(self):
+        if self._source is None:
+            return []
         return [ordered.author for ordered in OrderedAuthor.objects.filter(app=self.app, platform=self.own_platform)]
 
 

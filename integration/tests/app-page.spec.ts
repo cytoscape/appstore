@@ -105,13 +105,15 @@ test.describe('App page', () => {
     await expect(page.getByRole('link', { name: 'E-mail' })).toHaveCount(0)
   })
 
-  test('a platform without content of its own shows the app\'s, even beside one that has its own', async ({ page }) => {
+  test('a platform without content of its own is empty, even beside one that has its own', async ({ page }) => {
     await page.goto('/apps/itmulti?platform=service')
-    await expect(page.locator('#cy-app-details-md')).toHaveText('IT Multi for the desktop')
-    await expect(page.locator('#cy-app-categories')).toContainText('it-desktop')
-    await expect(page.locator('#cy-app-authors')).toContainText('Desktop Author')
+    await expect(page.locator('#app-name').locator('xpath=following-sibling::b')).toHaveCount(0)
+    await expect(page.locator('#cy-app-details-md')).toHaveCount(0)
+    await expect(page.locator('#cy-app-categories')).toHaveCount(0)
+    await expect(page.locator('#cy-app-authors')).toHaveCount(0)
+    await expect(page.locator('#cy-app-screenshots')).toHaveCount(0)
+    await expect(page.getByText('IT Multi for the desktop')).toHaveCount(0)
     await expect(page.getByText('IT Multi for the web')).toHaveCount(0)
-    await expect(page.locator('#cy-app-categories')).not.toContainText('it-web-only')
 
     // an app with no per-platform content at all is shown as before
     await page.goto('/apps/itweb')

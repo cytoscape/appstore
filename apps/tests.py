@@ -865,7 +865,8 @@ class SeedIntegrationDataTestCase(TestCase):
 
         apps = {app.name: app for app in App.objects.all()}
         self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itlicensed', 'itretired', 'itlegacy',
-                          'itcy2', 'itswitch', 'itcontent', 'itauthors', 'itreplacedauthors', 'itrepublish'},
+                          'itcy2', 'itswitch', 'itcontent', 'itauthors', 'itreplacedauthors', 'itrepublish',
+                          'itonlydesktop', 'itonlyweb', 'itonlyservice', 'itgrowdesktop', 'itgrowweb', 'itgrowservice'},
                          set(apps))
         self.assertTrue(apps['itlicensed'].license_confirm)
         self.assertEqual([], apps['itretired'].platforms)
@@ -879,7 +880,7 @@ class SeedIntegrationDataTestCase(TestCase):
         for name in apps:
             self.assertEqual(['it-editor'], [u.username for u in apps[name].editors.all()])
 
-        # IT Multi's own content and its web content; its service version shows the app's
+        # IT Multi's own content and its web content; its service version has none
         multi = apps['itmulti']
         self.assertEqual(('IT Multi for the desktop', ['it-desktop'], ['Desktop Author']),
                          (multi.content(Platform.DESKTOP).details, [t.fullname for t in multi.content(Platform.DESKTOP).tags],
@@ -891,7 +892,7 @@ class SeedIntegrationDataTestCase(TestCase):
         # on two apps, and on IT Multi only through its web content
         self.assertEqual(3, Tag.objects.get(name='itsharedcategory').count)
         self.assertTrue(os.path.exists(web.screenshots.get().thumbnail.path))
-        self.assertEqual('IT Multi for the desktop', multi.content(Platform.SERVICE).details)
+        self.assertIsNone(multi.content(Platform.SERVICE).details)
         self.assertEqual('https://example.org/it-licensed-service-license',
                          apps['itlicensed'].content(Platform.SERVICE).license_text)
         self.assertEqual([Platform.DESKTOP, Platform.WEB], apps['itcy2'].platforms)
@@ -910,6 +911,24 @@ class SeedIntegrationDataTestCase(TestCase):
         self.assertTrue(WebBundleRelease.objects.filter(app=apps['itrepublish'], version=republish.version,
                                                         active=True).exists())
 
+        # apps on one platform with all their content, and the IT Grow apps' submitted new platforms
+        for platform in Platform.values:
+            for kind in ('only', 'grow'):
+                app = apps['it%s%s' % (kind, platform)]
+                self.assertEqual([platform], app.platforms)
+                content = app.content(platform)
+                self.assertEqual(('IT %s %s details' % (kind.capitalize(), platform.capitalize()),
+                                  'https://example.org/it%s%s-license' % (kind, platform), 1, 1, 1),
+                                 (content.details, content.license_text, len(content.tags),
+                                  len(content.authors), content.screenshots.count()))
+            grow = 'IT Grow %s' % platform.capitalize()
+            submitted = [p.PLATFORM for model in (AppPending, WebBundlePending, ServiceAppPending)
+                         for p in model.objects.filter(fullname=grow)]
+            self.assertEqual(sorted(set(Platform.values) - {platform}), sorted(submitted))
+            for model in (AppPending, WebBundlePending, ServiceAppPending):
+                for p in model.objects.filter(fullname=grow):
+                    self.assertTrue(p.is_new_platform, (grow, p.PLATFORM))
+
     def test_sessions_sign_in_each_user(self):
         sessions = self.seed()
         for role, username in (('admin', 'it-admin'), ('editor', 'it-editor'), ('other', 'it-other')):
@@ -918,10 +937,10 @@ class SeedIntegrationDataTestCase(TestCase):
     def test_reseeding_replaces_the_data(self):
         self.seed()
         sessions = self.seed()
-        self.assertEqual(14, App.objects.count())
+        self.assertEqual(20, App.objects.count())
         self.assertEqual(4, AppPlatformContent.objects.count())
-        self.assertEqual(2, WebBundlePending.objects.count())
-        self.assertEqual(1, ServiceAppPending.objects.count())
+        self.assertEqual(4, WebBundlePending.objects.count())
+        self.assertEqual(3, ServiceAppPending.objects.count())
         self.assertEqual(3, User.objects.filter(username__startswith='it-').count())
         self.assertEqual('it-editor', self.signed_in_user(sessions['editor']).username)
 
@@ -1300,16 +1319,28 @@ class AppPlatformFieldRemovedTestCase(TestCase):
             App._meta.get_field('platform')
 
 
-class AppContentTestCase(TestCase):
-    """Each platform's page content, falling back to the app's own (#155)."""
+class _OwnContentFixture:
+    """An app with content of its own, put on platforms by on()."""
 
     def setUp(self):
-        self.app = App.objects.create(name='multi', fullname='Multi', active=True, description='Shared description',
-                                      details='Shared details', website='https://example.org/shared',
+        self.app = App.objects.create(name='multi', fullname='Multi', active=True, description='Own description',
+                                      details='Own details', website='https://example.org/own',
                                       license_text='https://example.org/license', license_confirm=True)
-        self.app.tags.add(Tag.objects.create(name='shared', fullname='shared'))
+        self.tag = Tag.objects.create(name='own', fullname='own')
+        self.app.tags.add(self.tag)
         self.shot = Screenshot.objects.create(app=self.app, screenshot='multi/shot.png', thumbnail='multi/shot_t.png')
-        OrderedAuthor.objects.create(app=self.app, author=Author.objects.create(name='Shared Author'), author_order=0)
+        OrderedAuthor.objects.create(app=self.app, author=Author.objects.create(name='Own Author'), author_order=0)
+
+    def on(self, *platforms):
+        for platform in platforms:
+            if platform == Platform.DESKTOP:
+                Release.objects.create(app=self.app, version='1.0', works_with='3.10')
+            elif platform == Platform.WEB:
+                WebBundleRelease.objects.create(app=self.app, version='1.0', active=True, bundle_hash='0')
+            else:
+                ServiceRelease.objects.create(app=self.app, version='1.0', service_endpoint='https://example.org/s')
+        self.app = App.objects.get(pk=self.app.pk)
+        return self.app
 
     def snapshot(self, content):
         return {'description': content.description, 'details': content.details, 'website': content.website,
@@ -1317,65 +1348,198 @@ class AppContentTestCase(TestCase):
                 'tags': [tag.name for tag in content.tags], 'screenshots': [s.screenshot.name for s in content.screenshots],
                 'authors': [author.name for author in content.authors]}
 
-    SHARED = {'description': 'Shared description', 'details': 'Shared details', 'website': 'https://example.org/shared',
-              'license': ('https://example.org/license', True), 'tags': ['shared'],
-              'screenshots': ['multi/shot.png'], 'authors': ['Shared Author']}
+    OWN = {'description': 'Own description', 'details': 'Own details', 'website': 'https://example.org/own',
+           'license': ('https://example.org/license', True), 'tags': ['own'],
+           'screenshots': ['multi/shot.png'], 'authors': ['Own Author']}
+    EMPTY = {'description': None, 'details': None, 'website': None, 'license': (None, False), 'tags': [],
+             'screenshots': [], 'authors': []}
 
-    def test_desktop_reads_the_app(self):
-        self.assertEqual(self.SHARED, self.snapshot(self.app.content(Platform.DESKTOP)))
-        self.assertEqual(self.SHARED, self.snapshot(self.app.content()))
 
-    def test_platform_without_content_shows_the_apps(self):
-        for platform in (Platform.WEB, Platform.SERVICE):
-            self.assertEqual(self.SHARED, self.snapshot(self.app.content(platform)), platform)
+
+class AppContentTestCase(_OwnContentFixture, TestCase):
+    """
+    Each platform shows only its own content (#155): the app's own fields are the content of
+    the platform the app was on before others joined, and a platform that joins starts empty.
+    """
+
+    def test_an_app_on_one_platform_shows_its_content_there(self):
+        for platform in Platform.values:
+            with self.subTest(platform):
+                for model in (Release, WebBundleRelease, ServiceRelease):
+                    model.objects.filter(app=self.app).delete()
+                app = self.on(platform)
+                self.assertEqual(platform, app.content_owner)
+                self.assertEqual(self.OWN, self.snapshot(app.content(platform)))
+                self.assertIs(app, app.content_for_edit(platform))
+                for other in Platform.values:
+                    if other != platform:
+                        self.assertEqual(self.EMPTY, self.snapshot(app.content(other)), other)
+        self.assertEqual(0, AppPlatformContent.objects.count())
+
+    def test_a_platform_without_content_of_its_own_is_empty(self):
+        # e.g. Web added to a Desktop app before #155 gave added platforms their own content
+        app = self.on(Platform.DESKTOP, Platform.WEB, Platform.SERVICE)
+        self.assertEqual(self.OWN, self.snapshot(app.content(Platform.DESKTOP)))
+        self.assertEqual(self.EMPTY, self.snapshot(app.content(Platform.WEB)))
+        self.assertEqual(self.EMPTY, self.snapshot(app.content(Platform.SERVICE)))
+        self.assertEqual(self.OWN, self.snapshot(app.content()))
 
     def test_platform_with_content_shows_its_own(self):
-        own = AppPlatformContent.objects.create(app=self.app, platform=Platform.WEB, description='Web description',
+        app = self.on(Platform.DESKTOP, Platform.WEB)
+        own = AppPlatformContent.objects.create(app=app, platform=Platform.WEB, description='Web description',
                                                 details='Web details')
         own.tags.add(Tag.objects.create(name='webonly', fullname='web only'))
-        OrderedAuthor.objects.create(app=self.app, platform=Platform.WEB,
+        OrderedAuthor.objects.create(app=app, platform=Platform.WEB,
                                      author=Author.objects.create(name='Web Author'), author_order=0)
         self.assertEqual({'description': 'Web description', 'details': 'Web details', 'website': None,
                           'license': (None, False), 'tags': ['webonly'], 'screenshots': [],
                           'authors': ['Web Author']},
-                         self.snapshot(self.app.content(Platform.WEB)))
-        # the others are untouched by it
-        self.assertEqual(self.SHARED, self.snapshot(self.app.content(Platform.DESKTOP)))
-        self.assertEqual(self.SHARED, self.snapshot(self.app.content(Platform.SERVICE)))
-        self.assertEqual(['Shared Author'], [author.name for author in self.app.ordered_authors])
+                         self.snapshot(app.content(Platform.WEB)))
+        self.assertEqual(self.OWN, self.snapshot(app.content(Platform.DESKTOP)))
+        self.assertEqual(['Own Author'], [author.name for author in app.ordered_authors])
 
-    def test_first_edit_copies_what_the_platform_showed(self):
-        own = self.app.content_for_edit(Platform.WEB)
+    def test_first_edit_of_another_platform_starts_empty(self):
+        app = self.on(Platform.DESKTOP, Platform.WEB)
+        own = app.content_for_edit(Platform.WEB)
         self.assertIsInstance(own, AppPlatformContent)
-        self.assertEqual(self.SHARED, self.snapshot(self.app.content(Platform.WEB)))
-        web_shot = self.app.content(Platform.WEB).screenshots.get()
-        self.assertNotEqual(self.shot.id, web_shot.id)
-        self.assertEqual(self.shot.thumbnail.name, web_shot.thumbnail.name)
-
+        self.assertEqual(self.EMPTY, self.snapshot(app.content(Platform.WEB)))
+        self.assertEqual(0, Screenshot.objects.filter(platform=Platform.WEB).count())
+        self.assertEqual(0, OrderedAuthor.objects.filter(platform=Platform.WEB).count())
         own.details = 'Web details'
         own.save()
-        own.tags.clear()
-        self.assertEqual('Web details', self.app.content(Platform.WEB).details)
-        self.assertEqual([], list(self.app.content(Platform.WEB).tags))
-        self.app.refresh_from_db()
-        self.assertEqual(self.SHARED, self.snapshot(self.app.content(Platform.DESKTOP)))
+        self.assertEqual('Web details', app.content(Platform.WEB).details)
+        self.assertEqual(self.OWN, self.snapshot(App.objects.get(pk=app.pk).content(Platform.DESKTOP)))
         # a second edit reuses it
-        self.assertEqual(own.id, self.app.content_for_edit(Platform.WEB).id)
+        self.assertEqual(own.id, app.content_for_edit(Platform.WEB).id)
         self.assertEqual(1, AppPlatformContent.objects.count())
 
-    def test_desktop_edits_go_to_the_app(self):
-        self.assertIs(self.app, self.app.content_for_edit(Platform.DESKTOP))
-        self.assertIs(self.app, self.app.content_for_edit(None))
+    def test_edits_of_the_original_platform_go_to_the_app(self):
+        app = self.on(Platform.DESKTOP, Platform.WEB)
+        self.assertIs(app, app.content_for_edit(Platform.DESKTOP))
+        self.assertIs(app, app.content_for_edit(None))
         self.assertEqual(0, AppPlatformContent.objects.count())
         with self.assertRaises(ValueError):
-            self.app.content_for_edit('bogus')
+            app.content_for_edit('bogus')
+
+    def test_desktop_cannot_be_edited_on_an_app_not_on_desktop(self):
+        app = self.on(Platform.WEB)
+        with self.assertRaises(ValueError):
+            app.content_for_edit(Platform.DESKTOP)
+        self.assertEqual(self.OWN, self.snapshot(app.content(Platform.WEB)))
+
+    def test_two_platforms_neither_with_content_of_its_own_are_both_empty(self):
+        app = self.on(Platform.WEB, Platform.SERVICE)
+        self.assertIsNone(app.content_owner)
+        self.assertEqual(self.EMPTY, self.snapshot(app.content(Platform.WEB)))
+        self.assertEqual(self.EMPTY, self.snapshot(app.content(Platform.SERVICE)))
 
     def test_deleting_the_app_deletes_its_content(self):
-        self.app.content_for_edit(Platform.SERVICE)
-        self.app.delete()
+        app = self.on(Platform.DESKTOP, Platform.SERVICE)
+        app.content_for_edit(Platform.SERVICE)
+        app.delete()
         self.assertEqual(0, AppPlatformContent.objects.count())
         self.assertEqual(0, Screenshot.objects.count())
         self.assertEqual(0, OrderedAuthor.objects.count())
+
+
+class SeparatePlatformContentTestCase(_OwnContentFixture, TestCase):
+    """App.separate_platform_content, which accepting a new platform and set_original_platform run (#155)."""
+
+    def test_desktop_original_keeps_the_apps_content_and_the_others_start_empty(self):
+        app = self.on(Platform.DESKTOP, Platform.WEB, Platform.SERVICE)
+        self.assertEqual(['gave web empty content of its own', 'gave service empty content of its own'],
+                         app.separate_platform_content(Platform.DESKTOP))
+        app = App.objects.get(pk=app.pk)
+        self.assertEqual(self.OWN, self.snapshot(app.content(Platform.DESKTOP)))
+        self.assertEqual(self.EMPTY, self.snapshot(app.content(Platform.WEB)))
+        self.assertEqual(self.EMPTY, self.snapshot(app.content(Platform.SERVICE)))
+        self.assertEqual({Platform.WEB, Platform.SERVICE},
+                         set(AppPlatformContent.objects.values_list('platform', flat=True)))
+
+    def test_other_original_with_desktop_gets_the_apps_content_moved_to_its_own(self):
+        app = self.on(Platform.DESKTOP, Platform.WEB)
+        self.assertEqual(["moved the app's own content to web; desktop's starts empty"],
+                         app.separate_platform_content(Platform.WEB))
+        app = App.objects.get(pk=app.pk)
+        self.assertEqual(self.OWN, self.snapshot(app.content(Platform.WEB)))
+        self.assertEqual(self.EMPTY, self.snapshot(app.content(Platform.DESKTOP)))
+        # moved, not copied: the screenshot keeps its row and file, and the app's own fields are empty
+        self.assertEqual([self.shot.id], [s.id for s in app.content(Platform.WEB).screenshots])
+        self.assertEqual(0, Screenshot.objects.filter(app=app, platform__isnull=True).count())
+        self.assertEqual(0, OrderedAuthor.objects.filter(app=app, platform__isnull=True).count())
+        self.assertEqual((None, None, None, False, []),
+                         (app.description, app.details, app.license_text, app.license_confirm, list(app.tags.all())))
+
+    def test_other_original_without_desktop_keeps_the_apps_content(self):
+        app = self.on(Platform.WEB, Platform.SERVICE)
+        self.assertEqual(['gave web empty content of its own'], app.separate_platform_content(Platform.SERVICE))
+        app = App.objects.get(pk=app.pk)
+        self.assertEqual(Platform.SERVICE, app.content_owner)
+        self.assertEqual(self.OWN, self.snapshot(app.content(Platform.SERVICE)))
+        self.assertEqual(self.EMPTY, self.snapshot(app.content(Platform.WEB)))
+
+    def test_platforms_with_content_of_their_own_are_left_as_is(self):
+        app = self.on(Platform.DESKTOP, Platform.WEB, Platform.SERVICE)
+        AppPlatformContent.objects.create(app=app, platform=Platform.WEB, details='Web details')
+        self.assertEqual(["left as is: web already has content of its own, so the app's own content stays with desktop",
+                          'gave service empty content of its own'],
+                         app.separate_platform_content(Platform.WEB))
+        app = App.objects.get(pk=app.pk)
+        self.assertEqual('Web details', app.content(Platform.WEB).details)
+        self.assertEqual(self.OWN, self.snapshot(app.content(Platform.DESKTOP)))
+        self.assertEqual([], app.separate_platform_content(Platform.DESKTOP))
+
+    def test_without_apply_nothing_changes(self):
+        app = self.on(Platform.DESKTOP, Platform.WEB, Platform.SERVICE)
+        self.assertEqual(["moved the app's own content to web; desktop's starts empty",
+                          'gave service empty content of its own'],
+                         app.separate_platform_content(Platform.WEB, apply=False))
+        self.assertEqual(0, AppPlatformContent.objects.count())
+        self.assertEqual(self.OWN, self.snapshot(App.objects.get(pk=app.pk).content(Platform.DESKTOP)))
+
+    def test_original_must_be_a_platform_the_app_is_on(self):
+        app = self.on(Platform.DESKTOP)
+        with self.assertRaisesRegex(ValueError, 'multi is not on web; it is on: desktop'):
+            app.separate_platform_content(Platform.WEB)
+
+
+class SetOriginalPlatformCommandTestCase(_OwnContentFixture, TestCase):
+    """manage.py set_original_platform (#155)."""
+
+    def run_command(self, *args):
+        out = io.StringIO()
+        call_command('set_original_platform', *args, stdout=out)
+        return out.getvalue()
+
+    def test_shows_the_changes_and_makes_them_only_with_apply(self):
+        self.on(Platform.DESKTOP, Platform.WEB)
+        self.assertEqual("multi: (not applied) moved the app's own content to web; desktop's starts empty\n"
+                         "Nothing changed; run again with --apply to make these changes.\n",
+                         self.run_command('multi', 'web'))
+        self.assertEqual(0, AppPlatformContent.objects.count())
+        self.assertEqual("multi: moved the app's own content to web; desktop's starts empty\n",
+                         self.run_command('multi', 'web', '--apply'))
+        app = App.objects.get(name='multi')
+        self.assertEqual(self.OWN, self.snapshot(app.content(Platform.WEB)))
+        self.assertEqual(self.EMPTY, self.snapshot(app.content(Platform.DESKTOP)))
+        # running it again changes nothing
+        self.assertEqual("multi: left as is: web already has content of its own, so the app's own content "
+                         "stays with desktop\n", self.run_command('multi', 'web', '--apply'))
+        self.assertEqual(1, AppPlatformContent.objects.count())
+
+    def test_desktop_original(self):
+        self.on(Platform.DESKTOP, Platform.WEB)
+        self.assertEqual('multi: gave web empty content of its own\n', self.run_command('multi', 'desktop', '--apply'))
+        app = App.objects.get(name='multi')
+        self.assertEqual(self.OWN, self.snapshot(app.content(Platform.DESKTOP)))
+        self.assertEqual(self.EMPTY, self.snapshot(app.content(Platform.WEB)))
+
+    def test_unknown_app_or_platform_the_app_is_not_on(self):
+        self.on(Platform.DESKTOP)
+        with self.assertRaisesRegex(CommandError, 'No app named "nope"'):
+            self.run_command('nope', 'web')
+        with self.assertRaisesRegex(CommandError, 'multi is not on service; it is on: desktop'):
+            self.run_command('multi', 'service', '--apply')
 
 
 class PlatformContentPageTestCase(TestCase):
@@ -1417,11 +1581,9 @@ class PlatformContentPageTestCase(TestCase):
             for text in hidden:
                 self.assertNotIn(text, content, (query, text))
 
-    def test_platform_without_content_shows_the_apps(self):
+    def test_platform_without_content_of_its_own_is_empty(self):
         content = self.page('?platform=service')
-        for text in self.DESKTOP:
-            self.assertIn(text, content, text)
-        for text in self.WEB:
+        for text in self.DESKTOP + self.WEB:
             self.assertNotIn(text, content, text)
 
     def test_each_panel_shows_its_own_license(self):
@@ -1432,8 +1594,8 @@ class PlatformContentPageTestCase(TestCase):
         self.assertIn('https://example.org/desktop-license', panels['desktop'])
         self.assertIn('https://example.org/web-license', panels['web'])
         self.assertNotIn('desktop-license', panels['web'])
-        # the service version has no content of its own, so the app's license
-        self.assertIn('https://example.org/desktop-license', panels['service'])
+        # the service version has no content of its own, so no licence
+        self.assertNotIn('cy-app-license', panels['service'])
 
     def test_license_dialog_per_platform_that_asks_for_it(self):
         AppPlatformContent.objects.create(app=self.app, platform=Platform.SERVICE, license_confirm=True,
@@ -1535,18 +1697,28 @@ class EditPagePlatformContentTestCase(TestCase):
         upload = SimpleUploadedFile('web.png', image.getvalue(), content_type='image/png')
         self.assertEqual(200, self.post({'action': 'upload_screenshot', 'file': upload}).status_code)
         web = App.objects.get(name='multi').content(Platform.WEB)
-        # the first edit copied the app's screenshot, then added the new one
-        self.assertEqual(2, web.screenshots.count())
+        # web started with no screenshots, so it has only the new one
+        self.assertEqual(1, web.screenshots.count())
         self.assert_desktop_unchanged()
         content = self.client.get('/apps/multi?platform=web').content.decode('utf-8')
         new_shot = web.screenshots.last()
         self.assertIn(new_shot.thumbnail.url, content)
         self.assertNotIn(new_shot.thumbnail.url, self.client.get('/apps/multi?platform=desktop').content.decode('utf-8'))
 
-    def test_deleting_a_screenshot_the_web_page_showed_before_its_first_edit(self):
-        # the web edit page showed the app's screenshot (its id), as web had no content yet
-        self.assertEqual(200, self.post({'action': 'delete_screenshot', 'screenshot_id': self.shot.id}).status_code)
-        self.assertEqual(0, App.objects.get(name='multi').content(Platform.WEB).screenshots.count())
+    def test_first_web_edit_starts_from_empty_content(self):
+        # nothing of Desktop's is copied: not its fields, categories, screenshots or authors
+        self.assertEqual(200, self.post({'action': 'save_details', 'details': 'Web details'}).status_code)
+        web = App.objects.get(name='multi').content(Platform.WEB)
+        self.assertEqual(('Web details', None, None), (web.details, web.description, web.website))
+        self.assertEqual(([], [], []), (list(web.tags), list(web.screenshots), web.authors))
+        self.assert_desktop_unchanged()
+        web_page = self.client.get('/apps/multi/edit?platform=web').content.decode('utf-8')
+        self.assertNotIn('Desktop description', web_page)
+        self.assertNotIn(self.shot.thumbnail.name, web_page)
+
+    def test_desktop_screenshot_cannot_be_deleted_from_web(self):
+        response = self.post({'action': 'delete_screenshot', 'screenshot_id': self.shot.id})
+        self.assertContains(response, 'invalid screenshot_id', status_code=400)
         self.assert_desktop_unchanged()
 
     def test_screenshot_of_another_app_or_platform_cannot_be_deleted(self):
@@ -1650,15 +1822,23 @@ class PlatformContentListingsTestCase(TestCase):
         self.assertEqual(['desktop tag'], entry['tags'])
 
 
+def _app_with_an_author_on_two_platforms():
+    """An app whose Desktop and Web content both name 'Shared Author'."""
+    app = App.objects.create(name='multi', fullname='Multi', active=True, has_releases=True)
+    Release.objects.create(app=app, version='1.0', works_with='3.10')
+    WebBundleRelease.objects.create(app=app, version='1.0', active=True, bundle_hash='0')
+    author = Author.objects.create(name='Shared Author')
+    OrderedAuthor.objects.create(app=app, author=author, author_order=0)
+    AppPlatformContent.objects.create(app=app, platform=Platform.WEB)
+    OrderedAuthor.objects.create(app=app, platform=Platform.WEB, author=author, author_order=0)
+    return app
+
+
 class AuthorReportsTestCase(TestCase):
-    """The author reports count an app's author once, though its Web content has its own copy (#155)."""
+    """The author reports count an app's author once, though more than one platform's content names them (#155)."""
 
     def setUp(self):
-        self.app = App.objects.create(name='multi', fullname='Multi', active=True, has_releases=True)
-        Release.objects.create(app=self.app, version='1.0', works_with='3.10')
-        WebBundleRelease.objects.create(app=self.app, version='1.0', active=True, bundle_hash='0')
-        OrderedAuthor.objects.create(app=self.app, author=Author.objects.create(name='Shared Author'), author_order=0)
-        self.app.content_for_edit(Platform.WEB)  # copies the author for the web content
+        self.app = _app_with_an_author_on_two_platforms()
         self.assertEqual(2, OrderedAuthor.objects.filter(app=self.app).count())
 
     def test_appsbyauthors_lists_the_author_once(self):
@@ -1676,12 +1856,8 @@ class AuthorReportsTestCase(TestCase):
 class AuthorPageTestCase(TestCase):
     """An app lists each author once, whichever platforms' content names them (#155)."""
 
-    def test_app_listed_once_after_a_platform_copies_its_authors(self):
-        app = App.objects.create(name='multi', fullname='Multi', active=True, has_releases=True)
-        Release.objects.create(app=app, version='1.0', works_with='3.10')
-        WebBundleRelease.objects.create(app=app, version='1.0', active=True, bundle_hash='0')
-        OrderedAuthor.objects.create(app=app, author=Author.objects.create(name='Shared Author'), author_order=0)
-        app.content_for_edit(Platform.WEB)  # copies the author for the web content
+    def test_app_listed_once_when_two_platforms_name_the_author(self):
+        app = _app_with_an_author_on_two_platforms()
         self.assertEqual(2, OrderedAuthor.objects.filter(app=app).count())
 
         content = self.client.get('/apps/with_author/Shared Author').content.decode('utf-8')
@@ -1695,10 +1871,9 @@ class AuthorPageTestCase(TestCase):
         OrderedAuthor.objects.create(app=app, author=Author.objects.create(name='Old Author'), author_order=0)
         self.assertEqual(2, self.client.get('/apps/with_author/Old Author').content.decode('utf-8')
                          .count('<h5>Web Only</h5>'))
-        # replacing the web authors, as the edit page's save_authors does, keeps the app's own row,
-        # which no page of this Web-only app shows any more
-        app.content_for_edit(Platform.WEB)
-        OrderedAuthor.objects.filter(app=app, platform=Platform.WEB).delete()
+        # once Web has content of its own (here, from Desktop joining), the app's own authors are on
+        # no page of the app
+        AppPlatformContent.objects.create(app=app, platform=Platform.WEB)
         OrderedAuthor.objects.create(app=app, platform=Platform.WEB,
                                      author=Author.objects.create(name='New Author'), author_order=0)
         self.assertEqual(404, self.client.get('/apps/with_author/Old Author').status_code)
