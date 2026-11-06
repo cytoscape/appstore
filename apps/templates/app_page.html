@@ -171,16 +171,29 @@
 		<div class="tab-content">
 			{# Details tab #}
 			<div class="tab-pane active" id="cy-app-details-tab">
-				{# Categories #}
-				{# The selected platform's content; a platform without its own shows the app's #}
+				{# The selected platform's content, in the edit page's order: details, categories,
+				   screenshots, authors; a line separates each section shown from the one above #}
 				{% with tags=content.tags screenshots=content.screenshots authors=content.authors %}
+				{# Details #}
+				{% if content.details %}
+				<div class="cy-app-view-section" id="cy-app-section-details">
+					<div class="row">
+						<div class="span8" id="cy-app-details-md">{{ content.details }}</div>
+					</div>
+				</div>
+				{% endif %}
+				{# End Details #}
+
+				{# Categories #}
 				{% if tags %}
-				<div class="row">
-					<div class="span8" id="cy-app-categories">
-						Categories:
-						{% for tag in tags %}
-						<a class="link" href="{% url 'tag_page' tag.name %}">{{ tag.fullname }}</a>{% if not forloop.last %}, {% endif %}
-						{% endfor %}
+				<div class="cy-app-view-section" id="cy-app-section-categories">
+					<div class="row">
+						<div class="span8" id="cy-app-categories">
+							Categories:
+							{% for tag in tags %}
+							<a class="link" href="{% url 'tag_page' tag.name %}">{{ tag.fullname }}</a>{% if not forloop.last %}, {% endif %}
+							{% endfor %}
+						</div>
 					</div>
 				</div>
 				{% endif %}
@@ -188,40 +201,36 @@
 
 				{# Screenshots #}
 				{% if screenshots %}
-				<div class="row">
-					<div class="span8" id="cy-app-screenshots">
-						{% for screenshot in screenshots %}
-						<a href="{{ screenshot.screenshot.url }}" target="_blank">
-							<img src="{{ screenshot.thumbnail.url }}"/>
-						</a>
-						{% endfor %}
+				<div class="cy-app-view-section" id="cy-app-section-screenshots">
+					<div class="row">
+						<div class="span8" id="cy-app-screenshots">
+							{% for screenshot in screenshots %}
+							<a href="{{ screenshot.screenshot.url }}" target="_blank">
+								<img src="{{ screenshot.thumbnail.url }}"/>
+							</a>
+							{% endfor %}
+						</div>
 					</div>
 				</div>
 				{% endif %}
 				{# End Screenshots #}
 
-				{# Details #}
-				{% if content.details %}
-				<div class="row">
-					<div class="span8" id="cy-app-details-md">{{ content.details }}</div>
-				</div>
-				{% endif %}
-				{# End Details #}
-
 				{# Authors #}
 				{% if authors %}
-				<div class="row">
-					<div class="span8" id="cy-app-authors">
-						Authors:
-						<ul>
-							{% for author in authors %}
-							<li>
-								<a href="{% url 'author_page' author.name %}">
-									{{ author.name }} {% if author.institution %} ({{ author.institution }}){% endif %}
-								</a>
-							</li>
-							{% endfor %}
-						</ul>
+				<div class="cy-app-view-section" id="cy-app-section-authors">
+					<div class="row">
+						<div class="span8" id="cy-app-authors">
+							Authors:
+							<ul>
+								{% for author in authors %}
+								<li>
+									<a href="{% url 'author_page' author.name %}">
+										{{ author.name }} {% if author.institution %} ({{ author.institution }}){% endif %}
+									</a>
+								</li>
+								{% endfor %}
+							</ul>
+						</div>
 					</div>
 				</div>
 				{% endif %}

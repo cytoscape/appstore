@@ -53,6 +53,21 @@
 	margin-bottom: 3em;
 }
 
+/* Details tab sections (details, categories, screenshots, authors), as on the edit page, with a
+   line like the edit page's between each section shown and the one above it */
+#cy-app-details-tab .cy-app-view-section .span8 {
+	margin-bottom: 0;
+}
+
+.cy-app-view-section {
+	width: 620px; /* span8 */
+	padding: 1.25em 0;
+}
+
+.cy-app-view-section + .cy-app-view-section {
+	border-top: 1px solid #eee;
+}
+
 #cy-app-screenshots {
 	height: 170px;
 	overflow-x: auto;

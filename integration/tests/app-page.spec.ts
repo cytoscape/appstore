@@ -209,3 +209,43 @@ test.describe('App page', () => {
     expect(legacy.labelDisplay).toBe('inline')
   })
 })
+
+// The app page's Details tab has the edit page's order: details, categories, screenshots,
+// authors, with a line between each section shown and the one above it (#155).
+test.describe('Details tab sections', () => {
+  const SECTIONS = ['details', 'categories', 'screenshots', 'authors']
+  const section = (page, name: string) => page.locator(`#cy-app-section-${name}`)
+  const lineAbove = (page, name: string) =>
+    section(page, name).evaluate((el) => {
+      const style = getComputedStyle(el)
+      return `${style.borderTopStyle} ${style.borderTopWidth}`
+    })
+
+  test('are in the edit page order, with a line between each', async ({ page }) => {
+    await page.goto('/apps/itmulti?platform=web')
+    const boxes = []
+    for (const name of SECTIONS) {
+      await expect(section(page, name)).toBeVisible()
+      boxes.push((await section(page, name).boundingBox())!)
+    }
+    for (let i = 1; i < boxes.length; i++) {
+      expect(boxes[i].y).toBeGreaterThanOrEqual(boxes[i - 1].y + boxes[i - 1].height - 1)
+    }
+    await expect(section(page, 'details').locator('#cy-app-details-md')).toHaveText('IT Multi for the web')
+    expect(await lineAbove(page, 'details')).toBe('none 0px')
+    for (const name of SECTIONS.slice(1)) {
+      expect(await lineAbove(page, name), name).toBe('solid 1px')
+    }
+  })
+
+  test('a section without content is left out, with no line for it', async ({ page }) => {
+    // IT Desktop has a category, but no details, screenshots or authors
+    await page.goto('/apps/itdesktop?platform=desktop')
+    await expect(page.locator('.cy-app-view-section')).toHaveCount(1)
+    expect(await lineAbove(page, 'categories')).toBe('none 0px')
+
+    // IT Edit's Web page has no content of its own: no sections and no lines
+    await page.goto('/apps/itedit?platform=web')
+    await expect(page.locator('.cy-app-view-section')).toHaveCount(0)
+  })
+})
