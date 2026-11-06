@@ -834,6 +834,7 @@ var AppPageEdit = (function($)
             var queries = (query instanceof Array) ? query : [query];
             if (content_platform && $.inArray(action, ContentActions) !== -1)
                 $.each(queries, function(i, q) { add_content_platform(q); });
+            $.each(queries, function(i, q) { q.action = action; q.value = value; });
             queue = queue.concat(queries);
             return true;
         }
@@ -862,6 +863,7 @@ var AppPageEdit = (function($)
         }
         
         add_action_msg(request.msg);
+        var failed = function(xhr) { save_failed(request, xhr); };
         if (request.type === 'file') {
             $.ajax({
                 'url': '',
@@ -870,11 +872,32 @@ var AppPageEdit = (function($)
                 'contentType': false,
                 'processData': false,
                 'type': 'POST',
-                'success': process_queue
+                'success': process_queue,
+                'error': failed
             });
         } else {
-            $.post('', request.data, process_queue);
+            $.post('', request.data, process_queue).fail(failed);
         }
+    }
+
+    // A save request failed: stop saving, close the saving dialog, say what failed, and stay on
+    // this page with the changes not yet saved, so Save can try them again. Saving before
+    // switching platform does not switch.
+    function save_failed(request, xhr) {
+        var unsaved = [request].concat(queue);
+        queue = new Array();
+        $.each(unsaved, function(i, q) { SaveActions[q.action] = q.value; });
+        after_save_url = undefined;
+
+        var reason = (xhr.status === 400 && xhr.responseText) ? xhr.responseText
+                   : 'the server could not save it' + (xhr.status ? ' (error ' + xhr.status + ')' : '');
+        save_modal.one('hidden', function() {
+            save_modal_body.empty();
+        });
+        save_modal.modal('hide');
+        save_btn_tag.removeClass('disabled');
+        CyMsgs.add_msg($('<span>').text(request.msg.replace(/\.*$/, '') + ' failed: ' + reason +
+                       '. Your unsaved changes are still here; click Save to try again.').html(), 'error', 'save');
     }
     
     function validate_input() {
@@ -964,8 +987,10 @@ var AppPageEdit = (function($)
 
         $('#switch-save-btn').click(function(e) {
             e.preventDefault();
+            switch_modal.one('hidden', function() {
+                save(target_url);
+            });
             switch_modal.modal('hide');
-            save(target_url);
         });
 
         $('#switch-discard-btn').click(function(e) {

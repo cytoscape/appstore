@@ -174,3 +174,79 @@ test.describe('Switching platform on the edit page', () => {
     await expect(asEditor.getByRole('link', { name: 'Website' })).toHaveAttribute('href', 'https://example.org/switch')
   })
 })
+
+// A save the server refuses or fails never leaves the saving dialog up: the page says what
+// failed and keeps the unsaved changes, and Save and switch does not switch.
+test.describe('A failed save on the edit page', () => {
+  const details = (page) => page.locator('#cy-app-details')
+  const chip = (page, name: string) => page.locator('.cy-app-platform-chip', { hasText: name })
+  const dialogsGone = async (page) => {
+    await expect(page.locator('#save-modal')).toBeHidden()
+    await expect(page.locator('#switch-modal')).toBeHidden()
+    await expect(page.locator('.modal-backdrop')).toHaveCount(0)
+  }
+
+  // Answers the edit page's save_details post with 'status' (and 'body') instead of saving it
+  async function failDetailsSave(page, status: number, body = 'error') {
+    await page.route(/\/apps\/itswitch\/edit/, (route) =>
+      route.request().method() === 'POST' && (route.request().postData() ?? '').includes('action=save_details')
+        ? route.fulfill({ status, contentType: 'text/plain', body })
+        : route.continue())
+  }
+
+  async function changeDetails(page, text: string) {
+    await details(page).fill(text)
+    await details(page).press('End') // the page notices typed changes
+  }
+
+  test('a server error closes the dialog, says so, and Save works again', async ({ asEditor }) => {
+    await asEditor.goto('/apps/itswitch/edit?platform=web')
+    await failDetailsSave(asEditor, 500)
+    await changeDetails(asEditor, 'IT Switch details after a failed save')
+    await asEditor.locator('#save-btn').click()
+
+    await expect(asEditor.locator('#cy-alerts')).toContainText('Saving details failed: the server could not save it (error 500)')
+    await dialogsGone(asEditor)
+    await expect(asEditor).toHaveURL(/\/apps\/itswitch\/edit\?platform=web$/)
+    await expect(details(asEditor)).toHaveValue('IT Switch details after a failed save')
+    await expect(asEditor.locator('#save-btn')).not.toHaveClass(/disabled/)
+
+    await asEditor.unrouteAll()
+    await asEditor.locator('#save-btn').click()
+    await expect(asEditor).toHaveURL(/\/apps\/itswitch\?platform=web$/)
+    await expect(asEditor.locator('#cy-app-details-md')).toHaveText('IT Switch details after a failed save')
+  })
+
+  test("a refused save shows the server's reason", async ({ asEditor }) => {
+    await asEditor.goto('/apps/itswitch/edit?platform=web')
+    await failDetailsSave(asEditor, 400, 'details are too long')
+    await changeDetails(asEditor, 'IT Switch refused details')
+    await asEditor.locator('#save-btn').click()
+    await expect(asEditor.locator('#cy-alerts')).toContainText('Saving details failed: details are too long')
+    await dialogsGone(asEditor)
+    await expect(details(asEditor)).toHaveValue('IT Switch refused details')
+  })
+
+  test('Save and switch stays on this platform when the save fails', async ({ asEditor }) => {
+    await asEditor.goto('/apps/itswitch/edit?platform=web')
+    await failDetailsSave(asEditor, 500)
+    await changeDetails(asEditor, 'IT Switch details kept on web')
+    await chip(asEditor, 'Cytoscape Desktop').click()
+    await asEditor.locator('#switch-save-btn').click()
+
+    await expect(asEditor.locator('#cy-alerts')).toContainText('Saving details failed')
+    await dialogsGone(asEditor)
+    await expect(asEditor).toHaveURL(/\/apps\/itswitch\/edit\?platform=web$/)
+    await expect(asEditor.locator('.cy-app-platform-chip[aria-current="true"]')).toHaveText('Cytoscape Web')
+    await expect(details(asEditor)).toHaveValue('IT Switch details kept on web')
+
+    // once the server saves again, Save and switch saves and switches
+    await asEditor.unrouteAll()
+    await chip(asEditor, 'Cytoscape Desktop').click()
+    await asEditor.locator('#switch-save-btn').click()
+    await expect(asEditor).toHaveURL(/\/apps\/itswitch\/edit\?platform=desktop$/)
+    await dialogsGone(asEditor)
+    await asEditor.goto('/apps/itswitch?platform=web')
+    await expect(asEditor.locator('#cy-app-details-md')).toHaveText('IT Switch details kept on web')
+  })
+})
