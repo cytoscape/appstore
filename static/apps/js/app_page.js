@@ -542,7 +542,7 @@ var AppPage = (function($) {
      ================================================================
     */
 
-    // The Available on buttons reload the page for another platform. They carry
+    // The Available Platforms buttons reload the page for another platform. They carry
     // the open tab as a hash (#releases), and the page opens the tab its hash names,
     // so switching platform keeps the reader on the same tab.
     // Details is open when the page loads, unless its link names Release History (#releases),

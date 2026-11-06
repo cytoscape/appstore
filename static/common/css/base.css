@@ -15,10 +15,16 @@ body {
   margin-left: 3em;
 }
 
-/* The platform buttons (Available on, or Editing on the edit page): one large button per platform,
+/* The platform buttons (Available Platforms, or Editing on the edit page): one large button per platform,
    the selected one highlighted, with the same space above the tabs on both pages (#155) */
+/* top and bottom only: the left margin is the grid's, which lines the label up with the page */
 #cy-app-platforms {
-    margin: 1em 0;
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
+.cy-app-platforms-label {
+    font-size: 16px;
 }
 
 #cy-app-platforms .btn-group {
@@ -27,7 +33,7 @@ body {
 }
 
 /* App page tabs (Details, Release History), on the app page and its edit page: they look like
-   the Available on buttons above them, solid blue when selected and white with a border when
+   the Available Platforms buttons above them, solid blue when selected and white with a border when
    not (Bootstrap's .btn and .btn-primary.active), only smaller (#155) */
 #cy-app-info-tabs {
     border-bottom: 0;

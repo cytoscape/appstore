@@ -466,6 +466,26 @@ class ReleaseAPITestCase(TestCase):
         self.assertEqual([], os.listdir(extract_dir))
 
 
+class TemplateCommentsTestCase(TestCase):
+    """Django's {# #} comments can't span lines: one that does is printed on the page as text."""
+
+    def test_no_template_comment_spans_lines(self):
+        base = str(settings.BASE_DIR)
+        spanning = []
+        for root, dirs, files in os.walk(base):
+            dirs[:] = [d for d in dirs if d not in ('.git', '.venv', 'venv', 'node_modules', 'build')]
+            if 'templates' not in root.split(os.sep):
+                continue
+            for name in files:
+                if name.endswith(('.html', '.txt')):
+                    path = os.path.join(root, name)
+                    with open(path, encoding='utf-8') as f:
+                        text = f.read()
+                    for match in re.finditer(r'\{#((?!#\}).)*?\n', text, re.S):
+                        spanning.append('%s:%d' % (os.path.relpath(path, base), text.count('\n', 0, match.start()) + 1))
+        self.assertEqual([], spanning)
+
+
 class ViewsAppPageTestCase(TestCase):
 
     def setUp(self):

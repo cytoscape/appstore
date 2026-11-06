@@ -429,7 +429,7 @@ Generated from the release version and manifest path; the Service equivalent is 
 
 ### 6.4 `app_page.html` — release list loop and download/install links
 
-> **Since #155:** there is one page per app, not per platform. The **Available on** buttons choose a platform with `?platform=`. The page's description, Details tab and resource links come from `app.content(selected_platform)`, and Release History lists only the selected platform's releases. Each platform's install panel shows its own licence. The `app.platform` branches below describe the code before #155.
+> **Since #155:** there is one page per app, not per platform. The **Available Platforms** buttons choose a platform with `?platform=`. The page's description, Details tab and resource links come from `app.content(selected_platform)`, and Release History lists only the selected platform's releases. Each platform's install panel shows its own licence. The `app.platform` branches below describe the code before #155.
 
  
 **Original (Desktop-only) block:**

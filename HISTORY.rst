@@ -63,7 +63,7 @@ History
     collision. Someone who isn't an editor can't submit under the name. The review queue labels each
     submission **New app** or **New platform**.
 
-  * **Platform selector:** the app page's **Available on** buttons choose a platform. Details and
+  * **Platform selector:** the app page's **Available Platforms** buttons choose a platform. Details and
     Release History show the selected platform's, and switching keeps the open tab. A page opens
     on the first platform and Details, and the Details / Release History tabs look like the
     platform buttons (solid blue when selected).

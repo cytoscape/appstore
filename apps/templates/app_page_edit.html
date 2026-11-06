@@ -37,7 +37,7 @@
 {% if platform_chips %}
 <div class="row">
   <div class="span12" id="cy-app-platforms">
-    <strong>Editing</strong>
+    <strong class="cy-app-platforms-label">Editing</strong>
     <div class="btn-group">
       {% for platform, platform_name in platform_chips %}
       {% if platform == selected_platform %}
@@ -67,8 +67,7 @@
     <div id="cy-app-info-content" class="tab-content">
       {# details tab #}
       <div class="tab-pane active" id="cy-app-details-tab">
-        {# The selected platform's details first, then its categories, screenshots and authors:
-           each of those has its title with its buttons beside it, then its content below #}
+        {# Details first, then categories, screenshots and authors, each titled with its buttons beside it #}
 
         {# app details #}
         <div class="cy-edit-section" id="cy-edit-section-details">

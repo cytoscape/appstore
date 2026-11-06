@@ -132,7 +132,7 @@
 {% if platform_chips %}
 <div class="row">
 	<div class="span12" id="cy-app-platforms">
-		<strong>Available on</strong>
+		<strong class="cy-app-platforms-label">Available Platforms</strong>
 		<div class="btn-group">
 			{% for platform, platform_name in platform_chips %}
 			{% if platform == selected_platform %}
@@ -171,8 +171,7 @@
 		<div class="tab-content">
 			{# Details tab #}
 			<div class="tab-pane active" id="cy-app-details-tab">
-				{# The selected platform's content, in the edit page's order: details, categories,
-				   screenshots, authors; a line separates each section shown from the one above #}
+				{# The selected platform's content in the edit page's order, a line between each section shown #}
 				{% with tags=content.tags screenshots=content.screenshots authors=content.authors %}
 				{# Details #}
 				{% if content.details %}
@@ -242,7 +241,7 @@
 			{# Releases tab #}
 			{% if app.has_releases %}
 			<div class="tab-pane" id="cy-app-releases-tab">
-				{# Only the selected platform's releases; the Available on buttons switch platform #}
+				{# Only the selected platform's releases; the Available Platforms buttons switch platform #}
 				{% with platform=selected_platform platform_name=selected_platform_name releases=selected_releases %}
 				<div class="cy-app-platform-releases" id="cy-app-releases-{{ platform }}" data-platform="{{ platform }}">
 				<h3 class="cy-app-releases-heading">{{ platform_name }} releases</h3>

@@ -18,7 +18,7 @@ test.describe('App page', () => {
     expect(errors).toEqual([])
   })
 
-  test('the Available on buttons are large and mark the selected platform', async ({ page }) => {
+  test('the Available Platforms buttons are large and mark the selected platform', async ({ page }) => {
     const selected = page.locator('.cy-app-platform-chip[aria-current="true"]')
     await page.goto('/apps/itmulti')
     for (const button of await page.locator('.cy-app-platform-chip').all()) {
@@ -249,3 +249,22 @@ test.describe('Details tab sections', () => {
     await expect(page.locator('.cy-app-view-section')).toHaveCount(0)
   })
 })
+
+// The platform buttons' label starts at the page's left margin, like the tabs and content below
+// it, and is a little larger than the body text; and no template comment shows as text (#155).
+for (const [where, url, label] of [['app page', '/apps/itmulti', 'Available Platforms'],
+                                   ['edit page', '/apps/itmulti/edit', 'Editing']]) {
+  test(`the ${where}'s platform label lines up with the content below it`, async ({ asEditor: page }) => {
+    await page.goto(url)
+    const labelLocator = page.locator('#cy-app-platforms .cy-app-platforms-label')
+    await expect(labelLocator).toHaveText(label)
+    const labelBox = (await labelLocator.boundingBox())!
+    const tabsBox = (await page.locator('#cy-app-info-tabs').boundingBox())!
+    const nameBox = (await page.locator('#app-name, #app-title').first().boundingBox())!
+    expect(Math.abs(labelBox.x - tabsBox.x)).toBeLessThanOrEqual(1)
+    expect(labelBox.x).toBeGreaterThanOrEqual(nameBox.x - 100) // within the page, not out in the margin
+    const size = (selector: string) => page.locator(selector).first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+    expect(await size('#cy-app-platforms .cy-app-platforms-label')).toBeGreaterThan(await size('body'))
+    expect(await page.locator('body').innerText()).not.toContain('{#')
+  })
+}
