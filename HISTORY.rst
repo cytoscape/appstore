@@ -71,9 +71,10 @@ History
   * **Per-platform content:** each platform keeps its own description, details, categories,
     screenshots, authors, links and licence, and never shows another platform's. The name, icon,
     editors, ratings and the downloads total are shared. An app's existing content stays with the
-    platform it was on, so existing pages look the same; a platform added later starts empty.
-    ``manage.py set_original_platform`` separates the content of an app that gained a platform
-    before this rule.
+    platform it was on, so existing pages look the same; a platform added later starts empty. When
+    Desktop joins an app that was on Web or Service, that content moves to its original platform,
+    so Desktop's starts empty. ``manage.py set_original_platform`` separates the content of an app
+    that gained a platform before this rule.
 
   * **Editing:** the edit page edits one platform at a time, and asks whether to save or discard
     unsaved changes before switching platform. If a save fails, the saving dialog closes, the page
