@@ -84,6 +84,9 @@ History
   * **Deploying:** this release adds database migrations, so run ``makemigrations`` and ``migrate``
     without ``--dry-run``. They drop the ``App.platform`` column, which 2.0.x releases need, so back
     up the database before deploying: rolling back to 2.0.x means restoring that backup.
+    On MySQL/MariaDB, ``migrate`` first converts a MyISAM ``apps_tag`` to InnoDB (a new foreign key
+    references it) and changes a latin1 database default character set to utf8 (so new tables can
+    store any text), printing each change; it changes nothing on a database that is already right.
 
 * **Version in the footer:** every page shows the running version after **Contact Us**: the git tag
   the checkout is at, else its short commit hash, else ``develop`` when git can't tell.

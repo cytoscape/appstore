@@ -1704,3 +1704,70 @@ class AuthorPageTestCase(TestCase):
         self.assertEqual(404, self.client.get('/apps/with_author/Old Author').status_code)
         self.assertEqual(2, self.client.get('/apps/with_author/New Author').content.decode('utf-8')
                          .count('<h5>Web Only</h5>'))
+
+
+class SchemaPrepTestCase(TestCase):
+    """Before migrating, an old MySQL/MariaDB database's MyISAM apps_tag and latin1 default are fixed (#155)."""
+
+    class FakeCursor:
+        def __init__(self, charset, engines):
+            self.charset, self.engines, self.executed, self.row = charset, engines, [], None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def execute(self, sql, params=()):
+            if 'information_schema.SCHEMATA' in sql:
+                self.row = (self.charset,) if self.charset else None
+            elif 'information_schema.TABLES' in sql:
+                engine = self.engines.get(params[0])
+                self.row = (engine,) if engine else None
+            else:
+                self.executed.append(sql)
+
+        def fetchone(self):
+            return self.row
+
+    class FakeConnection:
+        def __init__(self, vendor, cursor):
+            self.vendor, self._cursor = vendor, cursor
+
+        def cursor(self):
+            return self._cursor
+
+    def prepare(self, charset, engines, vendor='mysql'):
+        from apps.schema_prep import prepare_schema
+        cursor = self.FakeCursor(charset, engines)
+        return prepare_schema(self.FakeConnection(vendor, cursor)), cursor.executed
+
+    def test_old_database_is_converted(self):
+        # what the staging database had: MyISAM apps_tag and a latin1 default
+        statements, executed = self.prepare('latin1', {'apps_tag': 'MyISAM'})
+        self.assertEqual(['ALTER DATABASE CHARACTER SET utf8 COLLATE utf8_general_ci',
+                          'ALTER TABLE `apps_tag` ENGINE=InnoDB'], executed)
+        self.assertEqual(executed, statements)
+
+    def test_database_already_right_is_left_alone(self):
+        self.assertEqual(([], []), self.prepare('utf8mb3', {'apps_tag': 'InnoDB'}))
+        self.assertEqual(([], []), self.prepare('utf8mb4', {'apps_tag': 'InnoDB'}))
+
+    def test_each_fix_only_where_needed(self):
+        self.assertEqual(['ALTER TABLE `apps_tag` ENGINE=InnoDB'], self.prepare('utf8', {'apps_tag': 'MyISAM'})[1])
+        self.assertEqual(['ALTER DATABASE CHARACTER SET utf8 COLLATE utf8_general_ci'],
+                         self.prepare('latin1', {'apps_tag': 'InnoDB'})[1])
+
+    def test_new_database_without_apps_tag(self):
+        # a fresh database: migrations create apps_tag as InnoDB themselves
+        self.assertEqual(([], []), self.prepare('utf8mb4', {}))
+
+    def test_other_databases_are_not_touched(self):
+        self.assertEqual(([], []), self.prepare('latin1', {'apps_tag': 'MyISAM'}, vendor='sqlite'))
+
+    def test_migrate_runs_it_first(self):
+        from unittest.mock import patch
+        with patch('apps.schema_prep.prepare_schema', return_value=[]) as prepare:
+            call_command('migrate', verbosity=0)
+        prepare.assert_called_once()
