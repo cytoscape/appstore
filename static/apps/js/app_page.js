@@ -545,6 +545,9 @@ var AppPage = (function($) {
     // The Available on buttons reload the page for another platform. They carry
     // the open tab as a hash (#releases), and the page opens the tab its hash names,
     // so switching platform keeps the reader on the same tab.
+    // Details is open when the page loads, unless its link names Release History (#releases),
+    // as a platform button does when Release History was open: switching platform keeps the tab.
+    // Opening a tab doesn't change the page's own address, so reloading opens Details.
     function setup_platform_tabs() {
         var tabs = {'details': '#cy-app-details-tab', 'releases': '#cy-app-releases-tab'};
 
@@ -553,8 +556,6 @@ var AppPage = (function($) {
                 var href = $(this).attr('href').split('#')[0];
                 $(this).attr('href', tab === 'details' ? href : href + '#' + tab);
             });
-            if (window.history && history.replaceState)
-                history.replaceState(null, '', location.pathname + location.search + (tab === 'details' ? '' : '#' + tab));
         }
 
         $('#cy-app-info-tabs a[data-toggle="tab"]').on('shown', function(e) {
