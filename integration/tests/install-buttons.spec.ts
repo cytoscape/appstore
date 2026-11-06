@@ -3,9 +3,45 @@ import { fakeCyRest } from './support/fakeCyRest'
 
 // IT Multi has a desktop jar and a service (#155): its page has two buttons that
 // install into Cytoscape Desktop, each with its own state and its own CyREST commands.
+// The greyed-out service button's info icon and tooltip say what Cytoscape Desktop needs (#154)
+const NOT_RUNNING = 'To install this service app, Cytoscape Desktop 3.10 or later must be running and have the ' +
+  'Desktop Service App installed. Start Cytoscape Desktop, then reload this page.'
+const SERVICE_APP_MISSING = 'Cytoscape Desktop was detected, but the Desktop Service App is missing. ' +
+  'Install it first to install service apps.'
+
+// The button's info icon is in its upper-left corner
+async function expectInfoIconInCorner(button) {
+  const icon = button.locator('i')
+  await expect(icon).toHaveClass('icon-info-sign')
+  const iconBox = (await icon.boundingBox())!
+  const buttonBox = (await button.boundingBox())!
+  expect(iconBox.x + iconBox.width).toBeLessThanOrEqual(buttonBox.x + buttonBox.width / 2)
+  expect(iconBox.y + iconBox.height).toBeLessThanOrEqual(buttonBox.y + buttonBox.height / 2)
+}
+
 test.describe('Install buttons for desktop and service together', () => {
   const desktopButton = (page) => page.locator('#cy-app-install-btn-desktop')
   const serviceButton = (page) => page.locator('#cy-app-install-btn-service')
+
+  test('without the Desktop Service App, the service button says what Desktop needs', async ({ page }) => {
+    await fakeCyRest(page, { serviceApp: false })
+    await page.goto('/apps/itmulti')
+    await expect(serviceButton(page)).toHaveAttribute('title', SERVICE_APP_MISSING)
+    await expect(serviceButton(page)).toHaveClass(/\bdisabled\b/)
+    await expect(serviceButton(page).locator('h4')).toHaveText('Install service app in Cytoscape Desktop')
+    await expectInfoIconInCorner(serviceButton(page))
+    // the desktop app's button is unaffected
+    await expect(desktopButton(page).locator('h4')).toHaveText('Install')
+    await expect(desktopButton(page)).not.toHaveClass(/\bdisabled\b/)
+  })
+
+  test('the tooltip is only on the greyed-out state', async ({ page }) => {
+    await fakeCyRest(page)
+    await page.goto('/apps/itmulti')
+    await expect(serviceButton(page)).not.toHaveClass(/\bdisabled\b/)
+    await expect(serviceButton(page)).not.toHaveAttribute('title', /.*/)
+    await expect(serviceButton(page).locator('i')).not.toHaveClass(/icon-info-sign/)
+  })
 
   test('both buttons offer to install when Desktop has neither', async ({ page }) => {
     await fakeCyRest(page)
@@ -39,8 +75,9 @@ test.describe('Install buttons for desktop and service together', () => {
   test('without Desktop running each button falls back on its own', async ({ page }) => {
     await fakeCyRest(page, { running: false })
     await page.goto('/apps/itmulti')
-    await expect(serviceButton(page)).toHaveAttribute('title', 'Start Cytoscape Desktop 3.10 or later, then reload this page.')
+    await expect(serviceButton(page)).toHaveAttribute('title', NOT_RUNNING)
     await expect(serviceButton(page)).toHaveClass(/\bdisabled\b/)
+    await expectInfoIconInCorner(serviceButton(page))
     await expect(desktopButton(page).locator('h4')).toHaveText('Download')
     await expect(desktopButton(page)).not.toHaveClass(/\bdisabled\b/)
   })

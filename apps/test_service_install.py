@@ -17,8 +17,10 @@ from download.models import ServiceDownload
 
 CYREST = 'http://127.0.0.1:1234'
 
-NOT_RUNNING = 'Start Cytoscape Desktop 3.10 or later, then reload this page.'
-SERVICE_APP_MISSING = 'Desktop needs the Service App installed first to enable service app installation.'
+NOT_RUNNING = ('To install this service app, Cytoscape Desktop 3.10 or later must be running and have the '
+               'Desktop Service App installed. Start Cytoscape Desktop, then reload this page.')
+SERVICE_APP_MISSING = ('Cytoscape Desktop was detected, but the Desktop Service App is missing. '
+                       'Install it first to install service apps.')
 UNREADABLE = "Couldn't read installed service apps from Cytoscape Desktop."
 
 
@@ -174,6 +176,7 @@ class ServiceInstallButtonTestCase(StaticLiveServerTestCase):
     def test_desktop_not_running(self):
         self.open_page(FakeCyRest(running=False))
         self.expect_button('Install service app in Cytoscape Desktop', enabled=False, tooltip=NOT_RUNNING)
+        expect(self.button.locator('i')).to_have_class('icon-info-sign')
         expect(self.alerts.locator('a[href="/help/getstarted_app_install"]')).to_be_visible()
         expect(self.page.locator('#cy-app-url-latest-service')).to_have_value(self.ENDPOINT)
 
@@ -224,6 +227,7 @@ class ServiceInstallButtonTestCase(StaticLiveServerTestCase):
         cyrest = FakeCyRest(list_unreachable=True)
         self.open_page(cyrest)
         self.expect_button('Install service app in Cytoscape Desktop', enabled=False, tooltip=NOT_RUNNING)
+        expect(self.button.locator('i')).to_have_class('icon-info-sign')
         self.assertIn('/v1', [r.path for r in cyrest.requests])
 
     def test_html_wrapped_list_reply(self):

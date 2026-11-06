@@ -35,8 +35,10 @@ History
   * **Install button:** the page's **Install in Cytoscape Desktop** button checks the user's running
     Desktop and shows Install, Installed or Upgrade. It installs through ``serviceapps install`` with a
     10 s timeout. If Desktop isn't running, or lacks the Desktop Service App, the button is greyed out
-    with a tooltip, and the page links to the Desktop Service App's store page.
-    `Issue #151 <https://github.com/cytoscape/appstore/issues/151>`_
+    and its info icon's tooltip says what Desktop needs: to be running, and to have the Desktop
+    Service App installed. The page links to the Desktop Service App's store page.
+    `Issue #151 <https://github.com/cytoscape/appstore/issues/151>`_,
+    `Issue #154 <https://github.com/cytoscape/appstore/issues/154>`_
 
   * **Install count:** ``/download/install/<app>/<version>?client=desktop`` counts a Desktop install
     in the service app's install count and replies 204, without the redirect to Cytoscape Web. The

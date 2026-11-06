@@ -8,6 +8,7 @@ export type FakeCyRestState = {
   installedApps?: string[] // desktop apps, by full name
   updatableApps?: string[]
   installedServiceApps?: { name: string; version: string; url: string; reachable?: boolean }[]
+  serviceApp?: boolean // whether Desktop has the Desktop Service App, which adds the serviceapps commands
 }
 
 export type FakeCyRest = { requests: URL[]; paths: () => string[] }
@@ -19,7 +20,7 @@ const CORS = {
 }
 
 export async function fakeCyRest(page: Page, state: FakeCyRestState = {}): Promise<FakeCyRest> {
-  const { running = true, installedApps = [], updatableApps = [], installedServiceApps = [] } = state
+  const { running = true, installedApps = [], updatableApps = [], installedServiceApps = [], serviceApp = true } = state
   const requests: URL[] = []
 
   const reply = (route: Route, status: number, body: string, contentType = 'text/plain') =>
@@ -30,6 +31,8 @@ export async function fakeCyRest(page: Page, state: FakeCyRestState = {}): Promi
     requests.push(url)
     if (!running) return route.abort('connectionrefused')
     if (route.request().method() === 'OPTIONS') return reply(route, 204, '')
+    if (!serviceApp && url.pathname.startsWith('/v1/commands/serviceapps/'))
+      return reply(route, 404, "Error: no such namespace: 'serviceapps'")
 
     switch (url.pathname) {
       case '/v1':

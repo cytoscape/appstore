@@ -394,14 +394,14 @@ var AppPage = (function($) {
         }
 
         function desktop_not_running() {
-            set_btn_unavailable('Start Cytoscape Desktop 3.10 or later, then reload this page.');
+            set_btn_unavailable('To install this service app, Cytoscape Desktop 3.10 or later must be running and have the Desktop Service App installed. Start Cytoscape Desktop, then reload this page.');
             CyMsgs.add_msg('Start Cytoscape Desktop to install this service app. <a href="' + opts.help_url +
                 '" target="_blank">Click here</a> to learn how!', 'info', 'cy-service-install');
         }
 
         function service_app_missing() {
             var reason = 'Desktop needs the Service App installed first to enable service app installation';
-            set_btn_unavailable(reason + '.');
+            set_btn_unavailable('Cytoscape Desktop was detected, but the Desktop Service App is missing. Install it first to install service apps.');
             CyMsgs.add_msg(reason + ': <a href="' + opts.service_app_url + '">get the Desktop Service App</a>.',
                 'info', 'cy-service-install');
         }
