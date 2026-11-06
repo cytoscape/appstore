@@ -1,6 +1,6 @@
 # Submitting Apps to the Cytoscape App Store
 
-A quick guide for developers submitting a **Web App** or **Service App**.
+A quick guide for developers submitting a **Web App** or **Service App**, adding a platform to an existing app, and editing each platform's page.
 
 ---
 
@@ -71,6 +71,36 @@ Make sure your service:
 - `/status` check fails
 - Spec validation fails (malformed or missing required fields)
 - Endpoint resolves to a private/internal IP
+
+---
+
+## Adding a platform to an existing app
+
+An app's name is its identity, so one app page can offer a Cytoscape Desktop app, a Cytoscape Web app and a service app together.
+
+To add a platform to an app you already publish:
+
+1. **Sign in as one of the app's editors.** Only its editors can submit under its name.
+2. **Submit the new version under the same app name.** For a web bundle, that's the name in its `cy-manifest.json`. On the app's page, **Editor Actions** has a link for each kind of release, and those links fill in the name for you.
+3. **Wait for review.** The review queue labels the submission **New platform**. Once an admin accepts it, it appears on the app's existing page, under its own button in **Available Platforms**.
+4. **Fill in its page.** The new platform's page starts empty: its description, details, categories, screenshots, authors, links and licence are its own, and nothing is copied from your other platforms. Edit it as described below. The platforms your app was already on keep their content unchanged.
+
+Someone who isn't one of the app's editors can't submit under its name.
+
+---
+
+## Editing your app page for each platform
+
+Each platform on your app page has its own page content. On the app page, choose **Editor Actions → Edit this page**, then choose the platform to edit with the buttons at the top of the edit page.
+
+- **Shared by every platform:** the app's name, icon and editors, its ratings, and its downloads/installs total.
+- **Kept per platform:** the short description, details, categories, screenshots, authors, resource links (website, tutorial, citation, code repository, automation, contact) and licence, plus that platform's release notes.
+
+Each platform shows only its own content; nothing is carried over from another platform. Your app's existing content stays with the platform the app was on before you added others, and a platform you added starts empty until you edit it.
+
+If you choose another platform with unsaved changes, the page asks whether to **Save and switch**, **Discard and switch**, or **Stay**.
+
+If a save fails, the page shows a red message saying what couldn't be saved and keeps your changes; click **Save** to try again. **Save and switch** stays on the current platform until its changes are saved.
 
 ---
 

@@ -10,7 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from apps.models import App
 from apps.models import Release
-from apps.models import Platform, ServiceRelease, WebBundleRelease
+from apps.models import ServiceRelease, WebBundleRelease
 from django.conf import settings
 
 SMALL_GIF = (
@@ -108,17 +108,17 @@ class AllAppsReleaseShapeTestCase(TestCase):
     """
     Desktop's app-list reader expects every entry in all_apps releases to be a
     downloadable jar release, and fails the whole catalog otherwise. Service and
-    web apps must only ever appear with releases: [].
+    web apps must only ever appear with releases: [], and an app on several
+    platforms lists only its desktop releases (#155). Desktop's App Manager shows
+    only apps with a compatible release, so it never lists service or web apps.
     """
 
     def setUp(self):
         service_app = App.objects.create(name='svcapp', fullname='Service App',
-                                         platform=Platform.SERVICE,
                                          active=True, has_releases=True)
         ServiceRelease.objects.create(app=service_app, version='1.0',
                                       service_endpoint='https://service.example.org/svcapp')
         web_app = App.objects.create(name='webapp', fullname='Web App',
-                                     platform=Platform.WEB,
                                      active=True, has_releases=True)
         WebBundleRelease.objects.create(app=web_app, version='2.0', active=True,
                                         bundle_hash='abc123')
@@ -137,6 +137,19 @@ class AllAppsReleaseShapeTestCase(TestCase):
         self.assertEqual({'Service App', 'Web App', 'Jar App'}, set(apps))
         self.assertEqual([], apps['Service App']['releases'])
         self.assertEqual([], apps['Web App']['releases'])
+
+    def test_app_on_several_platforms_lists_only_its_desktop_releases(self):
+        multi_app = App.objects.create(name='multiapp', fullname='Multi App', active=True, has_releases=True)
+        Release.objects.create(app=multi_app, version='1.0', works_with='3.10',
+                               release_file=SimpleUploadedFile('multi.jar', b'hello'))
+        WebBundleRelease.objects.create(app=multi_app, version='1.1', active=True, bundle_hash='abc123')
+        ServiceRelease.objects.create(app=multi_app, version='1.2', service_endpoint='https://example.org/multi')
+
+        apps = self.get_all_apps()
+        self.assertEqual({'Service App', 'Web App', 'Jar App', 'Multi App'}, set(apps))
+        self.assertEqual(['1.0'], [release['version'] for release in apps['Multi App']['releases']])
+        self.assertEqual('/download/multiapp/1.0', apps['Multi App']['releases'][0]['release_download_url'])
+        self.assertEqual(set(apps['Jar App']), set(apps['Multi App']))
 
     def test_jar_app_lists_downloadable_release(self):
         releases = self.get_all_apps()['Jar App']['releases']

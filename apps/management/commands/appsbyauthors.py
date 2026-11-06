@@ -97,7 +97,7 @@ class Command(BaseCommand):
         for app in app_set:
             total_downloads += app.downloads
             total_count += 1
-            app_authors_all = app.authors.all()
+            app_authors_all = app.authors.distinct()
             if len(app_authors_all) == 0:
                 continue
             report_str += '\n' + str(app.name) + '(' + str(app.downloads) + ')' + '\n' + '=' * len(str(app.name)) + '\n'

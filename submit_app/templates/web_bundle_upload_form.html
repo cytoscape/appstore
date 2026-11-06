@@ -32,6 +32,9 @@
 
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
+  {% if expect_app_name %}
+    <input type="hidden" name="expect_app_name" value="{{ expect_app_name }}">
+  {% endif %}
   {% for field in form %}
     <div>
       {{ field.label_tag }}

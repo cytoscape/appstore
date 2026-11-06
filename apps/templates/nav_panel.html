@@ -46,6 +46,10 @@
                 <li {% if platform == "web" %}class="active"{% endif %}>
                     <a href="{% url 'platform_page' 'web' %}"><h5 style="margin: 0;">Web Apps</h5></a>
                 </li>
+
+                <li {% if cy2x_plugins_selected %}class="active"{% endif %}>
+                    <a href="{% url 'cy2x_plugins_page' %}"><h5 style="margin: 0;">Cytoscape 2.x Plugins</h5></a>
+                </li>
               </ul>
             </td>
           </tr>

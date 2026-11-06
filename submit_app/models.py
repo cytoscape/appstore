@@ -6,9 +6,8 @@ from threading import Thread
 
 from django.db import models
 from django.contrib.auth.models import User
-from apps.models import App, ServiceRelease, WebBundleRelease, Release, ReleaseAPI
-from util.id_util import fullname_to_name
-from util.view_util import get_object_or_none
+from apps.models import App, Platform, ServiceRelease, WebBundleRelease, Release, ReleaseAPI
+from util.id_util import IdentityOutcome, fullname_to_name, resolve_app_identity
 from django.core.mail import send_mail
 from django.core.files.storage import storages
 from django.conf import settings
@@ -16,7 +15,29 @@ from submit_app.bundle_storage import write_manifest_json, _copy_bundle_to_stora
 from urllib.parse import urljoin, quote
 
 
-class AppPending(models.Model):
+class PendingIdentity:
+    """
+    Which app a pending submission belongs to, from its submitter's point of view.
+    Subclasses set PLATFORM to the platform they submit for.
+    """
+    PLATFORM = None
+
+    @property
+    def identity(self):
+        return resolve_app_identity(self.fullname, self.submitter, self.PLATFORM)
+
+    @property
+    def is_new_app(self):
+        return self.identity.outcome == IdentityOutcome.NEW_APP
+
+    @property
+    def is_new_platform(self):
+        return self.identity.outcome == IdentityOutcome.NEW_PLATFORM
+
+
+class AppPending(PendingIdentity, models.Model):
+    PLATFORM = Platform.DESKTOP
+
     id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=127)
@@ -32,11 +53,6 @@ class AppPending(models.Model):
         if user.is_staff or user.is_superuser:
             return True
         return user.username == self.submitter.username
-
-    @property
-    def is_new_app(self):
-       name = fullname_to_name(self.fullname)
-       return get_object_or_none(App, name = name) == None
 
     class Meta:
         ordering = ['created']
@@ -55,10 +71,8 @@ class AppPending(models.Model):
             release.dependencies.add(dependee)
         release.calc_checksum()
 
-        if not app.has_releases:
-            app.has_releases = True
         app.latest_release_date = release.created
-        app.save()
+        app.update_has_releases()
 
         if self.pom_xml_file and self.javadocs_jar_file:
             api, _ = ReleaseAPI.objects.get_or_create(release=release)
@@ -69,11 +83,12 @@ class AppPending(models.Model):
             _deploy_artifact_async(api)
 
     def delete_files(self):
-        self.release_file.delete()
+        # save=False: this runs after the row is deleted when an accept commits, and saving would re-create it
+        self.release_file.delete(save=False)
         if self.javadocs_jar_file:
-            self.javadocs_jar_file.delete()
+            self.javadocs_jar_file.delete(save=False)
         if self.pom_xml_file:
-            self.pom_xml_file.delete()
+            self.pom_xml_file.delete(save=False)
 
 def _deploy_artifact_async(api):
     def run_deploy():
@@ -97,7 +112,8 @@ def _deploy_artifact(api):
     send_mail('Cytoscape App Store - App Repo Deploy (Release API ID: %d)' % api.id, cmdout, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
 
 
-class ServiceAppPending(models.Model):
+class ServiceAppPending(PendingIdentity, models.Model):
+    PLATFORM = Platform.SERVICE
 
     class Status(models.TextChoices):
         PENDING_CHECKER = 'pending_checker', 'Pending Checker' #submission was successful, waiting for checker command
@@ -149,16 +165,15 @@ class ServiceAppPending(models.Model):
         release.created = datetime.datetime.today()
         release.save()
 
-        if not app.has_releases:
-            app.has_releases = True
         app.latest_release_date = release.created
-        app.save()
+        app.update_has_releases()
 
 class WEB_SUBMISSION_ORIGIN(models.TextChoices):
     WEB_URL = 'web_url', 'Web URL',
     WEB_BUNDLE = 'web_bundle', 'Web Bundle'
 
-class WebUrlPending(models.Model):
+class WebUrlPending(PendingIdentity, models.Model):
+    PLATFORM = Platform.WEB
     id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=128)
@@ -173,7 +188,8 @@ class WebUrlPending(models.Model):
 def get_webbundles_storage():
     return storages['webbundles']
 
-class WebBundlePending(models.Model):
+class WebBundlePending(PendingIdentity, models.Model):
+    PLATFORM = Platform.WEB
     class Status(models.TextChoices):
         DEFAULT = 'default_status', 'Default Status'
         PENDING_AUTOMATED_CHECKS = 'pending_automated_checks', 'Running Automated Checks'
@@ -207,9 +223,14 @@ class WebBundlePending(models.Model):
         ordering = ['-created']
 
     def delete_files(self):
-        self.bundle.delete()
+        # save=False: this runs after the row is deleted when an accept commits, and saving would re-create it
+        self.bundle.delete(save=False)
         web_storage = storages['webbundles']
         assert self.bundle_path.startswith('pending/'),"refusing to delete outside pending/ namespace"
+        if not web_storage.exists(self.bundle_path):
+            # another submission of the same name and version shared this folder, and its
+            # accept or decline already removed it
+            return
         for f in web_storage.listdir(self.bundle_path)[1]:
             web_storage.delete(f"{self.bundle_path}{f}")
         try:
@@ -255,10 +276,7 @@ class WebBundlePending(models.Model):
         release.active = True
         release.save()
 
-        if not app.has_releases:
-            app.has_releases = True
-
         app.latest_release_date = release.created
         _copy_bundle_to_storage(self.bundle, destination=f"{app.name}/{self.version}/")
         write_manifest_json(release)
-        app.save()
+        app.update_has_releases()

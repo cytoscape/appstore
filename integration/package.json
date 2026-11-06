@@ -1,0 +1,11 @@
+{
+  "name": "appstore-integration-tests",
+  "private": true,
+  "description": "Playwright tests run by make integration-test against the App Store container",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}

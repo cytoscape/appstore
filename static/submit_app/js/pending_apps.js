@@ -27,6 +27,15 @@ var PendingApps = (function() {
                                 html(msg).
                                 prependTo(alerts);
                             msg_tag.hide().slideDown('fast');
+                       }).fail(function(xhr) {
+                            pending_tag.find('.cy-loading').hide();
+                            pending_tag.find('.btn').show();
+                            $('<div>').
+                                addClass('alert').
+                                addClass('alert-error').
+                                text(app_name + ': ' + (xhr.responseText || 'the request failed')).
+                                prependTo(alerts).
+                                hide().slideDown('fast');
                        });
             }
             

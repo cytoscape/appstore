@@ -128,101 +128,106 @@ var AppPage = (function($) {
             callback);
     }
 
-    var install_btn = $('#cy-app-install-btn');
-    var install_btn_last_class = [];
+    // An install button on the page; each platform's panel has its own, with its own state
+    // and its own platform's licence to accept.
+    function make_install_button(selector, platform) {
+        var btn = $(selector);
+        var last_class = [];
 
-    function setup_install_btn(btn_class, icon_class, btn_text, func) {
-        if (install_btn_last_class.length !== 0)
-            install_btn.removeClass(install_btn_last_class.pop());
-        install_btn.addClass(btn_class);
-        install_btn_last_class.push(btn_class);
-    
-        install_btn.find('i').attr('class', '');
-        install_btn.find('i').addClass(icon_class);
-    
-        install_btn.find('h4').html(btn_text);
-    
-        install_btn.off('click');
-        install_btn.removeClass('disabled');
-    
-        if (func) {
-            var license_modal = $('#license_modal');
-            if (license_modal.length !== 0) {
-                // Unbind previous click handlers to prevent double binding
-                license_modal.find('.btn-primary').off('click');
-    
-                license_modal.find('.btn-primary').click(function() {
-                    license_modal.modal('hide');
-                    func();
-                });
-    
-                install_btn.click(function() {
-                    var license_iframe = license_modal.find('iframe');
-                    license_iframe.attr('src', license_iframe.attr('data-src'));
-                    license_modal.modal('show');
-                });
+        function setup(btn_class, icon_class, btn_text, func) {
+            if (last_class.length !== 0)
+                btn.removeClass(last_class.pop());
+            btn.addClass(btn_class);
+            last_class.push(btn_class);
+
+            btn.find('i').attr('class', '');
+            btn.find('i').addClass(icon_class);
+
+            btn.find('h4').html(btn_text);
+
+            btn.off('click');
+            btn.removeClass('disabled');
+
+            if (func) {
+                var license_modal = $('#license_modal_' + platform);
+                if (license_modal.length !== 0) {
+                    btn.click(function() {
+                        // Accepting runs this button's action, replacing any action an earlier
+                        // click of the button left on the modal
+                        license_modal.find('.btn-primary').off('click').click(function() {
+                            license_modal.modal('hide');
+                            func();
+                        });
+                        var license_iframe = license_modal.find('iframe');
+                        license_iframe.attr('src', license_iframe.attr('data-src'));
+                        license_modal.modal('show');
+                    });
+                } else {
+                    // If license modal doesn't exist in DOM
+                    btn.click(func);
+                }
             } else {
-                // If license modal doesn't exist in DOM
-                install_btn.click(func);
+                btn.addClass('disabled');
             }
-        } else {
-            install_btn.addClass('disabled');
         }
-    }
-    
 
-    function set_install_btn_to_download(release_url) {
-        setup_install_btn('btn-primary', 'icon-cy-install-download', 'Download',
-            function() {
-                window.location.href = release_url;
-            });
+        return {'element': btn, 'setup': setup};
     }
 
-    function set_install_btn_to_installing() {
-        setup_install_btn('btn-info', 'icon-cy-install-install', 'Installing...');
-    }
+    function setup_install(selector, app_name, app_fullname, latest_release_url, latest_release_version, install_app_help_url) {
+        var install_btn = make_install_button(selector, 'desktop');
 
-    function set_install_btn_to_install(app_name, latest_release_version) {
-        setup_install_btn('btn-info', 'icon-cy-install-install', 'Install',
-            function() {
-                set_install_btn_to_installing();
-                install_app(app_name, latest_release_version, function(result) {
-                    if (result) {
-                        CyMsgs.add_msg(app_name + ' has been installed! Go to Cytoscape to use it.', 'success');
-                        set_install_btn_to_installed();
-                    } else {
-                        CyMsgs.add_msg('Could not install &ldquo;' + app_name + '&rdquo; app: <tt>' + result['install_status'] + '</tt>', 'error');
-                        set_install_btn_to_install(app_name, latest_release_version);
-                    }
+        function set_install_btn_to_download(release_url) {
+            install_btn.setup('btn-primary', 'icon-cy-install-download', 'Download',
+                function() {
+                    window.location.href = release_url;
                 });
-            });
-    }
+        }
 
-    function set_install_btn_to_upgrading() {
-        setup_install_btn('btn-warning', 'icon-cy-install-upgrade', 'Upgrading...');
-    }
+        function set_install_btn_to_installing() {
+            install_btn.setup('btn-info', 'icon-cy-install-install', 'Installing...');
+        }
 
-    function set_install_btn_to_upgrade(app_name, latest_release_version) {
-        setup_install_btn('btn-warning', 'icon-cy-install-upgrade', 'Upgrade',
-            function() {
-                set_install_btn_to_upgrading();
-                install_app(app_name, latest_release_version, function(result) {
-                    if (result) {
-                        CyMsgs.add_msg(app_name + ' has been updated! Go to Cytoscape to use it.', 'success');
-                        set_install_btn_to_installed();
-                    } else {
-                        CyMsgs.add_msg('Could not update &ldquo;' + app_name + '&rdquo; app: <tt>' + result['install_status'] + '</tt>', 'error');
-                        set_install_btn_to_install(app_name, latest_release_version);
-                    }
+        function set_install_btn_to_install(app_name, latest_release_version) {
+            install_btn.setup('btn-info', 'icon-cy-install-install', 'Install',
+                function() {
+                    set_install_btn_to_installing();
+                    install_app(app_name, latest_release_version, function(result) {
+                        if (result) {
+                            CyMsgs.add_msg(app_name + ' has been installed! Go to Cytoscape to use it.', 'success');
+                            set_install_btn_to_installed();
+                        } else {
+                            CyMsgs.add_msg('Could not install &ldquo;' + app_name + '&rdquo; app: <tt>' + result['install_status'] + '</tt>', 'error');
+                            set_install_btn_to_install(app_name, latest_release_version);
+                        }
+                    });
                 });
-            });
-    }
+        }
 
-    function set_install_btn_to_installed() {
-        setup_install_btn('btn-success', 'icon-cy-install-installed', 'Installed');
-    }
+        function set_install_btn_to_upgrading() {
+            install_btn.setup('btn-warning', 'icon-cy-install-upgrade', 'Upgrading...');
+        }
 
-    function setup_install(app_name, app_fullname, latest_release_url, latest_release_version, install_app_help_url) {
+        function set_install_btn_to_upgrade(app_name, latest_release_version) {
+            install_btn.setup('btn-warning', 'icon-cy-install-upgrade', 'Upgrade',
+                function() {
+                    set_install_btn_to_upgrading();
+                    install_app(app_name, latest_release_version, function(result) {
+                        if (result) {
+                            CyMsgs.add_msg(app_name + ' has been updated! Go to Cytoscape to use it.', 'success');
+                            set_install_btn_to_installed();
+                        } else {
+                            CyMsgs.add_msg('Could not update &ldquo;' + app_name + '&rdquo; app: <tt>' + result['install_status'] + '</tt>', 'error');
+                            set_install_btn_to_install(app_name, latest_release_version);
+                        }
+                    });
+                });
+        }
+
+        function set_install_btn_to_installed() {
+            install_btn.setup('btn-success', 'icon-cy-install-installed', 'Installed');
+        }
+
         set_install_btn_to_download(latest_release_url);
 
         is_manager_running(function(is_running) {
@@ -323,31 +328,32 @@ var AppPage = (function($) {
 
     function setup_service_install(opts) {
         var cyrest_url = opts.cyrest_url || AppManagerURL;
+        var install_btn = make_install_button(opts.selector, 'service');
 
         function set_btn(btn_class, icon_class, btn_text, tooltip, func) {
-            setup_install_btn(btn_class, icon_class, btn_text, func);
+            install_btn.setup(btn_class, icon_class, btn_text, func);
             if (tooltip)
-                install_btn.attr('title', tooltip);
+                install_btn.element.attr('title', tooltip);
             else
-                install_btn.removeAttr('title');
+                install_btn.element.removeAttr('title');
         }
 
         function set_btn_unavailable(tooltip) {
-            set_btn('', 'icon-info-sign', 'Install in Cytoscape Desktop', tooltip);
+            set_btn('', 'icon-info-sign', 'Install service app in Cytoscape Desktop', tooltip);
         }
 
         function set_btn_to_installed() {
-            set_btn('btn-success', 'icon-cy-install-installed', 'Installed in Cytoscape Desktop');
+            set_btn('btn-success', 'icon-cy-install-installed', 'Service app installed in Cytoscape Desktop');
         }
 
         function set_btn_for_state(state) {
             if (state === 'installed') {
                 set_btn_to_installed();
             } else if (state === 'upgrade') {
-                set_btn('btn-warning', 'icon-cy-install-upgrade', 'Upgrade in Cytoscape Desktop', null,
+                set_btn('btn-warning', 'icon-cy-install-upgrade', 'Upgrade service app in Cytoscape Desktop', null,
                     function() { install('upgrade'); });
             } else {
-                set_btn('btn-info', 'icon-cy-install-install', 'Install in Cytoscape Desktop', null,
+                set_btn('btn-info', 'icon-cy-install-install', 'Install service app in Cytoscape Desktop', null,
                     function() { install('install'); });
             }
         }
@@ -388,14 +394,14 @@ var AppPage = (function($) {
         }
 
         function desktop_not_running() {
-            set_btn_unavailable('Start Cytoscape Desktop 3.10 or later, then reload this page.');
+            set_btn_unavailable('To install this service app, Cytoscape Desktop 3.10 or later must be running and have the Desktop Service App installed. Start Cytoscape Desktop, then reload this page.');
             CyMsgs.add_msg('Start Cytoscape Desktop to install this service app. <a href="' + opts.help_url +
                 '" target="_blank">Click here</a> to learn how!', 'info', 'cy-service-install');
         }
 
         function service_app_missing() {
             var reason = 'Desktop needs the Service App installed first to enable service app installation';
-            set_btn_unavailable(reason + '.');
+            set_btn_unavailable('Cytoscape Desktop was detected, but the Desktop Service App is missing. Install it first to install service apps.');
             CyMsgs.add_msg(reason + ': <a href="' + opts.service_app_url + '">get the Desktop Service App</a>.',
                 'info', 'cy-service-install');
         }
@@ -531,6 +537,37 @@ var AppPage = (function($) {
     }
 
     /*
+     ================================================================
+       Platform selector
+     ================================================================
+    */
+
+    // The Available Platforms buttons reload the page for another platform. They carry
+    // the open tab as a hash (#releases), and the page opens the tab its hash names,
+    // so switching platform keeps the reader on the same tab.
+    // Details is open when the page loads, unless its link names Release History (#releases),
+    // as a platform button does when Release History was open: switching platform keeps the tab.
+    // Opening a tab doesn't change the page's own address, so reloading opens Details.
+    function setup_platform_tabs() {
+        var tabs = {'details': '#cy-app-details-tab', 'releases': '#cy-app-releases-tab'};
+
+        function remember(tab) {
+            $('.cy-app-platform-chip').each(function() {
+                var href = $(this).attr('href').split('#')[0];
+                $(this).attr('href', tab === 'details' ? href : href + '#' + tab);
+            });
+        }
+
+        $('#cy-app-info-tabs a[data-toggle="tab"]').on('shown', function(e) {
+            remember($(e.target).attr('href') === tabs.releases ? 'releases' : 'details');
+        });
+
+        var tab = location.hash.substring(1);
+        if (tabs[tab] && tab !== 'details')
+            $('#cy-app-info-tabs a[href="' + tabs[tab] + '"]').tab('show');
+    }
+
+    /*
 	 ================================================================
         Release Notes
       ================================================================
@@ -557,6 +594,7 @@ var AppPage = (function($) {
         'setup_cy_2x_download_popover': setup_cy_2x_download_popover,
         'setup_stars': setup_stars,
         'setup_details': setup_details,
+        'setup_platform_tabs': setup_platform_tabs,
         'setup_release_notes': setup_release_notes,
     }
 })($);

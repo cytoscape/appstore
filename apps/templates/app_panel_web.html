@@ -1,0 +1,16 @@
+{# Cytoscape Web panel: install the app's latest web bundle #}
+<div class="well cy-app-platform-panel" id="cy-app-panel-web" data-platform="web">
+	<h6 class="panel-title muted">CYTOSCAPE WEB</h6>
+	<a class="btn btn-large btn-block btn-primary"
+	style='margin-bottom: 15px;'
+	href="{% url 'release_install' app.name bundle_latest_release.version %}?platform=web"
+	target="_blank">
+		<h4>Install in Cytoscape Web</h4>
+	</a>
+	{% include 'app_url_copy.html' with url_label='Manifest URL' app_url=bundle_latest_release.manifest_url url_id='latest-web' %}
+	<p><strong>Version</strong> {{ bundle_latest_release.version }}</p>
+	{% with license_text=contents.web.license_text %}{% if license_text %}<p class="cy-app-license"><strong>License</strong> <a href="{{ license_text }}" target="_blank">Click here</a></p>{% endif %}{% endwith %}
+	<p><strong>Released</strong> {{ bundle_latest_release.created|date:'j M Y' }}</p>
+	<p><strong>Works with</strong> <a href="http://web.cytoscape.org" target="_blank">Cytoscape Web</a></p>
+	<p><strong>Install Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
+</div>

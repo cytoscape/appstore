@@ -1,15 +1,16 @@
 import re
 import datetime
 import html
-from urllib.parse import unquote, quote
+from urllib.parse import unquote
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from util.view_util import json_response, html_response, obj_to_dict, get_object_or_none
 from util.img_util import scale_img
 from util.id_util import fullname_to_name
-from apps.models import Tag, App, Platform, Author, OrderedAuthor, Screenshot, Release, ServiceRelease, WebBundleRelease
+from apps.models import Tag, App, Platform, Author, OrderedAuthor, Screenshot, Release
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from util.view_util import is_ajax
@@ -92,7 +93,7 @@ def apps_default(request):
     return html_response('apps_default.html', c, request, processors = (_nav_panel_context, ))
 
 def all_apps(request):
-    apps = App.objects.filter(active=True).order_by('name')
+    apps = App.objects.filter(active=True).order_by('name').prefetch_related('platform_contents')
     c = {
         'apps': apps,
         'navbar_selected_link': 'all',
@@ -135,7 +136,9 @@ def wall_of_apps(request):
 
 def apps_with_tag(request, tag_name):
     tag = get_object_or_404(Tag, name = tag_name)
-    apps = App.objects.filter(active = True, tags = tag).order_by('name')
+    # the category may be on the app or on one of its platforms' content (#155)
+    apps = App.objects.filter(Q(tags = tag) | Q(platform_contents__tags = tag), active = True) \
+                      .distinct().order_by('name').prefetch_related('platform_contents')
     c = {
         'tag': tag,
         'apps': apps,
@@ -144,8 +147,19 @@ def apps_with_tag(request, tag_name):
     }
     return html_response('apps_with_tag.html', c, request, processors = (_nav_panel_context, ))
 
+def _shows_author(app, author_name):
+    """Whether the page of any platform 'app' is on (or its own content, if it has none) names 'author_name'."""
+    return any(author.name == author_name
+               for platform in (app.platforms or [None])
+               for author in app.content(platform).authors)
+
 def apps_with_author(request, author_name):
-    apps = App.objects.filter(active = True, authors__name__exact = author_name).order_by('name')
+    # distinct: an app lists an author once for its own content and once per platform that has its own
+    apps = App.objects.filter(active = True, authors__name__exact = author_name).distinct().order_by('name') \
+                      .prefetch_related('platform_contents')
+    # only where a page shows the author: once every platform an app is on has its own authors,
+    # the app's own authors are on no page (e.g. a Web-only app whose Web authors were replaced)
+    apps = [app for app in apps if _shows_author(app, author_name)]
     if not apps:
         raise Http404('No such author "%s".' % author_name)
 
@@ -159,7 +173,12 @@ def apps_with_author(request, author_name):
     return html_response('apps_with_author.html', c, request, processors = (_nav_panel_context, ))
 
 def apps_with_platform(request, platform):
-    apps = App.objects.filter(active=True, platform=platform)
+    if platform not in Platform.values:
+        raise Http404('No such platform "%s"' % platform)
+    apps = list(App.objects.filter(active=True).on_platform(platform).prefetch_related('platform_contents'))
+    for app in apps:
+        # tiles describe the app as this platform's page does
+        app.listing_platform = platform
 
     c = {
         'platform': platform,
@@ -169,6 +188,15 @@ def apps_with_platform(request, platform):
     }
 
     return html_response('apps_with_platform.html', c, request, processors = (_nav_panel_context, ))
+
+def cy2x_plugins_page(request):
+    c = {
+        'apps': App.objects.filter(active=True).legacy_plugins().order_by('name'),
+        'cy2x_plugins_selected': True,
+        'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
+        'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
+    }
+    return html_response('apps_cy2x_plugins.html', c, request, processors = (_nav_panel_context, ))
 
 # ============================================
 #      App Pages
@@ -199,20 +227,56 @@ def _app_ratings_delete_all(app, user, post):
 # -- General app stuff
 
 def _latest_release(app):
-    releases = app.get_releases()
+    releases = app.get_releases(Platform.DESKTOP)
     if not releases: return None
     return releases[0] # go by the ordering provided by Release.Meta
 
+# what the app page calls each platform
+_PLATFORM_NAMES = {
+    Platform.DESKTOP: 'Cytoscape Desktop',
+    Platform.WEB: 'Cytoscape Web',
+    Platform.SERVICE: 'Service',
+}
+
 def _mk_app_page(app, user, request):
+    """
+    One page for every platform the app is on (#155). ?platform= picks the
+    platform whose panel comes first and whose releases Release History lists.
+    """
+    platforms = app.platforms
+    selected_platform = request.GET.get('platform')
+    if selected_platform not in platforms:
+        selected_platform = app.primary_platform
+    panel_order = sorted(platforms, key=lambda platform: platform != selected_platform)
+    # each platform's content: the selected one fills the page, and each panel shows its own licence
+    contents = {platform: app.content(platform) for platform in platforms}
+    content = contents.get(selected_platform) or app.content()
+
     c = {
         'app': app,
-        'releases': app.get_releases(),
-        'latest_release': app.get_releases().first(),
+        'content': content,
+        'contents': contents,
+        'license_modals': [(platform, contents[platform]) for platform in (Platform.DESKTOP, Platform.SERVICE)
+                           if platform in contents and contents[platform].license_confirm
+                           and contents[platform].license_text],
+        'platform_chips': [(platform, _PLATFORM_NAMES[platform]) for platform in platforms],
+        'selected_platform': selected_platform,
+        'panel_order': panel_order,
+        'selected_platform_name': _PLATFORM_NAMES.get(selected_platform),
+        'selected_releases': app.releases_for_display(selected_platform) if selected_platform else [],
         'is_editor': (user and app.is_editor(user)),
-        'cy3_latest_release': _latest_release(app),
         'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
         'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
     }
+    if app.has_desktop:
+        c['cy3_latest_release'] = _latest_release(app)
+    if app.has_web:
+        c['bundle_latest_release'] = _latest_bundle_release(app)
+    if app.has_service:
+        service_release = _latest_service_release(app)
+        c['service_latest_release'] = service_release
+        c['service_install_name'] = _service_install_name(app, service_release)
+        c['desktop_service_app_name'] = settings.DESKTOP_SERVICE_APP_NAME
     return html_response('app_page.html', c, request)
 
 _AppActions = {
@@ -224,12 +288,6 @@ _AppActions = {
 def app_page(request, app_name):
     app = get_object_or_404(App, active=True, name=app_name)
     user = request.user if request.user.is_authenticated else None
-
-    if app.platform == Platform.SERVICE:
-        return service_page(request, app_name)
-    
-    elif app.platform == Platform.WEB:
-        return webapp_page(request, app_name)
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -286,6 +344,34 @@ def _mk_basic_field_saver(field, func = None):
         setattr(app, field, value)
     return saver
 
+def _content_platform(app, request):
+    """
+    The platform whose content a content edit changes (#155): the POST's 'platform',
+    which must be one the app is on, or none for the app's own fields.
+    """
+    platform = request.POST.get('platform')
+    if not platform:
+        return None
+    if platform not in app.platforms:
+        raise ValueError('platform must be one this app is on: %s' % ', '.join(app.platforms))
+    return platform
+
+def _content_target(app, request):
+    """Where a content edit is saved: the app, or the platform's own content (see App.content_for_edit)."""
+    return app.content_for_edit(_content_platform(app, request))
+
+def _own_platform(target):
+    """The 'platform' of the screenshots and authors that belong with 'target': None for the app's own."""
+    return None if isinstance(target, App) else target.platform
+
+def _mk_content_field_saver(field, func = None):
+    save_field = _mk_basic_field_saver(field, func)
+    def saver(app, request):
+        target = _content_target(app, request)
+        save_field(target, request)
+        target.save()
+    return saver
+
 def _save_tags(app, request):
     tag_count = request.POST.get('tag_count')
     if not tag_count:
@@ -303,10 +389,11 @@ def _save_tags(app, request):
             raise ValueError('expected ' + tag_key)
         tags.append(tag)
 
-    app.tags.clear()
+    target = _content_target(app, request)
+    target.tags.clear()
     for tag in tags:
         tag_obj, _ = Tag.objects.get_or_create(fullname = tag, name = fullname_to_name(tag))
-        app.tags.add(tag_obj)
+        target.tags.add(tag_obj)
 
     _flush_tag_caches()
 
@@ -337,7 +424,7 @@ def _upload_screenshot(app, request):
     thumbnail_f = scale_img(screenshot_f, screenshot_f.name,
                             _AppPageEditConfig.thumbnail_height_px,
                             scale_on_height=True)
-    screenshot = Screenshot.objects.create(app=app)
+    screenshot = Screenshot.objects.create(app=app, platform=_own_platform(_content_target(app, request)))
     screenshot.screenshot.save(screenshot_f.name, screenshot_f)
     screenshot.thumbnail.save(thumbnail_f.name, thumbnail_f)
     screenshot.save()
@@ -347,10 +434,12 @@ def _delete_screenshot(app, request):
     screenshot_id = request.POST.get('screenshot_id')
     if not screenshot_id:
         raise ValueError('no screenshot_id specified')
+    platform = _own_platform(_content_target(app, request))
     try:
-        screenshot_id = int(screenshot_id)
-        screenshot = Screenshot.objects.get(id = screenshot_id)
+        screenshot = Screenshot.objects.get(id = int(screenshot_id), app = app)
     except (ValueError, Screenshot.DoesNotExist) as e:
+        raise ValueError('invalid screenshot_id')
+    if screenshot.platform != platform:
         raise ValueError('invalid screenshot_id')
     screenshot.delete()
 
@@ -429,10 +518,29 @@ def _save_authors(app, request):
             institution = None
         authors.append((name, institution, i))
 
-    app.authors.clear()
+    # replaces only this platform's authors; the other platforms keep theirs
+    platform = _own_platform(_content_target(app, request))
+    OrderedAuthor.objects.filter(app = app, platform = platform).delete()
     for name, institution, author_order in authors:
         author, _ = Author.objects.get_or_create(name = name, institution = institution)
-        ordered_author = OrderedAuthor.objects.create(app = app, author = author, author_order = author_order)
+        OrderedAuthor.objects.create(app = app, platform = platform, author = author, author_order = author_order)
+
+def _posted_platform_releases(app, request):
+    """
+    The releases a release-notes or delete-release edit applies to: those of the
+    platform named in its 'platform' field. Without that field, the platform is the
+    one the app has releases on; an app with releases on several platforms must
+    name one, since release ids are only unique within a platform.
+    """
+    platform = request.POST.get('platform')
+    if platform is None:
+        platforms = app.platforms
+        if len(platforms) != 1:
+            raise ValueError('platform is required when an app has releases on more than one platform')
+        platform = platforms[0]
+    if platform not in Platform.values:
+        raise ValueError('platform must be one of: %s' % ', '.join(Platform.values))
+    return app.get_releases(platform)
 
 def _save_release_notes(app, request):
     release_count = request.POST.get('release_count')
@@ -443,7 +551,7 @@ def _save_release_notes(app, request):
     except ValueError:
         raise ValueError('release_count is not an integer')
 
-    releases = app.get_releases()
+    releases = _posted_platform_releases(app, request)
     release_model = releases.model
     for i in range(release_count):
         key = 'release_id_' + str(i)
@@ -470,7 +578,7 @@ def _delete_release(app, request):
     except ValueError:
         raise ValueError('release_count is not an integer')
 
-    releases = app.get_releases()
+    releases = _posted_platform_releases(app, request)
     release_model = releases.model
     for i in range(release_count):
         key = 'release_id_' + str(i)
@@ -490,16 +598,16 @@ _AppEditActions = {
     'save_cy_2x_plugin_version':      _mk_basic_field_saver('cy_2x_plugin_version'),
     'save_cy_2x_plugin_release_date': _mk_basic_field_saver('cy_2x_plugin_release_date', func=_parse_iso_date),
     'save_cy_2x_versions':            _mk_basic_field_saver('cy_2x_versions'),
-    'save_description':   _mk_basic_field_saver('description'),
-    'save_license_text':  _mk_basic_field_saver('license_text'),
-    'save_license_confirm':  _mk_basic_field_saver('license_confirm', func = lambda s: s.lower() == 'true'),
-    'save_website':       _mk_basic_field_saver('website'),
-    'save_tutorial':      _mk_basic_field_saver('tutorial'),
-    'save_citation':      _mk_basic_field_saver('citation'),
-    'save_coderepo':      _mk_basic_field_saver('coderepo'),
-    'save_automation':  _mk_basic_field_saver('automation'),
-    'save_contact':       _mk_basic_field_saver('contact'),
-    'save_details':       _mk_basic_field_saver('details'),
+    'save_description':   _mk_content_field_saver('description'),
+    'save_license_text':  _mk_content_field_saver('license_text'),
+    'save_license_confirm':  _mk_content_field_saver('license_confirm', func = lambda s: s.lower() == 'true'),
+    'save_website':       _mk_content_field_saver('website'),
+    'save_tutorial':      _mk_content_field_saver('tutorial'),
+    'save_citation':      _mk_content_field_saver('citation'),
+    'save_coderepo':      _mk_content_field_saver('coderepo'),
+    'save_automation':  _mk_content_field_saver('automation'),
+    'save_contact':       _mk_content_field_saver('contact'),
+    'save_details':       _mk_content_field_saver('details'),
     'save_tags':          _save_tags,
     'upload_icon':        _upload_icon,
     'upload_screenshot':  _upload_screenshot,
@@ -532,10 +640,19 @@ def app_page_edit(request, app_name):
         if is_ajax(request):
             return json_response(result)
 
+    # ?platform= picks the platform whose content and releases the page edits (#155)
+    platforms = app.platforms
+    selected_platform = request.GET.get('platform')
+    if selected_platform not in platforms:
+        selected_platform = app.primary_platform
     all_tags = [tag.fullname for tag in Tag.objects.all()]
     c = {
         'app': app,
-        'releases': app.releases_for_display,
+        'content': app.content(selected_platform),
+        'platform_chips': [(platform, _PLATFORM_NAMES[platform]) for platform in platforms],
+        'selected_platform': selected_platform,
+        'selected_platform_name': _PLATFORM_NAMES.get(selected_platform),
+        'selected_releases': app.releases_for_display(selected_platform) if selected_platform else [],
         'all_tags': all_tags,
         'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
         'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,
@@ -558,81 +675,6 @@ def _service_install_name(app, release):
     metadata = release.metadata if isinstance(release.metadata, dict) else {}
     return metadata.get('name') or app.fullname
 
-def _mk_service_page(app, user, request):
-    release = _latest_service_release(app)
-    c = {
-        'service_install_name': _service_install_name(app, release),
-        'desktop_service_app_name': settings.DESKTOP_SERVICE_APP_NAME,
-        'app': app,
-        'service_endpoint': release.service_endpoint,
-        'is_editor': (user and app.is_editor(user)),
-        'service_latest_release': _latest_service_release(app),
-        'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
-        'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
-        'service_install': (
-            settings.CYTOSCAPE_WEB_INSTALL_URL + quote(release.service_endpoint, safe="")
-        )
-    }
-    return html_response('app_page.html', c, request)
-
-
-def service_page(request, app_name):
-    app = get_object_or_404(App, active=True, name=app_name)
-    user = request.user if request.user.is_authenticated else None
-
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        if not action:
-            return HttpResponseBadRequest('no action specified')
-        if not action in _AppActions:
-            return HttpResponseBadRequest('action "%s" invalid--must be: %s' % (action, ', '.join(_AppActions)))
-        try:
-            result = _AppActions[action](app, user, request.POST)
-        except ValueError as e:
-            return HttpResponseBadRequest(str(e))
-        if isinstance(result, HttpResponse):
-            return result
-        if is_ajax(request):
-            return json_response(result)
-
-    return _mk_service_page(app, user, request)
-
-
-@login_required
-@csrf_exempt
-def service_page_edit(request, app_name):
-    app = get_object_or_404(App, active = True, name = app_name)
-    if not app.is_editor(request.user):
-        return HttpResponseForbidden()
-
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        if not action:
-            return HttpResponseBadRequest('no action specified')
-        if not action in _AppEditActions:
-            return HttpResponseBadRequest('action "%s" invalid--must be: %s' % (action, ', '.join(_AppEditActions)))
-        try:
-            result = _AppEditActions[action](app, request)
-        except ValueError as e:
-            return HttpResponseBadRequest(str(e))
-        app.save()
-        if is_ajax(request):
-            return json_response(result)
-
-    all_tags = [tag.fullname for tag in Tag.objects.all()]
-    c = {
-        'app': app,
-        'releases': app.get_releases(),
-        'all_tags': all_tags,
-        'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
-        'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,
-        'thumbnail_height_px': _AppPageEditConfig.thumbnail_height_px,
-        'app_description_maxlength': _AppPageEditConfig.app_description_maxlength,
-        'release_uploaded': request.GET.get('upload_release') == 'true',
-    }
-    return html_response('app_page_edit.html', c, request)
-
-
 #---------------------------WEB APPS (BUNDLE)----------------------------
 
 def _latest_bundle_release(app):
@@ -640,79 +682,3 @@ def _latest_bundle_release(app):
     if not releases:
         return None
     return releases[0]
-
-def _mk_web_page(app, user, request):
-    release = _latest_bundle_release(app)
-    c = {
-        'app': app,
-        'releases': app.get_releases(),
-        'latest_release': app.get_releases().first(),
-        'cdn_base_url': release.cdn_base_url if release else None,
-        'is_editor': (user and app.is_editor(user)),
-        'bundle_latest_release': _latest_bundle_release(app),
-        'go_back_to_title': _unescape_and_unquote(request.COOKIES.get('go_back_to_title')),
-        'go_back_to_url':   _unescape_and_unquote(request.COOKIES.get('go_back_to_url')),
-        'install_url': (
-            settings.CYTOSCAPE_WEB_INSTALL_URL
-            + quote(
-                request.build_absolute_uri(f"/web/{app.name}/{release.version}/manifest.json"),
-                safe=""
-            ))
-    }
-
-    return html_response('app_page.html', c, request)
-
-def webapp_page(request, app_name):
-    app = get_object_or_404(App, active=True, name=app_name)
-    user = request.user if request.user.is_authenticated else None
-
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        if not action:
-            return HttpResponseBadRequest('no action specified')
-        if not action in _AppActions:
-            return HttpResponseBadRequest('action "%s" invalid--must be: %s' % (action, ', '.join(_AppActions)))
-        try:
-            result = _AppActions[action](app, user, request.POST)
-        except ValueError as e:
-            return HttpResponseBadRequest(str(e))
-        if isinstance(result, HttpResponse):
-            return result
-        if is_ajax(request):
-            return json_response(result)
-
-    return _mk_web_page(app, user, request)
-
-@login_required
-@csrf_exempt
-def webapp_page_edit(request, app_name):
-    app = get_object_or_404(App, active = True, name = app_name)
-    if not app.is_editor(request.user):
-        return HttpResponseForbidden()
-
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        if not action:
-            return HttpResponseBadRequest('no action specified')
-        if not action in _AppEditActions:
-            return HttpResponseBadRequest('action "%s" invalid--must be: %s' % (action, ', '.join(_AppEditActions)))
-        try:
-            result = _AppEditActions[action](app, request)
-        except ValueError as e:
-            return HttpResponseBadRequest(str(e))
-        app.save()
-        if is_ajax(request):
-            return json_response(result)
-
-    all_tags = [tag.fullname for tag in Tag.objects.all()]
-    c = {
-        'app': app,
-        'releases': app.get_releases(),
-        'all_tags': all_tags,
-        'max_file_img_size_b': _AppPageEditConfig.max_img_size_b,
-        'max_icon_dim_px': _AppPageEditConfig.max_icon_dim_px,
-        'thumbnail_height_px': _AppPageEditConfig.thumbnail_height_px,
-        'app_description_maxlength': _AppPageEditConfig.app_description_maxlength,
-        'release_uploaded': request.GET.get('upload_release') == 'true',
-    }
-    return html_response('app_page_edit.html', c, request)

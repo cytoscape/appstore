@@ -29,6 +29,18 @@
         <div class="span8">
             <table class="table">
               <tr>
+                <td><b>Is this a new app?</b></td>
+                <td>
+                  {% if pending.is_new_app %}
+                    Yes&mdash;a new app page will be created after an App Store administrator approves your app
+                  {% elif pending.is_new_platform %}
+                    No&mdash;this adds Cytoscape Web to the existing app {{ pending.identity.app.fullname }} and will be reviewed by an App Store administrator
+                  {% else %}
+                    No&mdash;this submission is an updated version of an existing app
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
                 <td><b>App Name</b></td>
                 <td>{{ pending.fullname }}</td>
               </tr>

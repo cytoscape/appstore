@@ -1,5 +1,5 @@
 """
-Browser tests of the service app page's "Install in Cytoscape Desktop" button (appstore#151).
+Browser tests of the service app page's "Install service app in Cytoscape Desktop" button (appstore#151).
 
 Headless Chromium (Playwright) loads the real page from a live test server. Calls the page
 makes to Cytoscape Desktop on 127.0.0.1:1234 are answered by FakeCyRest instead of a Desktop.
@@ -12,13 +12,15 @@ from urllib.parse import parse_qs, urlparse
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from playwright.sync_api import expect, sync_playwright
 
-from apps.models import App, Platform, ServiceRelease
+from apps.models import App, ServiceRelease
 from download.models import ServiceDownload
 
 CYREST = 'http://127.0.0.1:1234'
 
-NOT_RUNNING = 'Start Cytoscape Desktop 3.10 or later, then reload this page.'
-SERVICE_APP_MISSING = 'Desktop needs the Service App installed first to enable service app installation.'
+NOT_RUNNING = ('To install this service app, Cytoscape Desktop 3.10 or later must be running and have the '
+               'Desktop Service App installed. Start Cytoscape Desktop, then reload this page.')
+SERVICE_APP_MISSING = ('Cytoscape Desktop was detected, but the Desktop Service App is missing. '
+                       'Install it first to install service apps.')
 UNREADABLE = "Couldn't read installed service apps from Cytoscape Desktop."
 
 
@@ -134,14 +136,13 @@ class ServiceInstallButtonTestCase(StaticLiveServerTestCase):
             os.environ['DJANGO_ALLOW_ASYNC_UNSAFE'] = cls._async_unsafe
 
     def setUp(self):
-        self.app = App.objects.create(name='helloworldapp', fullname='Hello World App',
-                                      platform=Platform.SERVICE, active=True, has_releases=True)
+        self.app = App.objects.create(name='helloworldapp', fullname='Hello World App', active=True, has_releases=True)
         self.release = ServiceRelease.objects.create(
             app=self.app, version='1.10', service_endpoint=self.ENDPOINT,
             metadata={'name': 'Hello World', 'version': '1.10'})
         self.context = self.browser.new_context()
         self.page = self.context.new_page()
-        self.button = self.page.locator('#cy-app-install-btn')
+        self.button = self.page.locator('#cy-app-install-btn-service')
         self.alerts = self.page.locator('#cy-alerts')
         self.cyrest = None
 
@@ -174,57 +175,59 @@ class ServiceInstallButtonTestCase(StaticLiveServerTestCase):
 
     def test_desktop_not_running(self):
         self.open_page(FakeCyRest(running=False))
-        self.expect_button('Install in Cytoscape Desktop', enabled=False, tooltip=NOT_RUNNING)
+        self.expect_button('Install service app in Cytoscape Desktop', enabled=False, tooltip=NOT_RUNNING)
+        expect(self.button.locator('i')).to_have_class('icon-info-sign')
         expect(self.alerts.locator('a[href="/help/getstarted_app_install"]')).to_be_visible()
-        expect(self.page.locator('#cy-app-url-latest')).to_have_value(self.ENDPOINT)
+        expect(self.page.locator('#cy-app-url-latest-service')).to_have_value(self.ENDPOINT)
 
     def test_desktop_service_app_missing(self):
         self.open_page(FakeCyRest(service_app_installed=False))
-        self.expect_button('Install in Cytoscape Desktop', enabled=False, tooltip=SERVICE_APP_MISSING)
+        self.expect_button('Install service app in Cytoscape Desktop', enabled=False, tooltip=SERVICE_APP_MISSING)
         expect(self.button.locator('i')).to_have_class('icon-info-sign')
         link = self.alerts.locator('a[href="/apps/desktopserviceapp"]')
         expect(link).to_have_text('get the Desktop Service App')
 
     def test_not_installed_offers_install(self):
         self.open_page(FakeCyRest(installed_apps=[self.installed(name='Other App')]))
-        self.expect_button('Install in Cytoscape Desktop', enabled=True)
+        self.expect_button('Install service app in Cytoscape Desktop', enabled=True)
 
     def test_identical_version_and_url_is_installed(self):
         self.open_page(FakeCyRest(installed_apps=[self.installed()]))
-        self.expect_button('Installed in Cytoscape Desktop', enabled=False)
+        self.expect_button('Service app installed in Cytoscape Desktop', enabled=False)
 
     def test_same_version_and_url_with_trailing_slash_is_installed(self):
         self.open_page(FakeCyRest(installed_apps=[self.installed(url=self.ENDPOINT + '/')]))
-        self.expect_button('Installed in Cytoscape Desktop', enabled=False)
+        self.expect_button('Service app installed in Cytoscape Desktop', enabled=False)
 
     def test_older_version_offers_upgrade(self):
         self.open_page(FakeCyRest(installed_apps=[self.installed(version='1.9')]))
-        self.expect_button('Upgrade in Cytoscape Desktop', enabled=True)
+        self.expect_button('Upgrade service app in Cytoscape Desktop', enabled=True)
 
     def test_same_version_other_url_offers_upgrade(self):
         self.open_page(FakeCyRest(installed_apps=[self.installed(url='https://old.example.org/hello')]))
-        self.expect_button('Upgrade in Cytoscape Desktop', enabled=True)
+        self.expect_button('Upgrade service app in Cytoscape Desktop', enabled=True)
 
     def test_non_numeric_installed_version_offers_upgrade(self):
         self.open_page(FakeCyRest(installed_apps=[self.installed(version='1.10-beta')]))
-        self.expect_button('Upgrade in Cytoscape Desktop', enabled=True)
+        self.expect_button('Upgrade service app in Cytoscape Desktop', enabled=True)
 
     def test_newer_version_installed_offers_no_downgrade(self):
         self.open_page(FakeCyRest(installed_apps=[self.installed(version='2.0')]))
-        self.expect_button('Installed in Cytoscape Desktop', enabled=False)
+        self.expect_button('Service app installed in Cytoscape Desktop', enabled=False)
 
     def test_unreadable_list(self):
         self.open_page(FakeCyRest(list_reply='Finished\n'))
-        self.expect_button('Install in Cytoscape Desktop', enabled=False, tooltip=UNREADABLE)
+        self.expect_button('Install service app in Cytoscape Desktop', enabled=False, tooltip=UNREADABLE)
 
     def test_list_command_error_is_unreadable(self):
         self.open_page(FakeCyRest(list_status=500, list_reply='Failed: registry unavailable\n'))
-        self.expect_button('Install in Cytoscape Desktop', enabled=False, tooltip=UNREADABLE)
+        self.expect_button('Install service app in Cytoscape Desktop', enabled=False, tooltip=UNREADABLE)
 
     def test_desktop_gone_before_list_is_not_running(self):
         cyrest = FakeCyRest(list_unreachable=True)
         self.open_page(cyrest)
-        self.expect_button('Install in Cytoscape Desktop', enabled=False, tooltip=NOT_RUNNING)
+        self.expect_button('Install service app in Cytoscape Desktop', enabled=False, tooltip=NOT_RUNNING)
+        expect(self.button.locator('i')).to_have_class('icon-info-sign')
         self.assertIn('/v1', [r.path for r in cyrest.requests])
 
     def test_html_wrapped_list_reply(self):
@@ -232,18 +235,18 @@ class ServiceInstallButtonTestCase(StaticLiveServerTestCase):
         self.open_page(FakeCyRest(list_reply=(
             '<p style="color:green;margin-left:10px;">' + listed + '</p>\n'
             '<p style="color:black;margin-left:10px;">Finished</p>\n')))
-        self.expect_button('Installed in Cytoscape Desktop', enabled=False)
+        self.expect_button('Service app installed in Cytoscape Desktop', enabled=False)
 
     # --- clicking Install / Upgrade ---
 
     def test_install_calls_serviceapps_install_and_counts(self):
         cyrest = FakeCyRest()
         self.open_page(cyrest)
-        self.expect_button('Install in Cytoscape Desktop', enabled=True)
+        self.expect_button('Install service app in Cytoscape Desktop', enabled=True)
         with self.page.expect_response(re.compile(r'/download/install/helloworldapp/1\.10\?client=desktop$')) as beacon:
             self.button.click()
         self.assertEqual(204, beacon.value.status)
-        self.expect_button('Installed in Cytoscape Desktop', enabled=False)
+        self.expect_button('Service app installed in Cytoscape Desktop', enabled=False)
         expect(self.alerts.locator('.alert-success')).to_contain_text('Hello World has been installed in Cytoscape Desktop!')
 
         [install] = cyrest.install_requests()
@@ -255,10 +258,10 @@ class ServiceInstallButtonTestCase(StaticLiveServerTestCase):
     def test_upgrade_ends_installed(self):
         cyrest = FakeCyRest(installed_apps=[self.installed(version='1.9')])
         self.open_page(cyrest)
-        self.expect_button('Upgrade in Cytoscape Desktop', enabled=True)
+        self.expect_button('Upgrade service app in Cytoscape Desktop', enabled=True)
         with self.page.expect_response(re.compile(r'\?client=desktop$')):
             self.button.click()
-        self.expect_button('Installed in Cytoscape Desktop', enabled=False)
+        self.expect_button('Service app installed in Cytoscape Desktop', enabled=False)
         self.assertEqual(1, len(cyrest.install_requests()))
 
     def test_failed_install_shows_message_and_does_not_count(self):
@@ -269,18 +272,18 @@ class ServiceInstallButtonTestCase(StaticLiveServerTestCase):
         self.page.on('request', lambda r: beacons.append(r.url) if 'client=desktop' in r.url else None)
         self.button.click()
         expect(self.alerts.locator('.alert-error')).to_contain_text(message)
-        self.expect_button('Install in Cytoscape Desktop', enabled=True)
+        self.expect_button('Install service app in Cytoscape Desktop', enabled=True)
         self.assertEqual([], beacons)
         self.assertEqual(0, ServiceDownload.objects.count())
 
     def test_install_times_out_after_10_seconds(self):
         self.page.clock.install()
         self.open_page(FakeCyRest(install_hangs=True))
-        self.expect_button('Install in Cytoscape Desktop', enabled=True)
+        self.expect_button('Install service app in Cytoscape Desktop', enabled=True)
         self.button.click()
         self.expect_button('Installing...', enabled=False)
         expect(self.button.locator('i')).to_have_class(re.compile(r'\bcy-spin\b'))
         self.page.clock.fast_forward(10001)
         expect(self.alerts.locator('.alert-error')).to_contain_text('Cytoscape Desktop did not answer within 10 seconds')
-        self.expect_button('Install in Cytoscape Desktop', enabled=True)
+        self.expect_button('Install service app in Cytoscape Desktop', enabled=True)
         self.assertEqual(0, ServiceDownload.objects.count())

@@ -54,7 +54,13 @@ Reachability is checked twice: a quick synchronous check at submission time (fas
 ## 4. Model Changes
 
 ### 4.1 `App`
-Gained a `platform` field, backed by a module-level `AppPlatform` `TextChoices` (`desktop` / `web` / `service`), so a single `App` row can be filtered by pipeline without joining out to pending/release tables.
+Originally gained a `platform` field, backed by a module-level `TextChoices` (`desktop` / `web` / `service`), so a single `App` row could be filtered by pipeline. **#155 replaced it:** an app's name is its identity, and one `App` can have releases on every platform.
+
+- **Platform membership is computed, not stored.** `App.objects` annotates each app with whether it has an active `Release`, `WebBundleRelease` or `ServiceRelease`. `App.platforms`, `has_desktop` / `has_web` / `has_service` and `primary_platform` read those flags, and `AppQuerySet.on_platform()` / `legacy_plugins()` filter on them. The `Platform` `TextChoices` remains the vocabulary.
+- **Per-platform page content.** `AppPlatformContent(app, platform)`, unique per app and platform, holds a platform's own description, details, categories, licence and resource links. `Screenshot` and `OrderedAuthor` have a nullable `platform`: null is the app's own set.
+- **The `App`'s own fields are one platform's content: `App.content_owner`.** Before #155 every app was on exactly one platform, so its existing fields are that platform's content and no data migration is needed. When the app is on Desktop, the owner is always Desktop, so `/backend/all_apps`, which Cytoscape Desktop reads, never shows another platform's content. Otherwise it is the app's one platform without an `AppPlatformContent`.
+- **No platform shows another's content.** **`App.content(platform)`** returns the platform's `AppPlatformContent` (with its platform-tagged screenshots and authors), the `App`'s own fields for the owner, and otherwise empty content. **`App.content_for_edit(platform)`** is where an edit is saved; a platform's first edit creates its `AppPlatformContent` empty, copying nothing.
+- **A platform joining an app starts empty.** Accepting a new-platform submission runs **`App.separate_platform_content(original)`** with the platform the app was on: the joining platform gets an empty `AppPlatformContent`, and if Desktop joins an app that was on Web or Service, the `App`'s fields, categories, screenshots and authors move to that platform's own content so Desktop's starts empty. **`manage.py set_original_platform <app> <platform> [--apply]`** does the same for an app that gained a platform without it (e.g. on a server that ran an earlier build of #155); without `--apply` it only shows the changes.
 
 ### 4.2 Web — `WebBundlePending`
 
@@ -422,6 +428,9 @@ def install_url(self):
 Generated from the release version and manifest path; the Service equivalent is built from the stored service endpoint.
 
 ### 6.4 `app_page.html` — release list loop and download/install links
+
+> **Since #155:** there is one page per app, not per platform. The **Available Platforms** buttons choose a platform with `?platform=`. The page's description, Details tab and resource links come from `app.content(selected_platform)`, and Release History lists only the selected platform's releases. Each platform's install panel shows its own licence. The `app.platform` branches below describe the code before #155.
+
  
 **Original (Desktop-only) block:**
 ```django-html
@@ -823,7 +832,7 @@ Browsers reject JS modules served with the wrong MIME type. This surfaced as a r
 
 ## 12. Implementation Status
 
-**Implemented / actively integrated:** app-type distinction (`App.platform`); Web/Service page/view handling; `WebBundlePending`, `WebBundleRelease`, `ServiceAppPending`, `ServiceRelease` models; bundle upload + structural validation; pending storage + confirm-page flow; Service endpoint storage, dual reachability checks, SSRF mitigation; type-specific latest-release retrieval and templates; Apache hosting with corrected MIME types; `origin` field on both Web pending models;
+**Implemented / actively integrated:** one app across platforms with per-platform page content (#155; replaced `App.platform`, see §4.1); Web/Service page/view handling; `WebBundlePending`, `WebBundleRelease`, `ServiceAppPending`, `ServiceRelease` models; bundle upload + structural validation; pending storage + confirm-page flow; Service endpoint storage, dual reachability checks, SSRF mitigation; type-specific latest-release retrieval and templates; Apache hosting with corrected MIME types; `origin` field on both Web pending models;
 
 **Designed / not yet implemented:** automated review pipeline (`AutomatedReview`/`AutomatedCheck`, all §9 checks); `./AppConfig` load-test validator (approach pending confirmation against ESM-based bundles); `HumanReview` model + reviewer UI; CDN publication (no infra stood up); GitHub URL mechanism (ref resolution, build step, confirm branching); `WebUrlPending`/`WebBundlePending` unification (§10.4); Apache `deny` rule on `pending/`.
 

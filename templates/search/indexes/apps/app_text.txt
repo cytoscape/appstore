@@ -1,5 +1,7 @@
 {{ object.name }}
 {{ object.description }}
 {{ object.details }}
-{{ object.fullname }}
+{% for content in object.platform_contents.all %}{{ content.description|default:"" }}
+{{ content.details|default:"" }}
+{% endfor %}{{ object.fullname }}
 {{ object.camelcase }}

@@ -131,3 +131,10 @@
 {
     z-index: 11;
 }
+
+/* an app on Cytoscape Desktop and Cytoscape Web has both stickers, side by side */
+.app_button .cy-sticker-second
+{
+    right: 28px;
+    border-top-right-radius: 0;
+}

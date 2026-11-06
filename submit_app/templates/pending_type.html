@@ -1,0 +1,13 @@
+{% with identity=pending.identity %}
+<td class="cy-pending-type">
+  {% if identity.outcome.value == 'new_app' %}
+    New app
+  {% elif identity.outcome.value == 'new_platform' %}
+    New platform &rarr; <a href="{% url 'app_page' identity.app.name %}">{{ identity.app.fullname }}</a>
+  {% elif identity.outcome.value == 'not_editor' %}
+    Name taken by <a href="{% url 'app_page' identity.app.name %}">{{ identity.app.fullname }}</a>
+  {% else %}
+    New release &rarr; <a href="{% url 'app_page' identity.app.name %}">{{ identity.app.fullname }}</a>
+  {% endif %}
+</td>
+{% endwith %}

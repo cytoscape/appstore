@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.test import TestCase 
 from .models import ServiceAppPending
-from apps.models import App, Platform, Author, ServiceRelease
+from apps.models import App, Author, ServiceRelease
 from .servicechecker import (
     ServiceCheckError,
     _is_private_ip,
@@ -113,7 +113,6 @@ class serviceViewsTests(TestCase):
 
         app = App.objects.create(
             name="Existing Service",
-            platform=Platform.SERVICE,
             has_releases=True
         )
 
@@ -127,7 +126,7 @@ class serviceViewsTests(TestCase):
 
     @patch("submit_app.views.check_reachable")
     def test_existing_apps_allow_editors(self, mock_check):
-        app = App.objects.create(fullname="My App", name="my-app", platform=Platform.SERVICE)
+        app = App.objects.create(fullname="My App", name="my-app")
         app.editors.add(self.user)
         mock_check.return_value = {
             'author': 'Test Author',
@@ -256,7 +255,7 @@ class serviceModelTests(TestCase):
 class serviceReleaseModelTests(TestCase):
     def setUp(self):
         self.user = User.objects.create(username="submitter", password="password")
-        self.app = App.objects.create(fullname="Service App", name="serviceapp", platform=Platform.SERVICE)
+        self.app = App.objects.create(fullname="Service App", name="serviceapp")
     
     def test_make_service_release_creates_release(self):
         pending = ServiceAppPending.objects.create(

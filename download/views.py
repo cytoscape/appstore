@@ -37,31 +37,51 @@ def _record_download(request, app, release, download_model, by_date_model):
     _increment_count(by_date_model, release=None, when=when)
 
 def release_download(request, app_name, version):
-    app = get_object_or_404(App, name=app_name, platform=Platform.DESKTOP)
+    app = get_object_or_404(App, name=app_name)
     release = get_object_or_404(Release, app=app, version=version, active=True)
     _record_download(request, app, release, Download, ReleaseDownloadsByDate)
     return HttpResponseRedirect(release.release_file_url)
 
+
+# the release types release_install installs, in the order a bare install URL tries them
+_INSTALL_RELEASE_MODELS = {
+    Platform.SERVICE: ServiceRelease,
+    Platform.WEB: WebBundleRelease,
+}
+
+def _install_platform(request, app, version):
+    """
+    The platform an install URL installs: its ?platform=, or else whichever of service
+    and web has that version, so links made before apps had several platforms still work.
+    """
+    platform = request.GET.get('platform')
+    if platform:
+        if platform not in _INSTALL_RELEASE_MODELS:
+            raise Http404('No install for platform "%s"' % platform)
+        return platform
+    for platform, release_model in _INSTALL_RELEASE_MODELS.items():
+        if release_model.objects.filter(app=app, version=version, active=True).exists():
+            return platform
+    raise Http404('No such release')
 
 def release_install(request, app_name, version):
     # ?client=desktop is the store page reporting a service app it installed into
     # Cytoscape Desktop: record the install and reply 204 instead of redirecting.
     client = request.GET.get('client')
     app = get_object_or_404(App, name=app_name)
-    if app.platform == 'service':
+    platform = _install_platform(request, app, version)
+    if platform == Platform.SERVICE:
         release = get_object_or_404(ServiceRelease, app=app, version=version, active=True)
         _record_download(request, app, release, ServiceDownload, ServiceReleaseDownloadsByDate)
         if client == 'desktop':
             return HttpResponse(status=204)
         return HttpResponseRedirect(release.install_url)
-    elif app.platform == 'web':
+    else:
         if client == 'desktop':
             raise Http404
         release = get_object_or_404(WebBundleRelease, app=app, version=version, active=True)
         _record_download(request, app, release, WebBundleDownload, WebBundleReleaseDownloadsByDate)
         return HttpResponseRedirect(release.install_url)
-    else:
-        raise Http404
 
 # ===================================
 #   Download statistics
@@ -110,11 +130,32 @@ def all_stats_timeline(request):
 
     return json_response(response)
 
+# each platform's releases and the model counting their downloads per day
+_PLATFORM_DOWNLOADS = {
+    Platform.DESKTOP: ('release_set', ReleaseDownloadsByDate),
+    Platform.WEB: ('webbundlerelease_set', WebBundleReleaseDownloadsByDate),
+    Platform.SERVICE: ('servicerelease_set', ServiceReleaseDownloadsByDate),
+}
+
+def _stats_platforms(app):
+    """
+    Platforms the app has ever released on. Unlike app.platforms, inactive releases
+    count: their downloads stay in the app's stats after the releases are deleted.
+    """
+    return [platform for platform, (release_set, _) in _PLATFORM_DOWNLOADS.items()
+            if getattr(app, release_set).exists()]
+
+def _downloads_by_release(app):
+    """(platform, release, its downloads by date) for every release, active or not, on each platform the app released on."""
+    for platform in _stats_platforms(app):
+        release_set, by_date_model = _PLATFORM_DOWNLOADS[platform]
+        for release in getattr(app, release_set).all():
+            yield platform, release, by_date_model.objects.filter(release=release)
+
 def app_stats(request, app_name):
     app = get_object_or_404(App, active = True, name = app_name)
     app_downloads_by_country = AppDownloadsByGeoLoc.objects.filter(app = app, geoloc__region = '', geoloc__city = '')
-    releases = app.release_set.all()
-    release_downloads_by_date = [dl for release in releases for dl in ReleaseDownloadsByDate.objects.filter(release = release)]
+    release_downloads_by_date = [dl for _, _, dls in _downloads_by_release(app) for dl in dls]
     c = {
             'app': app,
             'app_downloads_by_country': app_downloads_by_country,
@@ -123,26 +164,15 @@ def app_stats(request, app_name):
     return html_response('app_stats.html', c, request)
 
 def app_stats_timeline(request, app_name):
+    """Downloads by date per release, keyed by version, or by "<platform> <version>" when the app released on several platforms."""
     app = get_object_or_404(App, active = True, name = app_name)
+    several_platforms = len(_stats_platforms(app)) > 1
     response = dict()
-
-    if app.platform == 'desktop':
-        releases = app.release_set.all()
-        by_date_model = ReleaseDownloadsByDate
-    elif app.platform == 'service':
-        releases = app.servicerelease_set.all()
-        by_date_model = ServiceReleaseDownloadsByDate
-    elif app.platform == 'web':
-        releases = app.webbundlerelease_set.all()
-        by_date_model = WebBundleReleaseDownloadsByDate
-    else:
-        raise Http404
-
-    for release in releases:
-        dls = by_date_model.objects.filter(release = release)
-        response[release.version] = [[dl.when.isoformat(), dl.count] for dl in dls]
+    for platform, release, dls in _downloads_by_release(app):
+        key = '%s %s' % (platform, release.version) if several_platforms else release.version
+        response[key] = [[dl.when.isoformat(), dl.count] for dl in dls]
     return json_response(response)
-        
+
 def app_stats_geography_all(request, app_name):
     app = get_object_or_404(App, active = True, name = app_name)
     return _all_geography_downloads(app)

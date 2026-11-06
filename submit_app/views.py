@@ -22,10 +22,10 @@ from django.core.files.storage import default_storage
 from django.core.files.storage import storages
 from django.shortcuts import get_object_or_404
 from django import forms
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 from util.view_util import html_response, json_response, get_object_or_none, is_ajax
-from util.id_util import fullname_to_name
+from util.id_util import IdentityOutcome, fullname_to_name, resolve_app_identity
 from apps.models import Release, ServiceRelease, WebBundleRelease, App, Author, OrderedAuthor, Platform
 from apps.views import _parse_iso_date
 from .models import AppPending, ServiceAppPending, WebBundlePending, WebUrlPending
@@ -120,7 +120,7 @@ def _user_cancelled(request, pending):
 
 def _user_accepted(request, pending):
     app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
-    if app and app.platform == 'desktop':
+    if app and app.has_platform(Platform.DESKTOP):
         if not app.is_editor(request.user):
             return HttpResponseForbidden('You are not authorized to add releases, because you are not an editor')
         if not app.active:
@@ -188,12 +188,12 @@ def _create_pending(submitter, fullname, version, cy_works_with,
                         to edit. Will also be raised if Release matching name
                         exists that is active.
     """
-    name = fullname_to_name(fullname)
-    app = get_object_or_none(App, name=name)
+    identity = resolve_app_identity(fullname, submitter, Platform.DESKTOP)
+    app = identity.app
+    if identity.outcome == IdentityOutcome.NOT_EDITOR:
+        raise ValueError('cannot be accepted because you are not '
+                         'an editor')
     if app:
-        if not app.is_editor(submitter):
-            raise ValueError('cannot be accepted because you are not '
-                             'an editor')
         release = get_object_or_none(Release, app=app, version=version)
         if release and release.active:
             raise ValueError('cannot be accepted because the app %s already'
@@ -224,8 +224,11 @@ The following app has been submitted:
 """.format(id=pending.id, server_url=server_url, fullname=pending.fullname,
            version=pending.version, submitter_name=pending.submitter.username,
            submitter_email=pending.submitter.email)
+    subject = 'Cytoscape App Store - App Submitted'
+    if getattr(pending, 'is_new_platform', False):
+        subject += ' (new platform for existing app %s)' % pending.identity.app.fullname
     try:
-        send_mail('Cytoscape App Store - App Submitted', msg, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
+        send_mail(subject, msg, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
     except Exception as e:
         LOGGER.exception('Error sending email for pending App')
 
@@ -320,6 +323,30 @@ def submit_api(request, id):
                          request)
 
 
+# what accept emails call each platform
+_PLATFORM_NAMES = {
+    Platform.DESKTOP: 'Cytoscape Desktop',
+    Platform.WEB: 'Cytoscape Web',
+    Platform.SERVICE: 'service',
+}
+
+def _send_email_for_new_platform(to_email, from_email, app_fullname, app_name, server_url, platform):
+    platform_name = _PLATFORM_NAMES[platform]
+    subject = u'Cytoscape App Store - The {platform} version of {app_fullname} Has Been Approved'.format(
+        platform=platform_name, app_fullname=app_fullname)
+    app_url = reverse('app_page', args=[app_name])
+    msg = u"""The {platform} version of {app_fullname} has been approved and now appears on your existing app page:
+
+  {server_url}{app_url}
+
+- Cytoscape App Store Team
+""".format(platform=platform_name, app_fullname=app_fullname, server_url=server_url, app_url=app_url)
+    try:
+        send_mail(subject, msg, from_email, (to_email,))
+    except Exception as e:
+        LOGGER.exception('Error sending email for accepted platform')
+
+
 def _send_email_for_accepted_app(to_email, from_email, app_fullname, app_name, server_url):
     subject = u'Cytoscape App Store - {app_fullname} Has Been Approved'.format(app_fullname = app_fullname)
     app_url = reverse('app_page', args=[app_name])
@@ -364,21 +391,53 @@ def _get_server_url(request):
 
     return '%s://%s:%s' % (prefix, name, port)
 
+def _get_or_create_app_for_pending(pending):
+    """
+    The App an accepted 'pending' release goes to: the app already holding its name, which is
+    then gaining the pending release's platform, or else a new app with the submitter as its editor.
+
+    :return: the App, and whether it already existed
+    """
+    name = fullname_to_name(pending.fullname)
+    app = get_object_or_none(App, name=name)
+    existed = app is not None
+    if not existed:
+        app = App.objects.create(fullname=pending.fullname, name=name)
+        app.editors.add(pending.submitter)
+    app.active = True
+    app.save()
+    return app, existed
+
+
+def _after_accept_commits(request, pending, app, existed, platform, delete_files=True):
+    """
+    Deletes the pending upload and emails the submitter only once the accept has committed.
+    A database rollback cannot bring back deleted files, so a failed accept must leave them
+    in place; and a failure in either of these, after the release is published, is logged
+    rather than undoing the accept.
+    """
+    submitter_email = pending.submitter.email
+    if delete_files:
+        transaction.on_commit(pending.delete_files, robust=True)
+    transaction.on_commit(lambda: _send_email_for_accepted(request, submitter_email, app, existed, platform),
+                          robust=True)
+
+
+def _send_email_for_accepted(request, submitter_email, app, existed, platform):
+    server_url = _get_server_url(request)
+    if existed:
+        _send_email_for_new_platform(submitter_email, settings.CONTACT_EMAIL, app.fullname, app.name,
+                                     server_url, platform)
+    else:
+        _send_email_for_accepted_app(submitter_email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
+
+
 @csrf_exempt
 def _pending_app_accept(pending, request):
-    name = fullname_to_name(pending.fullname)
-    # we always create a new app, because only new apps require accepting
-    app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.DESKTOP)
-    app.active = True
-    app.editors.add(pending.submitter)
-    app.save()
-
+    app, existed = _get_or_create_app_for_pending(pending)
     pending.make_release(app)
-    pending.delete_files()
+    _after_accept_commits(request, pending, app, existed, Platform.DESKTOP)
     pending.delete()
-
-    server_url = _get_server_url(request)
-    _send_email_for_accepted_app(pending.submitter.email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
 
 def _pending_app_decline(pending_app, request):
     pending_app.delete_files()
@@ -388,11 +447,7 @@ def _pending_app_decline(pending_app, request):
 @csrf_exempt
 def _pending_web_accept(pending, request): #INCLUDES PATH FOR REPO URL, MAY OR MAY NOT ADD SEPARATE FUNCTION LATER
     if isinstance(pending, WebBundlePending):
-        name = fullname_to_name(pending.fullname)
-        app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.WEB)
-        app.active = True
-        app.editors.add(pending.submitter)
-        app.save()  
+        app, existed = _get_or_create_app_for_pending(pending)
 
         try:
             pending.make_bundle_release(app)
@@ -400,30 +455,19 @@ def _pending_web_accept(pending, request): #INCLUDES PATH FOR REPO URL, MAY OR M
             print(e)
             raise  # re-raise so you still see it fail — just now with a full traceback in the console
 
-        pending.delete_files()
+        _after_accept_commits(request, pending, app, existed, Platform.WEB)
         pending.delete()
 
     else:
-        pass #later configure to accept github url submissions
-
-    server_url = _get_server_url(request)
-    _send_email_for_accepted_app(pending.submitter.email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
+        return HttpResponseBadRequest('Approving GitHub-URL web submissions is not supported yet')
 
 
 @csrf_exempt
 def _pending_service_accept(pending, request):
-    name = fullname_to_name(pending.fullname)
-    app = App.objects.create(fullname = pending.fullname, name = name, platform=Platform.SERVICE)
-    app.active = True
-    app.editors.add(pending.submitter)
-    app.save()
-
+    app, existed = _get_or_create_app_for_pending(pending)
     pending.make_service_release(app)
-    submitter_email = pending.submitter.email
+    _after_accept_commits(request, pending, app, existed, Platform.SERVICE, delete_files=False)
     pending.delete()
-
-    server_url = _get_server_url(request)
-    _send_email_for_accepted_app(submitter_email, settings.CONTACT_EMAIL, app.fullname, app.name, server_url)
 
 def _pending_url_decline(pending_app, request): #originally _pending_service_decline, change to just url for repo url as well
     pending_app.delete()
@@ -437,7 +481,45 @@ def _pending_instance_decline(pending_app, request):
     elif isinstance(pending_app, WebBundlePending):
         return _pending_app_decline(pending_app, request)
 
+# Submissions whose published versions are locked, and their release models: accepting a
+# version that is already published would overwrite that release and its files.
+_LOCKED_VERSIONS = ((AppPending, Release), (WebBundlePending, WebBundleRelease))
+
+def _is_published(app, pending):
+    """Whether 'pending''s version is already an active release of 'app' on its platform."""
+    for pending_model, release_model in _LOCKED_VERSIONS:
+        if isinstance(pending, pending_model):
+            return app is not None and release_model.objects.filter(app=app, version=pending.version,
+                                                                    active=True).exists()
+    return False
+
+@transaction.atomic
 def _pending_instance_accept(pending_app, request):
+    """
+    Publishes 'pending_app'. All of its database changes happen together or not at
+    all: if publishing fails part way, no app or release is left behind and the
+    submission stays in the queue with its upload. Deleting that upload and emailing
+    the submitter wait for the commit (_after_accept_commits).
+    """
+    identity = pending_app.identity
+    if identity.outcome == IdentityOutcome.NOT_EDITOR:
+        # e.g. two people submitted the same new name, and the other one was accepted first
+        return HttpResponseBadRequest('%s already exists and %s is not one of its editors'
+                                      % (identity.app.fullname, pending_app.submitter.username))
+    if _is_published(identity.app, pending_app):
+        # e.g. the same version was submitted twice, and the other submission was accepted first
+        return HttpResponseBadRequest('Version %s of %s is already published; decline this submission'
+                                      % (pending_app.version, identity.app.fullname))
+    # a platform joining an existing app starts with empty content of its own, and the platform
+    # the app was on until then keeps the app's content (#155)
+    app = identity.app
+    original = app.content_owner if app is not None and pending_app.PLATFORM not in app.platforms else None
+    response = _accept_by_type(pending_app, request)
+    if response is None and original is not None:
+        App.objects.get(pk=app.pk).separate_platform_content(original)
+    return response
+
+def _accept_by_type(pending_app, request):
     if isinstance(pending_app, AppPending):
         return _pending_app_accept(pending_app, request)
     if isinstance(pending_app, ServiceAppPending):
@@ -486,11 +568,10 @@ def pending_apps(request):
             return HttpResponseBadRequest('invalid pending_id')
         
         result = _PendingAppsActions[action](pending_app, request)
-        if is_ajax(request):
-            return json_response(True)
-
         if isinstance(result, HttpResponse):
             return result
+        if is_ajax(request):
+            return json_response(True)
 
         return HttpResponseRedirect(reverse('pending-apps'))
 
@@ -613,6 +694,28 @@ def cy2x_plugins(request):
         return html_response('cy2x_plugins.html', {}, request)
 
 
+def _identity_error(fullname, user, platform, expect_app_name=None):
+    """
+    Why 'user' cannot submit a 'platform' release named 'fullname', or None if they can.
+    'expect_app_name' is set when the submission started from an existing app's page.
+    """
+    if expect_app_name and fullname_to_name(fullname) != fullname_to_name(expect_app_name):
+        return 'The submitted app is named %s but must be %s' % (fullname, expect_app_name)
+    identity = resolve_app_identity(fullname, user, platform)
+    if identity.outcome == IdentityOutcome.NOT_EDITOR:
+        return ('An app named %s already exists and you are not one of its editors. '
+                'Ask its editors to add you.' % identity.app.fullname)
+    return None
+
+
+def _web_bundle_version_error(fullname, version):
+    app = get_object_or_none(App, name=fullname_to_name(fullname))
+    if app and WebBundleRelease.objects.filter(app=app, version=version, active=True).exists():
+        return ('%s already has a Cytoscape Web release with version %s. You can delete this '
+                'version in the Release History tab of the app edit page.' % (app.fullname, version))
+    return None
+
+
 #---------------------- SERVICE APP SUBMISSION ----------------------
 @login_required
 def submit_service_app(request):
@@ -620,8 +723,11 @@ def submit_service_app(request):
     context = {}
 
     if request.method != 'POST':
+        context['expect_app_name'] = request.GET.get('expect_app_name')
         return html_response('service_upload_form.html', context, request)
-    
+
+    expect_app_name = request.POST.get('expect_app_name')
+    context['expect_app_name'] = expect_app_name
     service_url = request.POST.get('service-url')
 
     if not service_url:
@@ -648,9 +754,9 @@ def submit_service_app(request):
         return html_response('service_upload_form.html', context, request)
 
 
-    existing = get_object_or_none(App, name=name)
-    if existing and not existing.is_editor(request.user):
-        context['error'] = 'An app with that name already exists and you are not an editor'
+    error = _identity_error(fullname, request.user, Platform.SERVICE, expect_app_name)
+    if error:
+        context['error'] = error
         return html_response('service_upload_form.html', context, request)
 
     if ServiceAppPending.objects.filter(name=name).exists():
@@ -691,7 +797,7 @@ def _service_user_cancel(request, pending):
 
 def _service_user_accepted(request, pending):
     app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
-    if app and app.platform == 'service':
+    if app and app.has_platform(Platform.SERVICE):
         if not app.is_editor(request.user):
             return HttpResponseForbidden('You are not authorized to make changes or add new releases to this app')
         if not app.active:
@@ -882,14 +988,16 @@ def resolve_commit_ref(repo_url, commit_ref):
 #---------------------- WEB APP BUNDLE SUBMISSION ----------------------
 @login_required
 def submit_web_bundle(request):
-    context = []
     if request.method != "POST":
         form = web_bundle_submission()
-        return html_response('web_bundle_upload_form.html', {'form': form}, request)
+        context = {'form': form, 'expect_app_name': request.GET.get('expect_app_name')}
+        return html_response('web_bundle_upload_form.html', context, request)
 
     form = web_bundle_submission(request.POST, request.FILES)
+    expect_app_name = request.POST.get('expect_app_name')
+    context = {'form': form, 'expect_app_name': expect_app_name}
     if not form.is_valid():
-        return html_response('web_bundle_upload_form.html', {'form': form}, request)
+        return html_response('web_bundle_upload_form.html', context, request)
 
     bundle = form.cleaned_data['bundle']
 
@@ -898,7 +1006,14 @@ def submit_web_bundle(request):
         cy_manifest = _extract_cy_manifest(bundle)
     except ValidationError as e:
         form.add_error(None, str(e))
-        return html_response('web_bundle_upload_form.html', {'form': form}, request)
+        return html_response('web_bundle_upload_form.html', context, request)
+
+    error = _identity_error(cy_manifest['name'], request.user, Platform.WEB, expect_app_name)
+    if not error:
+        error = _web_bundle_version_error(cy_manifest['name'], cy_manifest['version'])
+    if error:
+        form.add_error(None, error)
+        return html_response('web_bundle_upload_form.html', context, request)
 
     pending = _create_web_bundle_pending(form, bundle, request.user, cy_app_id=cy_manifest['id'],  fullname=cy_manifest['name'] , version=cy_manifest['version'])
 
@@ -906,8 +1021,8 @@ def submit_web_bundle(request):
         server_url = _get_server_url(request)
         _send_email_for_pending(pending, server_url=server_url)
     except ValueError as e:
-        context['error_msg'] = str(e)
-        return html_response('web_bundle_upload_form.html', context, request)  
+        form.add_error(None, str(e))
+        return html_response('web_bundle_upload_form.html', context, request)
 
     return HttpResponseRedirect(reverse('confirm-web-bundle', args=[pending.id]))
     
@@ -964,7 +1079,7 @@ def _bundle_user_cancelled(request, pending):
 
 def _bundle_user_accepted(request, pending):
     app = get_object_or_none(App, name = fullname_to_name(pending.fullname))
-    if app and app.platform == 'web':
+    if app and app.has_platform(Platform.WEB):
         if not app.is_editor(request.user):
             return HttpResponseForbidden('You are not authorized to make changes or add new releases to this app')
         if not app.active:
