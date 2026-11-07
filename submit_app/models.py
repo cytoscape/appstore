@@ -1,18 +1,44 @@
 import subprocess
 import datetime
+import os
 from os.path import basename, join as pathjoin
 from threading import Thread
 
 from django.db import models
 from django.contrib.auth.models import User
-from apps.models import App, Release, ReleaseAPI
-from util.id_util import fullname_to_name
-from util.view_util import get_object_or_none
+from apps.models import App, Platform, ServiceRelease, WebBundleRelease, Release, ReleaseAPI
+from util.id_util import IdentityOutcome, fullname_to_name, resolve_app_identity
 from django.core.mail import send_mail
+from django.core.files.storage import storages
 from django.conf import settings
+from submit_app.bundle_storage import write_manifest_json, _copy_bundle_to_storage
+from urllib.parse import urljoin, quote
 
 
-class AppPending(models.Model):
+class PendingIdentity:
+    """
+    Which app a pending submission belongs to, from its submitter's point of view.
+    Subclasses set PLATFORM to the platform they submit for.
+    """
+    PLATFORM = None
+
+    @property
+    def identity(self):
+        return resolve_app_identity(self.fullname, self.submitter, self.PLATFORM)
+
+    @property
+    def is_new_app(self):
+        return self.identity.outcome == IdentityOutcome.NEW_APP
+
+    @property
+    def is_new_platform(self):
+        return self.identity.outcome == IdentityOutcome.NEW_PLATFORM
+
+
+class AppPending(PendingIdentity, models.Model):
+    PLATFORM = Platform.DESKTOP
+
+    id = models.BigAutoField(primary_key=True)
     submitter = models.ForeignKey(User, on_delete=models.CASCADE)
     fullname = models.CharField(max_length=127)
     version = models.CharField(max_length=31)
@@ -27,11 +53,6 @@ class AppPending(models.Model):
         if user.is_staff or user.is_superuser:
             return True
         return user.username == self.submitter.username
-
-    @property
-    def is_new_app(self):
-       name = fullname_to_name(self.fullname)
-       return get_object_or_none(App, name = name) == None
 
     class Meta:
         ordering = ['created']
@@ -50,10 +71,8 @@ class AppPending(models.Model):
             release.dependencies.add(dependee)
         release.calc_checksum()
 
-        if not app.has_releases:
-            app.has_releases = True
         app.latest_release_date = release.created
-        app.save()
+        app.update_has_releases()
 
         if self.pom_xml_file and self.javadocs_jar_file:
             api, _ = ReleaseAPI.objects.get_or_create(release=release)
@@ -64,11 +83,12 @@ class AppPending(models.Model):
             _deploy_artifact_async(api)
 
     def delete_files(self):
-        self.release_file.delete()
+        # save=False: this runs after the row is deleted when an accept commits, and saving would re-create it
+        self.release_file.delete(save=False)
         if self.javadocs_jar_file:
-            self.javadocs_jar_file.delete()
+            self.javadocs_jar_file.delete(save=False)
         if self.pom_xml_file:
-            self.pom_xml_file.delete()
+            self.pom_xml_file.delete(save=False)
 
 def _deploy_artifact_async(api):
     def run_deploy():
@@ -80,7 +100,7 @@ def _deploy_artifact(api):
     pom_path = pathjoin(settings.MEDIA_ROOT, api.pom_xml_file.name)
     jar_path = pathjoin(settings.MEDIA_ROOT, api.release.release_file.name)
     deploy_cmd = (settings.MVN_BIN_PATH,
-        '-s', settings.MVN_SETTINGS_PATH,
+        '-s', settings.MVN_SETTINGS_PATH,   
         'deploy:deploy-file',
         '-Dpackaging=jar',
         '-Durl=http://code.cytoscape.org/nexus/content/repositories/apps',
@@ -90,3 +110,173 @@ def _deploy_artifact(api):
     cmd = subprocess.Popen(deploy_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False)
     cmdout, _ = cmd.communicate()
     send_mail('Cytoscape App Store - App Repo Deploy (Release API ID: %d)' % api.id, cmdout, settings.EMAIL_ADDR, settings.CONTACT_EMAILS, fail_silently=False)
+
+
+class ServiceAppPending(PendingIdentity, models.Model):
+    PLATFORM = Platform.SERVICE
+
+    class Status(models.TextChoices):
+        PENDING_CHECKER = 'pending_checker', 'Pending Checker' #submission was successful, waiting for checker command
+        CHECKER_VALIDATED = 'checker_validated', 'Validated by Checker' #passed all checks from checker
+        CHECKER_FAILED = 'checker_failed', 'Failed Checker' #checker validation failed
+        PENDING_REVIEW = 'pending_review', 'Pending Manual Review' #checker passed, awaiting human/admin review
+
+    id = models.BigAutoField(primary_key=True)
+    submitter = models.ForeignKey(User, on_delete=models.CASCADE)
+    fullname = models.CharField(max_length=127)
+    version = models.CharField(max_length=31)
+    created = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=31, choices=Status.choices, default=Status.PENDING_CHECKER)
+
+    service_endpoint = models.URLField(blank=True, null=True)
+    citation = models.CharField(max_length=512, blank=True)
+    documentation = models.CharField(max_length=512, blank=True, null=True)
+
+    author = models.CharField(max_length=512, blank=True, null=True)
+    
+    metadata = models.JSONField(null=True, blank=True)
+
+    name = models.CharField(max_length=256, unique=True, db_index=True, null=True)
+
+    class Meta:
+        ordering = ['-created']
+    
+    def __str__(self):
+        return f'{self.app.fullname} {self.version}'
+    
+    @property
+    def install_url(self):
+        if not self.service_endpoint:
+            return None
+        return (
+        settings.CYTOSCAPE_WEB_INSTALL_URL
+        + quote(self.service_endpoint, safe="")
+    )
+
+
+    def make_service_release(self, app):
+        release, _ = ServiceRelease.objects.get_or_create(app=app, version=self.version)
+        release.service_endpoint = self.service_endpoint
+        release.author = self.author or ''
+        release.citation = self.citation or ''
+        release.documentation = self.documentation or ''
+        release.metadata = self.metadata
+        release.active = True
+        release.created = datetime.datetime.today()
+        release.save()
+
+        app.latest_release_date = release.created
+        app.update_has_releases()
+
+class WEB_SUBMISSION_ORIGIN(models.TextChoices):
+    WEB_URL = 'web_url', 'Web URL',
+    WEB_BUNDLE = 'web_bundle', 'Web Bundle'
+
+class WebUrlPending(PendingIdentity, models.Model):
+    PLATFORM = Platform.WEB
+    id = models.BigAutoField(primary_key=True)
+    submitter = models.ForeignKey(User, on_delete=models.CASCADE)
+    fullname = models.CharField(max_length=128)
+    author = models.CharField(max_length=128, blank=True)
+    version = models.CharField(max_length=32)
+    created = models.DateTimeField(auto_now_add=True)
+    repo_url = models.URLField(blank=False, null=True)
+    origin = models.CharField(max_length=32, choices=WEB_SUBMISSION_ORIGIN.choices, default=WEB_SUBMISSION_ORIGIN.WEB_URL)
+    
+
+
+def get_webbundles_storage():
+    return storages['webbundles']
+
+class WebBundlePending(PendingIdentity, models.Model):
+    PLATFORM = Platform.WEB
+    class Status(models.TextChoices):
+        DEFAULT = 'default_status', 'Default Status'
+        PENDING_AUTOMATED_CHECKS = 'pending_automated_checks', 'Running Automated Checks'
+        CHECKS_FAILED         = 'checks_failed', 'Automated Checks Failed'
+        PENDING_REVIEW        = 'pending_review', 'Pending Manual Review'
+        #PUBLISHED             = 'published', 'Published'
+        #REJECTED              = 'rejected', 'Rejected'
+
+    id = models.BigAutoField(primary_key=True)
+    submitter = models.ForeignKey(User, on_delete=models.CASCADE)
+    fullname = models.CharField(max_length=128)
+    # The bundle's Module Federation container name, from cy-manifest.json.
+    # NOT a slug of fullname: App.name is that, and conflating the two is how
+    # issue #144 shipped. Carried onto WebBundleRelease.cy_app_id on approval.
+    cy_app_id = models.CharField(max_length=128, null=True)
+    author = models.CharField(max_length=512, blank=True)
+    version = models.CharField(max_length=32)
+    description = models.TextField(blank=True)
+    license = models.CharField(max_length=64, blank=True)
+    tags = models.JSONField(default=list, blank=True)
+
+
+    #internal boundary
+    status = models.CharField(max_length=32, choices=Status.choices, default=Status.DEFAULT)
+    created = models.DateTimeField(auto_now_add=True)
+    bundle = models.FileField(upload_to="webpending/", storage=get_webbundles_storage, null=True)
+    bundle_hash = models.CharField(max_length=64)
+    origin = models.CharField(max_length=32, choices=WEB_SUBMISSION_ORIGIN.choices, default=WEB_SUBMISSION_ORIGIN.WEB_BUNDLE)
+
+    class Meta:
+        ordering = ['-created']
+
+    def delete_files(self):
+        # save=False: this runs after the row is deleted when an accept commits, and saving would re-create it
+        self.bundle.delete(save=False)
+        web_storage = storages['webbundles']
+        assert self.bundle_path.startswith('pending/'),"refusing to delete outside pending/ namespace"
+        if not web_storage.exists(self.bundle_path):
+            # another submission of the same name and version shared this folder, and its
+            # accept or decline already removed it
+            return
+        for f in web_storage.listdir(self.bundle_path)[1]:
+            web_storage.delete(f"{self.bundle_path}{f}")
+        try:
+            os.rmdir(web_storage.path(self.bundle_path))
+        except OSError:
+            pass
+
+    @property
+    def bundle_path(self):
+        return f"pending/{fullname_to_name(self.fullname)}/{self.version}/"
+
+    @property
+    def cdn_base_url(self):
+        return urljoin(settings.CDN_BASE_URL, self.bundle_path)
+
+    @property
+    def remote_entry_url(self):
+        return urljoin(self.cdn_base_url, "remoteEntry.js")
+
+    @property
+    def manifest_url(self):
+        return urljoin(self.cdn_base_url, "manifest.json")
+    
+    @property
+    def install_url(self):
+        return (
+        settings.CYTOSCAPE_WEB_INSTALL_URL
+        + quote(self.manifest_url, safe="")
+    )
+
+    def make_bundle_release(self, app: "App") -> "WebBundleRelease":
+        cdn_base_url = urljoin(settings.CDN_BASE_URL, f"{app.name}/{self.version}/")
+
+        release, _ = WebBundleRelease.objects.get_or_create(app=app, version=self.version)
+
+        release.cy_app_id = self.cy_app_id or fullname_to_name(self.fullname)
+        release.author = self.author
+        release.description = self.description
+        release.license = self.license
+        release.tags = self.tags
+        #release.remote_entry_hash = self.remote_entry_hash
+        release.bundle_hash = self.bundle_hash
+        release.active = True
+        release.save()
+
+        app.latest_release_date = release.created
+        _copy_bundle_to_storage(self.bundle, destination=f"{app.name}/{self.version}/")
+        write_manifest_json(release)
+        app.update_has_releases()

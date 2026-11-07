@@ -1,0 +1,18 @@
+{% extends "nav_panel.html" %}
+{% load app_buttons %}
+
+{% block title %}
+- Cytoscape 2.x Plugins
+{% endblock %}
+
+{% block main %}
+  <div class="row" style="margin-bottom: 2em;">
+    <div class="span12">
+      <h1>Cytoscape 2.x Plugins</h1>
+      <p>Plugins for Cytoscape 2.x, which current versions of Cytoscape do not support.</p>
+    </div>
+  </div>
+  <div class="row">
+    {% app_buttons apps %}
+  </div>
+{% endblock %}

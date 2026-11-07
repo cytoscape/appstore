@@ -1,0 +1,15 @@
+{# Cytoscape Desktop panel: install through Cytoscape's App Manager, or download the jar #}
+<div class="well cy-app-platform-panel" id="cy-app-panel-desktop" data-platform="desktop">
+	<h6 class="panel-title muted">CYTOSCAPE 3</h6>
+	<button class="btn btn-large btn-block" id="cy-app-install-btn-desktop">
+		<i></i> {# <-- download button icon will go here #}
+		<h4></h4> {# <-- download button text will go here #}
+	</button>
+	<p id="downloadLink" style="display: none; font-size: 9px;">Or, for JAR file, click <a href= "{% url 'release_download' app.name cy3_latest_release.version %}">here</a> to download</p>
+	<p><strong>Version</strong> {{ cy3_latest_release.version }}</p>
+	{% with license_text=contents.desktop.license_text %}{% if license_text %}<p class="cy-app-license"><strong>License</strong> <a href="{{ license_text }}" target="_blank">Click here</a></p>{% endif %}{% endwith %}
+	<p><strong>Released</strong> {{ cy3_latest_release.created|date:'j M Y' }}</p>
+	<p><strong>Works with</strong> <a href="http://www.cytoscape.org" target="_blank">Cytoscape {{ cy3_latest_release.works_with }}</a></p>
+	<p><strong>Download Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
+	<span class="cytoscape-badge"></span>
+</div>

@@ -3,14 +3,14 @@
 {% load i18n %}
 
 {% block more_head %}
-<link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_page.css" />
+<link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_page.css?v={{ APP_VERSION|urlencode }}" />
 <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_stars.css" />
-<link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/js4cytoscape-style.css" />
+<link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/js4cytoscape-style.css?v={{ APP_VERSION|urlencode }}" />
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/jquery.timeago.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/Markdown.Converter.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/Markdown.Sanitizer.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/js/markdown_util.js"></script>
-<script type="text/javascript" src="{% get_static_prefix %}apps/js/js4cytoscape-dev.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}apps/js/js4cytoscape-dev.js?v={{ APP_VERSION|urlencode }}"></script>
 {% endblock %}
 
 {% block title %}- {{ app.fullname }}{% endblock %}
@@ -38,7 +38,7 @@
 		<h2 id="app-name">
 			{{ app.fullname }}
 		</h2>
-		{% if app.description %}<b>{{ app.description }}</b>{% endif %}
+		{% if content.description %}<b>{{ content.description }}</b>{% endif %}
 	</div>
 
 	{# Editor menu #}
@@ -51,8 +51,10 @@
 				<span class="caret"></span>
 			</a>
 			<ul class="dropdown-menu pull-right">
-				<li><a href="{% url 'app_page_edit' app.name %}">Edit this page</a></li>
-				<li><a href="{% url 'submit-app' %}?expect_app_name={{ app.fullname }}">Submit a 3.0 app release</a></li>
+				<li><a href="{% url 'app_page_edit' app.name %}{% if selected_platform %}?platform={{ selected_platform }}{% endif %}">Edit this page</a></li>
+				<li><a href="{% url 'submit-app' %}?expect_app_name={{ app.fullname|urlencode }}">Submit a desktop release</a></li>
+				<li><a href="{% url 'submit-web-bundle' %}?expect_app_name={{ app.fullname|urlencode }}">Submit a Cytoscape Web bundle</a></li>
+				<li><a href="{% url 'submit-service-app' %}?expect_app_name={{ app.fullname|urlencode }}">Submit a service release</a></li>
 				<li class="divider"></li>
 				<li><a data-toggle="modal" href="#delete_ratings_modal">Delete all ratings</a></li>
 			</ul>
@@ -79,42 +81,45 @@
 		{% if app.has_releases %}
 		<span class="app-usage-info-divider"></span>
 		<a href="{% url 'app_stats' app.name %}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Click to view the download stats.">
-			{{ app.downloads }} downloads
+			{{ app.downloads }} {% if app.has_desktop %}downloads{% else %}installs{% endif %}
 		</a>
 		{% endif %}
 		{# End Downloads #}
 
 		{# Citations #}
-		{% if app.citation %}
+		{% if content.citation %}
 		<a> | </a>
-		<a href="https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed_citedin&from_uid={{ app.citation }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search PubMed for articles citing this app.">{% trans "  citations" %}</a>
+		<a href="https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed_citedin&from_uid={{ content.citation }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search PubMed for articles citing this app.">{% trans "  citations" %}</a>
 
 		{% endif %}
 		{# End Citations #}
 		{# discussions #}
-<a> | </a>
-<a href="https://www.biostars.org/local/search/page/?q=cytoscape+{{ app.fullname }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search BioStar for discussions about this app.">{% trans "discussions" %}</a>
-{# End Discussions #}
+		<a> | </a>
+		<a href="https://www.biostars.org/post/search?query=cytoscape+{{ app.fullname }}" target="_blank" class="has-tooltip" data-toggle="tooltip" data-title="Search BioStar for discussions about this app.">{% trans "discussions" %}</a>
+		{# End Discussions #}
 		<span class="app-usage-info-divider"></span>
 
 		{# badges #}
-		{% if app.has_releases %}
+		{% if app.has_desktop %}
 		<img src="{% get_static_prefix %}apps/img/cy3_sticker.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is available for Cytoscape 3.0 and above.">
+		{% endif %}
+		{% if app.has_web or app.has_service %}
+		<img src="{% get_static_prefix %}apps/img/cyweb_sticker.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is available for Cytoscape Web">
 		{% endif %}
 
 		{% if app.competition_winner_dec_2012 %}
-		<a href="http://nrnb.org/competitions.html" target="_blank">
+		<a href="https://nrnb.org/competitions.html" target="_blank">
 			<img src="{% get_static_prefix %}apps/img/trophy.png" class="has-tooltip" data-toggle="tooltip" data-title="This app won the December 2012 App Competition.">
 		</a>
 		{% endif %}
 
-		{% if app.coderepo %}
-		<a href="{{ app.coderepo }}" target="_blank">
+		{% if content.coderepo %}
+		<a href="{{ content.coderepo }}" target="_blank">
 			<img src="{% get_static_prefix %}apps/img/open-source.png" class="has-tooltip" data-toggle="tooltip" data-title="This app is open source.">
 		</a>
 		{% endif %}
-		{% if app.automation %}
-		<a href="{{ app.automation }}" target="_blank">
+		{% if content.automation %}
+		<a href="{{ content.automation }}" target="_blank">
 			<img src="{% get_static_prefix %}apps/img/automation.png" class="has-tooltip" data-toggle="tooltip" data-title="This app supports automation.">
 		</a>
 		{% endif %}
@@ -122,6 +127,25 @@
 	</div>
 </div>
 {# End app usage info #}
+
+{# Platforms the app is on; the selected one's panel comes first and its releases fill Release History #}
+{% if platform_chips %}
+<div class="row">
+	<div class="span12" id="cy-app-platforms">
+		<strong class="cy-app-platforms-label">Available Platforms</strong>
+		<div class="btn-group">
+			{% for platform, platform_name in platform_chips %}
+			{% if platform == selected_platform %}
+			<a href="?platform={{ platform }}" class="btn btn-large btn-primary active cy-app-platform-chip" aria-current="true" data-platform="{{ platform }}">{{ platform_name }}</a>
+			{% else %}
+			<a href="?platform={{ platform }}" class="btn btn-large cy-app-platform-chip" data-platform="{{ platform }}">{{ platform_name }}</a>
+			{% endif %}
+			{% endfor %}
+		</div>
+	</div>
+</div>
+{% endif %}
+{# End platforms #}
 
 {# Main app page content #}
 <div class="row">
@@ -147,86 +171,124 @@
 		<div class="tab-content">
 			{# Details tab #}
 			<div class="tab-pane active" id="cy-app-details-tab">
+				{# The selected platform's content in the edit page's order, a line between each section shown #}
+				{% with tags=content.tags screenshots=content.screenshots authors=content.authors %}
+				{# Details #}
+				{% if content.details %}
+				<div class="cy-app-view-section" id="cy-app-section-details">
+					<div class="row">
+						<div class="span8" id="cy-app-details-md">{{ content.details }}</div>
+					</div>
+				</div>
+				{% endif %}
+				{# End Details #}
+
 				{# Categories #}
-				{% if app.tags.all %}
-				<div class="row">
-					<div class="span8">
-						Categories:
-						{% for tag in app.tags.all %}
-						<a class="link" href="{% url 'tag_page' tag.name %}">{{ tag.fullname }}</a>{% if not forloop.last %}, {% endif %}
-						{% endfor %}
+				{% if tags %}
+				<div class="cy-app-view-section" id="cy-app-section-categories">
+					<div class="row">
+						<div class="span8" id="cy-app-categories">
+							Categories:
+							{% for tag in tags %}
+							<a class="link" href="{% url 'tag_page' tag.name %}">{{ tag.fullname }}</a>{% if not forloop.last %}, {% endif %}
+							{% endfor %}
+						</div>
 					</div>
 				</div>
 				{% endif %}
 				{# End Categories #}
 
 				{# Screenshots #}
-				{% if app.screenshot_set.all %}
-				<div class="row">
-					<div class="span8" id="cy-app-screenshots">
-						{% for screenshot in app.screenshot_set.all %}
-						<a href="{{ screenshot.screenshot.url }}" target="_blank">
-							<img src="{{ screenshot.thumbnail.url }}"/>
-						</a>
-						{% endfor %}
+				{% if screenshots %}
+				<div class="cy-app-view-section" id="cy-app-section-screenshots">
+					<div class="row">
+						<div class="span8" id="cy-app-screenshots">
+							{% for screenshot in screenshots %}
+							<a href="{{ screenshot.screenshot.url }}" target="_blank">
+								<img src="{{ screenshot.thumbnail.url }}"/>
+							</a>
+							{% endfor %}
+						</div>
 					</div>
 				</div>
 				{% endif %}
 				{# End Screenshots #}
 
-				{# Details #}
-				{% if app.details %}
-				<div class="row">
-					<div class="span8" id="cy-app-details-md">{{ app.details }}</div>
-				</div>
-				{% endif %}
-				{# End Details #}
-
 				{# Authors #}
-				{% if app.authors.all %}
-				<div class="row">
-					<div class="span8">
-						Authors:
-						<ul>
-							{% for author in app.ordered_authors %}
-							<li>
-								<a href="{% url 'author_page' author.name %}">
-									{{ author.name }} {% if author.institution %} ({{ author.institution }}){% endif %}
-								</a>
-							</li>
-							{% endfor %}
-						</ul>
+				{% if authors %}
+				<div class="cy-app-view-section" id="cy-app-section-authors">
+					<div class="row">
+						<div class="span8" id="cy-app-authors">
+							Authors:
+							<ul>
+								{% for author in authors %}
+								<li>
+									<a href="{% url 'author_page' author.name %}">
+										{{ author.name }} {% if author.institution %} ({{ author.institution }}){% endif %}
+									</a>
+								</li>
+								{% endfor %}
+							</ul>
+						</div>
 					</div>
 				</div>
 				{% endif %}
 				{# End Authors #}
+				{% endwith %}
 			</div>
 			{# End Details tab #}
-				
+
 			{# Releases tab #}
 			{% if app.has_releases %}
 			<div class="tab-pane" id="cy-app-releases-tab">
-				{% for release in app.releases %}
+				{# Only the selected platform's releases; the Available Platforms buttons switch platform #}
+				{% with platform=selected_platform platform_name=selected_platform_name releases=selected_releases %}
+				<div class="cy-app-platform-releases" id="cy-app-releases-{{ platform }}" data-platform="{{ platform }}">
+				<h3 class="cy-app-releases-heading">{{ platform_name }} releases</h3>
+				{% for release in releases %}
 				<div class="row">
 					<div class="span8">
 						{# Release version #}
 						<h4>
-							<a href="{% url 'release_download' app.name release.version %}">
-								{{ release.version }}
-							</a>
+							{% if platform == 'desktop' %}
+							<a href="{% url 'release_download' app.name release.version %}">{{ release.version }}</a>
+							{% elif platform == 'web' %}
+							<a href="{% url 'release_install' app.name release.version %}?platform=web"
+							   target="_blank"
+							   rel="noopener"
+							   title="Install version {{ release.version }} in Cytoscape Web">{{ release.version }}</a>
+							{% else %}
+							{{ release.version }}
+							{% endif %}
 							<small><abbr class="timeago" title="{{ release.created_iso }}"></abbr></small>
 						</h4>
 						{# End Release version #}
 
+						{% with release_pk=release.pk|stringformat:"s" %}
+						{% with url_id=platform|add:'-'|add:release_pk %}
+						{% if platform == 'web' %}
+						{% include 'app_url_copy.html' with url_label='Manifest URL' app_url=release.manifest_url url_id=url_id %}
+						{% elif platform == 'service' and release.service_endpoint %}
+						{% include 'app_url_copy.html' with url_label='Service URL' app_url=release.service_endpoint url_id=url_id %}
+						{% endif %}
+						{% endwith %}
+						{% endwith %}
+
 						{# Works with #}
 						<p>
+							{% if platform == 'service' %}
+							{% include 'service_works_with.html' %}
+							{% elif platform == 'web' %}
+							<strong>Works with</strong> <a href="http://web.cytoscape.org" target="_blank">Cytoscape Web</a>
+							{% else %}
 							<strong>Works with</strong> Cytoscape
 							{{ release.works_with }}
+							{% endif %}
 						</p>
 						{# End Works with #}
 
-						{# Release #}
-						{% if release.releaseapi_set.count %}
+						{# Desktop-only: Java API artifacts #}
+						{% if platform == 'desktop' and release.releaseapi_set.count %}
 						{% with releaseapi=release.releaseapi_set.get %}
 						<p>
 							<strong>API</strong>
@@ -238,8 +300,8 @@
 						{% endwith %}
 						{% endif %}
 
-						{# Release dependencies #}
-						{% if release.dependents.count %}
+						{# Desktop-only: Release dependencies #}
+						{% if platform == 'desktop' and release.dependents.count %}
 						<p>
 							<strong>Apps that depend on this release</strong>
 							<ul>
@@ -260,6 +322,8 @@
 					</div>
 				</div>
 				{% endfor %} {# end looping thru each release #}
+				</div>
+				{% endwith %}
 			</div>
 			{% endif %}
 			{# End Releases tab #}
@@ -270,33 +334,26 @@
 	{# Right-hand panels #}
 	<div class="span3 offset1">
 
-		{# 3.0 download panel #}
-		{% if app.has_releases %}
-		<div class="well">
-			<h6 class="panel-title muted">CYTOSCAPE 3</h6>
-			<button class="btn btn-large btn-block" id="cy-app-install-btn">
-				<i></i> {# <-- download button icon will go here #}
-				<h4></h4> {# <-- download button text will go here #}
-			</button>
-			<p id="downloadLink" style="display: none; font-size: 9px;">Or, for JAR file, click <a href= "{% url 'release_download' app.name cy3_latest_release.version %}">here</a> to download</p>
-			<p><strong>Version</strong> {{ cy3_latest_release.version }}</p>
-			{% if app.license_text %}<p><strong>License</strong> <a href="{{ app.license_text }}" target="_blank">Click here</a></p>{% endif %}
-			<p><strong>Released</strong> {{ cy3_latest_release.created|date:'j M Y' }}</p>
-			<p><strong>Works with</strong> <a href="http://www.cytoscape.org" target="_blank">Cytoscape {{ cy3_latest_release.works_with }}</a></p>
-			<p><strong>Download Stats</strong> <a href="{% url 'app_stats' app.name %}" target="_blank">Click here</a></p>
-			<span class="cytoscape-badge"></span>
-		</div>
+		{# A panel per platform the app is on, the selected platform's first #}
+		{% for platform in panel_order %}
+		{% if platform == 'desktop' %}
+		{% include 'app_panel_desktop.html' %}
+		{% elif platform == 'web' %}
+		{% include 'app_panel_web.html' %}
+		{% else %}
+		{% include 'app_panel_service.html' %}
 		{% endif %}
-		{# end 3.0 download panel #}
+		{% endfor %}
+		{# end platform panels #}
 			
-		{# 2.x download panel #}
-		{% if app.cy_2x_plugin_download %}
-		<div class="well">
+		{# 2.x download panel: a Desktop matter, so only with Desktop selected (or for a 2.x-only plugin) #}
+		{% if app.cy_2x_plugin_download and selected_platform != 'web' and selected_platform != 'service' %}
+		<div class="well" id="cy-app-panel-cy2x">
 			<h6 class="panel-title muted">CYTOSCAPE 2</h6>
 			{% if app.has_releases %}
 			<p><strong>Version</strong> <a class="cy-app-2x-download-popover" href="{{ app.cy_2x_plugin_download }}">{{ app.cy_2x_plugin_version }}</a></p>
 			{% else %}
-			<button class="btn btn-large btn-primary btn-block cy-app-2x-download-popover" id="cy-app-install-btn" onClick="window.location.href='https://github.com/cytoscape/cy2_plugin_archive'" >
+			<button class="btn btn-large btn-primary btn-block cy-app-2x-download-popover" id="cy-app-2x-download-btn" onClick="window.location.href='https://github.com/cytoscape/cy2_plugin_archive'" >
 				<i class="icon-cy-install-download"></i>
 				<h4>Download</h4>
 			</button>
@@ -330,43 +387,43 @@
 					Ask a question
 				</a></li>
 
-				<li><a href="https://www.biostars.org/local/search/page/?q=cytoscape+{{ app.fullname }}" target="_blank"><i class="icon-comment"></i> Search BioStars</a></li>
+				<li><a href="https://www.biostars.org/post/search?query=cytoscape+{{ app.fullname }}" target="_blank"><i class="icon-comment"></i> Search BioStars</a></li>
 				<li class="divider"></li>
 
-				{% if app.website %}
-				<li><a href="{{ app.website }}" target="_blank">
+				{% if content.website %}
+				<li><a href="{{ content.website }}" target="_blank">
 					<i class="icon-home"></i> Website
 				</a></li>
 				{% endif %}
 
-				{% if app.tutorial %}
-				<li><a href="{{ app.tutorial }}" target="_blank">
+				{% if content.tutorial %}
+				<li><a href="{{ content.tutorial }}" target="_blank">
 					<i class="icon-book"></i> Tutorial
 				</a></li>
 				{% endif %}
 
-				{% if app.citation %}
-				<li><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ app.citation }}" target="_blank">
+				{% if content.citation %}
+				<li><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ content.citation }}" target="_blank">
 					<i class="icon-heart"></i> Cite this App
 				</a></li>
 				{% endif %}
 
-				{% if app.coderepo %}
-				<li><a href="{{ app.coderepo }}" target="_blank">
+				{% if content.coderepo %}
+				<li><a href="{{ content.coderepo }}" target="_blank">
 					<i class="icon-list-alt"></i> Code Repository
 				</a></li>
 				{% endif %}
 				<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-				{% if app.automation %}
-				<li><a href="{{app.automation}}" target="_blank">
+				{% if content.automation %}
+				<li><a href="{{content.automation}}" target="_blank">
 						
 						<i class="fa fa-gear fa-spin" style="color:black"></i>
  Automation Support
 				</a></li>
 				{% endif %}
 
-				{% if app.contact %}
-				<li><a href="mailto:{{ app.contact }}" target="_blank">
+				{% if content.contact %}
+				<li><a href="mailto:{{ content.contact }}" target="_blank">
 					<i class="icon-envelope"></i> E-mail
 				</a></li>
 				{% endif %}
@@ -398,22 +455,22 @@
 </div>
 {# End modal dialog #}
 
-{# License modal dialog #}
-{% if app.license_confirm and app.license_text %}
-<div class="modal hide fade in" id="license_modal">
+{# License modal dialogs: one per platform whose install button asks to accept its licence #}
+{% for platform, platform_content in license_modals %}
+<div class="modal hide fade in cy-license-modal" id="license_modal_{{ platform }}" data-platform="{{ platform }}">
 	<div class="modal-header">
 		<a class="close" data-dismiss="modal">&times;</a>
 		<h3>License Agreement</h3>
 	</div>
 	<div class="modal-body">
-		<iframe data-src="{{ app.license_text }}" width="500" height="400"></iframe>
+		<iframe data-src="{{ platform_content.license_text }}" width="500" height="400"></iframe>
 	</div>
 	<div class="modal-footer">
 		<a href="#" class="btn" data-dismiss="modal">Don't Accept</a>
 		<a href="#" class="btn btn-primary">Accept</a>
 	</div>
 </div>
-{% endif %}
+{% endfor %}
 {# End license modal dialog #}
 
 {# Vote popover content #}
@@ -427,27 +484,43 @@
 </script>
 {# End vote popover content #}
 
-<script type="text/javascript" src="{% get_static_prefix %}apps/js/app_page.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}apps/js/app_page.js?v={{ APP_VERSION|urlencode }}"></script>
 	
 <script type="text/javascript">
+$('.has-tooltip').tooltip();
+
+{% if app.has_desktop %}
 window.onload = cyBadge();
 window.onload = cyDownload();
-$('.has-tooltip').tooltip();
-{% if app.has_releases %}
-AppPage.setup_install("{{ app.name|escapejs }}",
+AppPage.setup_install('#cy-app-install-btn-desktop',
+	"{{ app.name|escapejs }}",
 	"{{ app.fullname|escapejs }}",
-	"{% url 'release_download' app.name cy3_latest_release.version %}", 
+	"{% url 'release_download' app.name cy3_latest_release.version %}",
 	"{{ cy3_latest_release.version }}",
 	"{% url 'getstarted_app_install' %}");
 {% endif %}
+{% if app.has_service %}
+AppPage.setup_service_install({
+	'selector': '#cy-app-install-btn-service',
+	'name': "{{ service_install_name|escapejs }}",
+	'version': "{{ service_latest_release.version|escapejs }}",
+	'url': "{{ service_latest_release.service_endpoint|escapejs }}",
+	'beacon_url': "{% url 'release_install' app.name service_latest_release.version %}?client=desktop",
+	'help_url': "{% url 'getstarted_app_install' %}",
+	'service_app_url': "{% url 'app_page' desktop_service_app_name %}"
+});
+{% endif %}
 AppPage.setup_cy_2x_download_popover('{% get_static_prefix %}apps/img/plugins_dir.png');
+AppPage.setup_url_copy();
 
-{% if app.details %}
+{% if content.details %}
 AppPage.setup_details();
 {% endif %}
 
 AppPage.setup_stars();
 
 AppPage.setup_release_notes();
+
+AppPage.setup_platform_tabs();
 </script>
 {% endblock %}

@@ -1,0 +1,13 @@
+.git
+.github
+.venv
+.vagrant
+build
+htmlcov
+.coverage
+**/__pycache__
+**/*.pyc
+integration/node_modules
+integration/test-results
+integration/playwright-report
+integration/.auth

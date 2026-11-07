@@ -53,6 +53,21 @@
 	margin-bottom: 3em;
 }
 
+/* Details tab sections (details, categories, screenshots, authors), as on the edit page, with a
+   line like the edit page's between each section shown and the one above it */
+#cy-app-details-tab .cy-app-view-section .span8 {
+	margin-bottom: 0;
+}
+
+.cy-app-view-section {
+	width: 620px; /* span8 */
+	padding: 1.25em 0;
+}
+
+.cy-app-view-section + .cy-app-view-section {
+	border-top: 1px solid #eee;
+}
+
 #cy-app-screenshots {
 	height: 170px;
 	overflow-x: auto;
@@ -72,11 +87,118 @@
     margin-bottom: 1em;
 }
 
-#cy-app-install-btn {
+.cy-app-url-copy {
+    margin-bottom: 1em;
+}
+
+.cy-app-url-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cy-app-url-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
+.cy-app-url-help {
+    position: relative;
+    color: #005580;
+}
+
+.cy-app-url-help summary {
+    display: block;
+    cursor: pointer;
+    line-height: 14px;
+    list-style: none;
+}
+
+.cy-app-url-help summary::-webkit-details-marker {
+    display: none;
+}
+
+.cy-app-url-help summary:focus-visible {
+    outline: 2px solid #005580;
+    outline-offset: 2px;
+}
+
+.cy-app-url-help-text {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: -100px;
+    z-index: 103;
+    width: 200px;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    color: #333;
+    font-size: 12px;
+    line-height: 18px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.cy-app-url-help[open] .cy-app-url-help-text,
+.cy-app-url-help:hover .cy-app-url-help-text {
+    display: block;
+}
+
+.cy-app-url-copy input {
+    box-sizing: border-box;
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    height: 30px;
+    margin-bottom: 0;
+    cursor: text;
+}
+
+.cy-app-copy-url-btn {
+    flex: 0 0 28px;
+    height: 30px;
+    padding: 4px;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: #005580;
+    cursor: pointer;
+}
+
+.cy-app-copy-url-btn:hover {
+    background: #e0e0e0;
+}
+
+.cy-app-url-copy button[hidden] {
+    display: none;
+}
+
+.cy-app-url-copy input:focus,
+.cy-app-url-copy button:focus {
+    outline: 2px solid #005580;
+    outline-offset: 2px;
+}
+
+.cy-app-url-copy p {
+    font-size: 12px;
+    margin: 0.5em 0 0;
+}
+
+.cy-app-url-copy p:empty {
+    display: none;
+}
+
+#cy-app-install-btn-desktop,
+#cy-app-install-btn-service,
+#cy-app-2x-download-btn {
 	margin-bottom: 0.7em;
 }
 
-#cy-app-install-btn h4 {
+#cy-app-install-btn-desktop h4,
+#cy-app-install-btn-service h4,
+#cy-app-2x-download-btn h4 {
 	display: inline;
 	vertical-align: middle;
 	margin-left: 0.3em;
@@ -105,6 +227,16 @@
     background-position: -70px 0;
 }
 
+/* busy icon on the install button while Cytoscape Desktop is being asked */
+.cy-spin {
+    animation: cy-spin 1s linear infinite;
+}
+
+@keyframes cy-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 .cy-markdown-preview {
 	border: 2px dashed #aaa;
 	padding: 1em;
@@ -125,4 +257,9 @@ small .timeago {
 
 .nav-header {
     font-size: 0.85em;
+}
+
+
+.cy-app-releases-heading {
+    margin-top: 0;
 }

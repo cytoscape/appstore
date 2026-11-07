@@ -10,18 +10,36 @@ import io
 import tempfile
 import shutil
 
-from unittest.mock import MagicMock
+import json
+
+from unittest.mock import MagicMock, patch
+from django.core import mail
+from django.core.files.base import ContentFile
 from django.test import TestCase
+from django.urls import reverse
+from django.contrib.staticfiles import finders
 
 from django.conf import settings
+from django.core.files.storage import storages
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.uploadedfile import TemporaryUploadedFile
 from django.http import HttpRequest
 from django.contrib.auth.models import User
 from apps.models import App
+from apps.models import Platform
 from apps.models import Release
+from apps.models import WebBundleRelease
+from apps.models import ServiceRelease
+from apps.models import AppPlatformContent
+from apps.models import Tag
 from submit_app.models import AppPending
+from submit_app.models import ServiceAppPending
+from submit_app.models import WebBundlePending
+from submit_app.models import WebUrlPending
+from submit_app import bundle_storage
+from submit_app import models as submit_models
+from util.id_util import fullname_to_name
 from submit_app import processjar
 from submit_app import mfparse
 from submit_app import views
@@ -103,7 +121,7 @@ class ViewsTest(TestCase):
                              'History tab in the app edit page', str(ve))
 
     def test_confirm_submission_pending_app_not_found(self):
-        response = self.client.post('/submit_app/confirm/12345',
+        response = self.client.post('/submit/confirm/12345',
                                     follow=True)
         self.assertEqual(404, response.status_code)
 
@@ -121,7 +139,7 @@ class ViewsTest(TestCase):
                                         'workswith', [], jarfile)
         res = self.client.login(username='joe', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id)
+        response = self.client.post('/submit/confirm/' + str(pending.id)
                                     ,follow=True)
         self.assertEqual(403, response.status_code)
 
@@ -136,7 +154,7 @@ class ViewsTest(TestCase):
                                         'workswith', [], jarfile)
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id),
+        response = self.client.post('/submit/confirm/' + str(pending.id),
                                     follow=True)
         self.assertEqual(200, response.status_code)
         self.assertTrue(b'Cytoscape App Store - '
@@ -163,7 +181,7 @@ class ViewsTest(TestCase):
 
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id),
+        response = self.client.post('/submit/confirm/' + str(pending.id),
                                     follow=True)
         self.assertEqual(200, response.status_code)
         self.assertTrue(b'Cytoscape App Store - '
@@ -183,7 +201,7 @@ class ViewsTest(TestCase):
                                         'workswith', [], jarfile)
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id),
+        response = self.client.post('/submit/confirm/' + str(pending.id),
                                     {'action': 'cancel'},
                                     follow=True)
         self.assertEqual(200, response.status_code)
@@ -202,7 +220,7 @@ class ViewsTest(TestCase):
                                         'workswith', [], jarfile)
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
-        response = self.client.post('/submit_app/confirm/' + str(pending.id),
+        response = self.client.post('/submit/confirm/' + str(pending.id),
                                     {'action': 'accept'},
                                     follow=True)
         self.assertEqual(200, response.status_code)
@@ -235,7 +253,7 @@ class ViewsTest(TestCase):
             res = self.client.login(username='bob', password='secret')
             self.assertTrue(res)
 
-            response = self.client.post('/submit_app/submit_api/' +
+            response = self.client.post('/submit/submit_api/' +
                                         str(pending.id),
                                         {'submit': 'true',
                                          'pom_xml': testpomfile,
@@ -261,7 +279,7 @@ class ViewsTest(TestCase):
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
 
-        response = self.client.post('/submit_app/submit_api/' +
+        response = self.client.post('/submit/submit_api/' +
                                     str(pending.id),
                                     {'submit': 'true',
                                      'pom_xml': testpomfile,
@@ -288,7 +306,7 @@ class ViewsTest(TestCase):
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
 
-        response = self.client.post('/submit_app/submit_api/' +
+        response = self.client.post('/submit/submit_api/' +
                                     str(pending.id),
                                     {'submit': 'true',
                                      'pom_xml': testpomfile,
@@ -298,6 +316,59 @@ class ViewsTest(TestCase):
         self.assertTrue(b'Submit an API' in response.content)
         self.assertTrue(b'pom.xml is not valid; '
                         b'it must have' in response.content)
+
+    def test_submit_api_page_passes_artifact_exists_url_to_js(self):
+        userobj = User.objects.create_user(username='bob', password='secret',
+                                           is_superuser=True)
+        userobj.save()
+        jarfile = SimpleUploadedFile('SomeApp-1.0.0.jar', b'data',
+                                     content_type='application/zip')
+        pending = views._create_pending(userobj, 'SomeApp', '1.0.0',
+                                        'workswith', [], jarfile)
+        res = self.client.login(username='bob', password='secret')
+        self.assertTrue(res)
+
+        with patch('util.context_processors._app_version', return_value='2.1.0'):
+            response = self.client.get('/submit/submit_api/' + str(pending.id))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('/submit/artifact_exists', reverse('artifact-exists'))
+        self.assertTrue(b"SubmitAPI.setupInputFiles('/submit/artifact_exists')"
+                        in response.content)
+        # the running version as the query string makes browsers drop a cached old submit_api.js
+        self.assertTrue(b'submit_app/js/submit_api.js?v=2.1.0"' in response.content)
+
+    def test_artifact_exists_url_is_routed(self):
+        with patch('submit_app.views._url_exists', return_value=False) as mock_exists:
+            response = self.client.post(reverse('artifact-exists'),
+                                        {'groupId': 'es.imim',
+                                         'artifactId': 'DisGeNET-app',
+                                         'version': '8.2.6'})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(False, json.loads(response.content))
+        mock_exists.assert_called_once_with(
+            views.AppRepoUrl + '/es/imim/DisGeNET-app/8.2.6')
+
+    def test_artifact_exists_missing_coordinates(self):
+        response = self.client.post(reverse('artifact-exists'),
+                                    {'groupId': 'es.imim'})
+        self.assertEqual(400, response.status_code)
+
+    def test_submit_api_js_does_not_hardcode_artifact_exists_url(self):
+        js_path = finders.find('submit_app/js/submit_api.js')
+        self.assertIsNotNone(js_path)
+        with open(js_path, 'r') as f:
+            js = f.read()
+        self.assertFalse('artifact_exists' in js)
+        self.assertFalse('verifyFailed(' in js)
+
+    def test_submit_api_js_accepts_xml_mime_types_and_escapes_filename(self):
+        js_path = finders.find('submit_app/js/submit_api.js')
+        self.assertIsNotNone(js_path)
+        with open(js_path, 'r') as f:
+            js = f.read()
+        self.assertTrue("'application/xml'" in js)
+        self.assertFalse('verifyPomFailed(file.name' in js)
+        self.assertTrue("$('<span>').text(file.name).html()" in js)
 
 
 class ViewsHelperMethodsTest(TestCase):
@@ -724,3 +795,562 @@ class MFParseTestCase(TestCase):
                   '=optional;version="[3.16,4)"'
         res = mfparse.max_of_lower_cytoscape_pkg_versions(the_str)
         self.assertEqual(('3', '27', None, None), res)
+
+
+class WebBundleManifestIdTest(TestCase):
+    """The published manifest id must be the bundle's Module Federation
+    container name, not the store's URL slug (issue #144)."""
+
+    def setUp(self):
+        self.app = App.objects.create(fullname='C3 App', name='c3app')
+
+    def test_catalog_entry_uses_cy_app_id_not_the_slug(self):
+        release = WebBundleRelease.objects.create(app=self.app,
+                                                  cy_app_id='c3App',
+                                                  version='0.1.0')
+        entry = bundle_storage.bundle_catalog_entry(release)
+        self.assertEqual('c3App', entry['id'])
+        self.assertEqual('C3 App', entry['name'])
+
+    def test_catalog_entry_never_substitutes_the_slug(self):
+        # An empty cy_app_id means make_bundle_release did not run, which is a
+        # bug. Publishing the slug instead would hide it behind an id that is
+        # wrong but well-formed.
+        release = WebBundleRelease.objects.create(app=self.app, version='0.1.0')
+        entry = bundle_storage.bundle_catalog_entry(release)
+        self.assertNotEqual('c3app', entry['id'])
+
+    def test_slug_would_not_match_the_container_name(self):
+        # The regression this guards: the slug is derived from the display
+        # name and cannot round-trip a camelCase id.
+        self.assertEqual('c3app', fullname_to_name('C3 App'))
+        self.assertEqual('cytoscapewebsubmissiontest',
+                         fullname_to_name('Cytoscape Web Submission Test'))
+
+    def test_make_bundle_release_carries_the_pending_id(self):
+        user = User.objects.create_user(username='submitter',
+                                        password='password')
+        pending = WebBundlePending.objects.create(submitter=user,
+                                                  fullname='C3 App',
+                                                  cy_app_id='c3App',
+                                                  version='0.1.0',
+                                                  bundle_hash='abc')
+        with patch.object(submit_models, '_copy_bundle_to_storage'), \
+             patch.object(submit_models, 'write_manifest_json'):
+            pending.make_bundle_release(self.app)
+
+        release = WebBundleRelease.objects.get(app=self.app, version='0.1.0')
+        self.assertEqual('c3App', release.cy_app_id)
+
+    def test_make_bundle_release_falls_back_for_pre_cy_manifest_uploads(self):
+        user = User.objects.create_user(username='submitter2',
+                                        password='password')
+        pending = WebBundlePending.objects.create(submitter=user,
+                                                  fullname='C3 App',
+                                                  cy_app_id=None,
+                                                  version='0.2.0',
+                                                  bundle_hash='abc')
+        with patch.object(submit_models, '_copy_bundle_to_storage'), \
+             patch.object(submit_models, 'write_manifest_json'):
+            pending.make_bundle_release(self.app)
+
+        release = WebBundleRelease.objects.get(app=self.app, version='0.2.0')
+        self.assertEqual('c3app', release.cy_app_id)
+
+    def test_pending_manifest_uses_the_stored_id(self):
+        user = User.objects.create_user(username='submitter3',
+                                        password='password')
+        pending = WebBundlePending.objects.create(submitter=user,
+                                                  fullname='C3 App',
+                                                  cy_app_id='c3App',
+                                                  version='0.1.0',
+                                                  bundle_hash='abc')
+        saved = {}
+        storage = MagicMock()
+        storage.exists.return_value = False
+        storage.save.side_effect = lambda path, content: saved.update(
+            path=path, body=json.loads(content.read()))
+
+        with patch.object(bundle_storage, 'storages',
+                          {'webbundles': storage}):
+            bundle_storage.write_pending_manifest_json(pending)
+
+        self.assertEqual('c3App', saved['body'][0]['id'])
+
+
+class SubmissionFixtureMixin:
+    """Foo, a desktop app edited by 'editor', and helpers that submit service apps and web bundles."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        storages = dict(settings.STORAGES)
+        storages['webbundles'] = {**storages['webbundles'],
+                                  'OPTIONS': {**storages['webbundles']['OPTIONS'],
+                                              'location': os.path.join(self.tmp, 'webbundles')}}
+        self.overrides = self.settings(MEDIA_ROOT=self.tmp, STORAGES=storages)
+        self.overrides.enable()
+
+        self.editor = User.objects.create_user('editor', 'editor@example.org', 'secret')
+        self.other = User.objects.create_user('other', 'other@example.org', 'secret')
+        self.desktop_app = App.objects.create(name='foo', fullname='Foo', active=True)
+        self.desktop_app.editors.add(self.editor)
+        Release.objects.create(app=self.desktop_app, version='1.0', works_with='3.10')
+
+    def tearDown(self):
+        self.overrides.disable()
+        shutil.rmtree(self.tmp)
+
+    def bundle(self, name='Foo', version='1.0'):
+        data = io.BytesIO()
+        with zipfile.ZipFile(data, 'w') as zf:
+            zf.writestr('dist/remoteEntry.js', 'var foo;')
+            zf.writestr('dist/cy-manifest.json', json.dumps({'id': 'foo', 'name': name, 'version': version}))
+        return SimpleUploadedFile('foo.zip', data.getvalue(), content_type='application/zip')
+
+    def submit_bundle(self, user, expect_app_name=None, **bundle):
+        self.client.force_login(user)
+        data = {'bundle': self.bundle(**bundle)}
+        if expect_app_name:
+            data['expect_app_name'] = expect_app_name
+        return self.client.post(reverse('submit-web-bundle'), data)
+
+    def submit_service(self, user, name='Foo', expect_app_name=None, version='1.0'):
+        self.client.force_login(user)
+        data = {'service-url': 'https://service.example.org/foo'}
+        if expect_app_name:
+            data['expect_app_name'] = expect_app_name
+        metadata = {'name': name, 'version': version, 'author': 'Someone'}
+        with patch('submit_app.views.check_reachable', return_value=metadata):
+            return self.client.post(reverse('submit-service-app'), data)
+
+
+class SubmissionIdentityTest(SubmissionFixtureMixin, TestCase):
+    """Every platform's submission resolves its name to an app the submitter may extend (#155)."""
+
+    def test_non_editor_cannot_submit_an_existing_name_on_any_platform(self):
+        jar = SimpleUploadedFile('Foo-2.0.jar', b'data', content_type='application/zip')
+        with self.assertRaisesRegex(ValueError, 'not an editor'):
+            views._create_pending(self.other, 'Foo', '2.0', '3.10', [], jar)
+        self.assertContains(self.submit_service(self.other), 'you are not one of its editors')
+        self.assertContains(self.submit_bundle(self.other), 'you are not one of its editors')
+        self.assertFalse(AppPending.objects.exists())
+        self.assertFalse(ServiceAppPending.objects.exists())
+        self.assertFalse(WebBundlePending.objects.exists())
+
+    def test_editor_adding_a_platform_creates_a_new_platform_pending(self):
+        response = self.submit_service(self.editor)
+        pending = ServiceAppPending.objects.get()
+        self.assertRedirects(response, reverse('confirm-service', args=[pending.id]))
+        self.assertTrue(pending.is_new_platform)
+        self.assertFalse(pending.is_new_app)
+
+        response = self.submit_bundle(self.editor)
+        pending = WebBundlePending.objects.get()
+        self.assertRedirects(response, reverse('confirm-web-bundle', args=[pending.id]))
+        self.assertTrue(pending.is_new_platform)
+        self.assertContains(self.client.get(reverse('confirm-web-bundle', args=[pending.id])),
+                            'this adds Cytoscape Web to the existing app Foo')
+
+        web_app = App.objects.create(name='bar', fullname='Bar', active=True)
+        web_app.editors.add(self.editor)
+        WebBundleRelease.objects.create(app=web_app, version='1.0', active=True, bundle_hash='0')
+        jar = SimpleUploadedFile('Bar-1.0.jar', b'data', content_type='application/zip')
+        pending = views._create_pending(self.editor, 'Bar', '1.0', '3.10', [], jar)
+        self.assertTrue(pending.is_new_platform)
+        self.assertContains(self.client.get(reverse('confirm-submission', args=[pending.id])),
+                            'this adds Cytoscape Desktop to the existing app Bar')
+
+    def test_existing_platform_and_new_app_are_not_new_platforms(self):
+        jar = SimpleUploadedFile('Foo-2.0.jar', b'data', content_type='application/zip')
+        pending = views._create_pending(self.editor, 'Foo', '2.0', '3.10', [], jar)
+        self.assertFalse(pending.is_new_platform)
+        self.assertFalse(pending.is_new_app)
+
+        self.submit_bundle(self.other, name='Brand New')
+        pending = WebBundlePending.objects.get()
+        self.assertTrue(pending.is_new_app)
+        self.assertFalse(pending.is_new_platform)
+
+    def test_duplicate_web_bundle_version_is_rejected(self):
+        WebBundleRelease.objects.create(app=self.desktop_app, version='1.0', active=True, bundle_hash='0')
+        self.assertContains(self.submit_bundle(self.editor, version='1.0'),
+                            'already has a Cytoscape Web release with version 1.0')
+        self.assertFalse(WebBundlePending.objects.exists())
+
+    def test_expect_app_name_must_match_for_service_and_web(self):
+        self.assertContains(self.submit_service(self.editor, name='Bar', expect_app_name='Foo'),
+                            'is named Bar but must be Foo')
+        self.assertContains(self.submit_bundle(self.editor, name='Bar', expect_app_name='Foo'),
+                            'is named Bar but must be Foo')
+        self.assertFalse(ServiceAppPending.objects.exists())
+        self.assertFalse(WebBundlePending.objects.exists())
+
+        self.submit_service(self.editor, name='FOO', expect_app_name='Foo')
+        self.assertTrue(ServiceAppPending.objects.exists())
+
+    def test_forms_carry_expect_app_name(self):
+        self.client.force_login(self.editor)
+        for url in (reverse('submit-web-bundle'), reverse('submit-service-app')):
+            self.assertContains(self.client.get(url + '?expect_app_name=Foo'),
+                                '<input type="hidden" name="expect_app_name" value="Foo">', html=True)
+
+
+class PlatformAcceptTest(SubmissionFixtureMixin, TestCase):
+    """Accepting a submission for a new platform adds it to the app already holding the name (#155)."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_user('admin', 'admin@example.org', 'secret', is_staff=True)
+
+    def confirm(self, url_name, pending):
+        return self.client.post(reverse(url_name, args=[pending.id]), {'action': 'accept'})
+
+    def admin_accept(self, pending, pending_platform):
+        self.client.force_login(self.admin)
+        # TestCase never commits, so run what the accept defers to its commit
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(reverse('pending-apps'), {'action': 'accept', 'pending_id': pending.id,
+                                                              'pending_platform': pending_platform})
+
+    def assert_one_app_on(self, name, *platforms):
+        app = App.objects.get(name=name)
+        self.assertEqual(list(platforms), app.platforms)
+        self.assertEqual(['editor'], [u.username for u in app.editors.all()])
+        self.assertTrue(app.active)
+        return app
+
+    def subjects(self):
+        return [message.subject for message in mail.outbox]
+
+    def test_service_added_to_a_desktop_app(self):
+        self.submit_service(self.editor)
+        pending = ServiceAppPending.objects.get()
+        self.assertTemplateUsed(self.confirm('confirm-service', pending), 'submit_done.html')
+        self.assertRedirects(self.admin_accept(pending, 'service'), reverse('pending-apps'))
+
+        self.assert_one_app_on('foo', Platform.DESKTOP, Platform.SERVICE)
+        self.assertFalse(ServiceAppPending.objects.exists())
+        self.assertIn('Cytoscape App Store - App Submitted (new platform for existing app Foo)', self.subjects())
+        self.assertIn('Cytoscape App Store - The service version of Foo Has Been Approved', self.subjects())
+        self.assertIn('now appears on your existing app page', mail.outbox[-1].body)
+
+    def test_web_bundle_added_to_a_desktop_app(self):
+        self.submit_bundle(self.editor)
+        pending = WebBundlePending.objects.get()
+        self.assertTemplateUsed(self.confirm('confirm-web-bundle', pending), 'submit_done.html')
+        self.admin_accept(pending, 'web-bundle')
+
+        app = self.assert_one_app_on('foo', Platform.DESKTOP, Platform.WEB)
+        self.assertEqual(['1.0'], [r.version for r in app.webbundlereleases])
+        self.assertFalse(WebBundlePending.objects.exists())
+        self.assertIn('Cytoscape App Store - The Cytoscape Web version of Foo Has Been Approved', self.subjects())
+
+    def test_web_bundle_added_to_a_service_app(self):
+        service_app = App.objects.create(name='baz', fullname='Baz', active=True)
+        service_app.editors.add(self.editor)
+        ServiceRelease.objects.create(app=service_app, version='1.0', service_endpoint='https://example.org/baz')
+
+        self.submit_bundle(self.editor, name='Baz')
+        pending = WebBundlePending.objects.get()
+        self.confirm('confirm-web-bundle', pending)
+        self.admin_accept(pending, 'web-bundle')
+
+        self.assert_one_app_on('baz', Platform.WEB, Platform.SERVICE)
+
+    def test_inactive_app_is_reactivated_by_its_new_platform(self):
+        App.objects.filter(name='foo').update(active=False)
+        self.submit_service(self.editor)
+        self.admin_accept(ServiceAppPending.objects.get(), 'service')
+        self.assert_one_app_on('foo', Platform.DESKTOP, Platform.SERVICE)
+
+    def test_release_on_an_existing_platform_publishes_without_review(self):
+        self.submit_service(self.editor)
+        self.admin_accept(ServiceAppPending.objects.get(), 'service')
+
+        self.submit_service(self.editor, version='2.0')
+        pending = ServiceAppPending.objects.get()
+        self.assertFalse(pending.is_new_platform)
+        response = self.confirm('confirm-service', pending)
+        self.assertRedirects(response, reverse('app_page_edit', args=['foo']) + '?upload_release=true',
+                             fetch_redirect_response=False)
+        self.assertEqual(['2.0', '1.0'], [r.version for r in App.objects.get(name='foo').servicereleases_by_version])
+        self.assertFalse(ServiceAppPending.objects.exists())
+
+    def test_new_app_is_created_on_accept(self):
+        self.submit_service(self.other, name='Brand New')
+        pending = ServiceAppPending.objects.get()
+        self.confirm('confirm-service', pending)
+        self.admin_accept(pending, 'service')
+
+        app = App.objects.get(name='brandnew')
+        self.assertEqual([Platform.SERVICE], app.platforms)
+        self.assertEqual(['other'], [u.username for u in app.editors.all()])
+        self.assertIn('Cytoscape App Store - Brand New Has Been Approved', self.subjects())
+
+
+class PendingQueueTest(SubmissionFixtureMixin, TestCase):
+    """The admin queue says whether each submission is a new app or a new platform for an existing one (#155)."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_user('admin', 'admin@example.org', 'secret', is_staff=True)
+        self.new_app = AppPending.objects.create(submitter=self.other, fullname='Brand New', version='1.0',
+                                                 cy_works_with='3.10')
+        self.new_app.release_file.save('brandnew-1.0.jar', SimpleUploadedFile('brandnew-1.0.jar', b'data'))
+        self.new_platform = ServiceAppPending.objects.create(
+            submitter=self.editor, fullname='Foo', name='foo', version='1.0',
+            service_endpoint='https://service.example.org/foo')
+        self.web_url = WebUrlPending.objects.create(submitter=self.other, fullname='Url App', version='1.0',
+                                                    repo_url='https://github.com/example/url-app')
+        self.client.force_login(self.admin)
+
+    def post(self, action, pending_id, pending_platform, **headers):
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(reverse('pending-apps'), {'action': action, 'pending_id': pending_id,
+                                                              'pending_platform': pending_platform}, **headers)
+
+    def test_rows_say_new_app_or_new_platform(self):
+        response = self.client.get(reverse('pending-apps'))
+        self.assertContains(response, '<th>Type</th>', html=True)
+        self.assertContains(response, 'New app')
+        self.assertContains(response, 'New platform &rarr; <a href="%s">Foo</a>' % reverse('app_page', args=['foo']))
+
+    def test_accept_for_desktop_service_and_web_bundle(self):
+        self.post('accept', self.new_app.id, 'desktop')
+        self.assertEqual([Platform.DESKTOP], App.objects.get(name='brandnew').platforms)
+
+        self.post('accept', self.new_platform.id, 'service')
+        self.assertEqual([Platform.DESKTOP, Platform.SERVICE], App.objects.get(name='foo').platforms)
+
+        self.submit_bundle(self.editor, name='Foo')
+        self.client.force_login(self.admin)
+        self.post('accept', WebBundlePending.objects.get().id, 'web-bundle')
+        self.assertEqual([Platform.DESKTOP, Platform.WEB, Platform.SERVICE], App.objects.get(name='foo').platforms)
+
+    def test_web_url_cannot_be_accepted_yet(self):
+        for headers in ({}, {'HTTP_X_REQUESTED_WITH': 'XMLHttpRequest'}):
+            response = self.post('accept', self.web_url.id, 'web-url', **headers)
+            self.assertContains(response, 'Approving GitHub-URL web submissions is not supported yet', status_code=400)
+        self.assertTrue(WebUrlPending.objects.filter(id=self.web_url.id).exists())
+        self.assertFalse(App.objects.filter(name='urlapp').exists())
+
+    def test_decline_for_every_platform(self):
+        self.submit_bundle(self.editor, name='Foo')
+        self.client.force_login(self.admin)
+        for pending, pending_platform in ((self.new_app, 'desktop'), (self.new_platform, 'service'),
+                                          (WebBundlePending.objects.get(), 'web-bundle'), (self.web_url, 'web-url')):
+            self.post('decline', pending.id, pending_platform)
+            self.assertFalse(type(pending).objects.filter(id=pending.id).exists())
+        self.assertEqual(['foo'], [app.name for app in App.objects.all()])
+
+
+class AcceptSafetyTest(SubmissionFixtureMixin, TestCase):
+    """Accepting a submission never publishes onto someone else's app, and a failed accept publishes nothing (#155)."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_user('admin', 'admin@example.org', 'secret', is_staff=True)
+        self.third = User.objects.create_user('third', 'third@example.org', 'secret')
+
+    def admin_post(self, action, pending, pending_platform):
+        self.client.force_login(self.admin)
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(reverse('pending-apps'), {'action': action, 'pending_id': pending.id,
+                                                              'pending_platform': pending_platform})
+
+    def test_second_submission_of_the_same_new_name_is_refused(self):
+        # both submit before either is accepted, so both are new apps when submitted
+        self.submit_service(self.other, name='Brand New')
+        self.submit_bundle(self.third, name='Brand New')
+        first, second = ServiceAppPending.objects.get(), WebBundlePending.objects.get()
+        self.admin_post('accept', first, 'service')
+
+        response = self.admin_post('accept', second, 'web-bundle')
+        self.assertContains(response, 'Brand New already exists and third is not one of its editors', status_code=400)
+        app = App.objects.get(name='brandnew')
+        self.assertEqual([Platform.SERVICE], app.platforms)
+        self.assertEqual(['other'], [u.username for u in app.editors.all()])
+        self.assertFalse(WebBundleRelease.objects.filter(app=app).exists())
+        self.assertTrue(WebBundlePending.objects.filter(id=second.id).exists())
+
+        self.admin_post('decline', second, 'web-bundle')
+        self.assertFalse(WebBundlePending.objects.filter(id=second.id).exists())
+
+    def test_failed_accept_of_a_new_platform_publishes_nothing(self):
+        self.submit_bundle(self.editor)
+        pending = WebBundlePending.objects.get()
+        App.objects.filter(name='foo').update(active=False)
+        self.client.raise_request_exception = False
+        with patch.object(submit_models, '_copy_bundle_to_storage', side_effect=OSError('disk full')):
+            self.assertEqual(500, self.admin_post('accept', pending, 'web-bundle').status_code)
+
+        app = App.objects.get(name='foo')
+        self.assertEqual(([Platform.DESKTOP], False), (app.platforms, app.active))
+        self.assertFalse(WebBundleRelease.objects.exists())
+        self.assertFalse(AppPlatformContent.objects.exists())
+        self.assertTrue(WebBundlePending.objects.filter(id=pending.id).exists())
+        self.admin_post('decline', pending, 'web-bundle')
+        self.assertFalse(WebBundlePending.objects.exists())
+
+    def test_failed_accept_of_a_new_app_creates_no_app(self):
+        self.submit_bundle(self.other, name='Brand New')
+        pending = WebBundlePending.objects.get()
+        self.client.raise_request_exception = False
+        with patch.object(submit_models, '_copy_bundle_to_storage', side_effect=OSError('disk full')):
+            self.assertEqual(500, self.admin_post('accept', pending, 'web-bundle').status_code)
+
+        self.assertFalse(App.objects.filter(name='brandnew').exists())
+        self.assertFalse(WebBundleRelease.objects.exists())
+        self.assertTrue(WebBundlePending.objects.filter(id=pending.id).exists())
+
+    def pending_bundle_files(self, pending):
+        return storages['webbundles'].listdir(pending.bundle_path)[1]
+
+    def test_failed_accept_keeps_the_pending_bundle(self):
+        # fails after the release and its public files are written, but before the accept commits
+        self.submit_bundle(self.editor)
+        pending = WebBundlePending.objects.get()
+        self.client.raise_request_exception = False
+        with patch.object(WebBundlePending, 'delete', side_effect=OSError('database gone')):
+            self.assertEqual(500, self.admin_post('accept', pending, 'web-bundle').status_code)
+
+        self.assertFalse(WebBundleRelease.objects.exists())
+        pending = WebBundlePending.objects.get(id=pending.id)
+        self.assertTrue(pending.bundle.storage.exists(pending.bundle.name))
+        self.assertIn('remoteEntry.js', self.pending_bundle_files(pending))
+
+        # so the admin can accept it again
+        self.admin_post('accept', pending, 'web-bundle')
+        self.assertTrue(WebBundleRelease.objects.filter(app=self.desktop_app, version='1.0').exists())
+        self.assertFalse(WebBundlePending.objects.exists())
+        self.assertFalse(pending.bundle.storage.exists(pending.bundle.name))
+        self.assertFalse(storages['webbundles'].exists(pending.bundle_path))
+
+    def test_failed_accept_keeps_the_pending_jar(self):
+        jar = SimpleUploadedFile('BrandNew-1.0.jar', b'jar', content_type='application/zip')
+        pending = views._create_pending(self.other, 'Brand New', '1.0', '3.10', [], jar)
+        self.client.raise_request_exception = False
+        with patch.object(AppPending, 'delete', side_effect=OSError('database gone')):
+            self.assertEqual(500, self.admin_post('accept', pending, 'desktop').status_code)
+
+        self.assertFalse(App.objects.filter(name='brandnew').exists())
+        pending = AppPending.objects.get(id=pending.id)
+        self.assertTrue(pending.release_file.storage.exists(pending.release_file.name))
+
+    def test_failure_after_the_accept_commits_keeps_it_published(self):
+        self.submit_service(self.editor)
+        self.submit_bundle(self.editor)
+        service, bundle = ServiceAppPending.objects.get(), WebBundlePending.objects.get()
+        # TestCase logs a failed robust on_commit callback to django.test; a real commit logs it to django.db
+        with patch.object(views, '_send_email_for_accepted', side_effect=RuntimeError('mail server down')), \
+                self.assertLogs('django.test', 'ERROR') as logs:
+            self.assertRedirects(self.admin_post('accept', service, 'service'), reverse('pending-apps'))
+            self.assertRedirects(self.admin_post('accept', bundle, 'web-bundle'), reverse('pending-apps'))
+
+        self.assertEqual(2, sum('mail server down' in line for line in logs.output))
+        self.assertEqual([Platform.DESKTOP, Platform.WEB, Platform.SERVICE], App.objects.get(name='foo').platforms)
+        self.assertFalse(ServiceAppPending.objects.exists())
+        self.assertFalse(WebBundlePending.objects.exists())
+        self.assertFalse(bundle.bundle.storage.exists(bundle.bundle.name))
+
+    def test_a_published_web_version_is_not_overwritten(self):
+        # the same version submitted twice; both pass the submit-time check, as neither is published yet
+        self.submit_bundle(self.editor)
+        first = WebBundlePending.objects.get()
+        second = WebBundlePending.objects.get(id=first.id)
+        second.pk = None
+        second.save()
+        self.admin_post('accept', first, 'web-bundle')
+        release = WebBundleRelease.objects.get(app=self.desktop_app, version='1.0')
+
+        response = self.admin_post('accept', second, 'web-bundle')
+        self.assertContains(response, 'Version 1.0 of Foo is already published', status_code=400)
+        self.assertEqual(release.created, WebBundleRelease.objects.get(id=release.id).created)
+        self.assertTrue(WebBundlePending.objects.filter(id=second.id).exists())
+        self.admin_post('decline', second, 'web-bundle')
+        self.assertFalse(WebBundlePending.objects.exists())
+
+    def test_a_published_desktop_version_is_not_overwritten(self):
+        pending = AppPending.objects.create(submitter=self.editor, fullname='Foo', version='1.0', cy_works_with='3.10')
+        response = self.admin_post('accept', pending, 'desktop')
+        self.assertContains(response, 'Version 1.0 of Foo is already published', status_code=400)
+        self.assertEqual(['3.10'], [r.works_with for r in Release.objects.filter(app=self.desktop_app)])
+        self.assertTrue(AppPending.objects.filter(id=pending.id).exists())
+
+    def test_a_deleted_version_can_be_published_again(self):
+        Release.objects.filter(app=self.desktop_app, version='1.0').update(active=False)
+        pending = AppPending.objects.create(submitter=self.editor, fullname='Foo', version='1.0', cy_works_with='3.11')
+        pending.release_file.save('Foo-1.0.jar', ContentFile(b'jar'))
+        self.assertRedirects(self.admin_post('accept', pending, 'desktop'), reverse('pending-apps'))
+        release = Release.objects.get(app=self.desktop_app, version='1.0')
+        self.assertEqual((True, '3.11'), (release.active, release.works_with))
+
+
+class AcceptNewPlatformContentTest(SubmissionFixtureMixin, TestCase):
+    """
+    A platform joining an existing app starts with empty content of its own, and the platform
+    the app was on keeps the app's content (#155).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_user('admin', 'admin@example.org', 'secret', is_staff=True)
+        App.objects.filter(name='foo').update(description='Foo description', details='Foo details')
+        self.desktop_app.tags.add(Tag.objects.create(name='footag', fullname='foo tag'))
+
+    def accept(self, pending, pending_platform):
+        self.client.force_login(self.admin)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(reverse('pending-apps'), {'action': 'accept', 'pending_id': pending.id,
+                                                                  'pending_platform': pending_platform})
+        self.assertNotEqual(400, response.status_code)
+        return App.objects.get(name=fullname_to_name(pending.fullname))
+
+    def desktop_pending(self, fullname, version):
+        pending = AppPending.objects.create(submitter=self.editor, fullname=fullname, version=version,
+                                            cy_works_with='3.10')
+        pending.release_file.save('app.jar', SimpleUploadedFile('app.jar', b'data'))
+        return pending
+
+    def summary(self, content):
+        return (content.description, content.details, [t.name for t in content.tags])
+
+    def test_web_and_service_joining_a_desktop_app_start_empty(self):
+        self.submit_bundle(self.editor)
+        app = self.accept(WebBundlePending.objects.get(), 'web-bundle')
+        self.assertEqual(('Foo description', 'Foo details', ['footag']), self.summary(app.content(Platform.DESKTOP)))
+        self.assertEqual((None, None, []), self.summary(app.content(Platform.WEB)))
+        self.assertEqual([Platform.WEB], [c.platform for c in AppPlatformContent.objects.all()])
+
+        self.submit_service(self.editor)
+        app = self.accept(ServiceAppPending.objects.get(), 'service')
+        self.assertEqual(('Foo description', 'Foo details', ['footag']), self.summary(app.content(Platform.DESKTOP)))
+        self.assertEqual((None, None, []), self.summary(app.content(Platform.SERVICE)))
+
+    def test_desktop_joining_a_web_only_app_moves_its_content_to_web(self):
+        bar = App.objects.create(name='bar', fullname='Bar', active=True, description='Bar description',
+                                 details='Bar details')
+        bar.editors.add(self.editor)
+        bar.tags.add(Tag.objects.create(name='bartag', fullname='bar tag'))
+        WebBundleRelease.objects.create(app=bar, version='1.0', active=True, bundle_hash='0')
+
+        app = self.accept(self.desktop_pending('Bar', '2.0'), 'desktop')
+        self.assertEqual([Platform.DESKTOP, Platform.WEB], app.platforms)
+        self.assertEqual(('Bar description', 'Bar details', ['bartag']), self.summary(app.content(Platform.WEB)))
+        self.assertEqual((None, None, []), self.summary(app.content(Platform.DESKTOP)))
+        # Cytoscape Desktop's feed shows nothing of Web's
+        [entry] = [a for a in json.loads(self.client.get('/backend/all_apps').content) if a['fullname'] == 'Bar']
+        self.assertFalse(entry['description'])
+        self.assertEqual([], entry['tags'])
+
+    def test_a_new_version_of_a_platform_the_app_is_on_changes_no_content(self):
+        app = self.accept(self.desktop_pending('Foo', '2.0'), 'desktop')
+        self.assertFalse(AppPlatformContent.objects.exists())
+        self.assertEqual(('Foo description', 'Foo details', ['footag']), self.summary(app.content(Platform.DESKTOP)))
+
+    def test_a_new_app_keeps_its_content_as_its_own(self):
+        self.submit_bundle(self.other, name='Brand New')
+        app = self.accept(WebBundlePending.objects.get(), 'web-bundle')
+        self.assertEqual([Platform.WEB], app.platforms)
+        self.assertEqual(Platform.WEB, app.content_owner)
+        self.assertFalse(AppPlatformContent.objects.exists())

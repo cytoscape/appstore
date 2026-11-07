@@ -1,6 +1,8 @@
 import os
+from pathlib import Path
+import mimetypes
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+BASE_DIR = Path(os.path.dirname(os.path.dirname(__file__))) 
 DEBUG = False
 DJANGO_STATIC_AND_MEDIA = DEBUG
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', ]
@@ -45,7 +47,8 @@ TEMPLATES = [
                  'django.template.context_processors.static',
                  'django.template.context_processors.request',
                  'django.contrib.auth.context_processors.auth',
-                 'django.contrib.messages.context_processors.messages'
+                 'django.contrib.messages.context_processors.messages',
+                 'util.context_processors.app_version'
              ],
              'loaders': [
                  'django.template.loaders.filesystem.Loader',
@@ -168,3 +171,38 @@ FILE_UPLOAD_PERMISSIONS = 0o664
 
 # Starting with Django 3.2:
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+    "webbundles": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "base_url": "/web/",
+        },
+    },
+}
+
+CDN_BASE_URL = None #"https://apps-stage.cytoscape.org/web/"
+
+mimetypes.add_type("application/javascript", ".js", strict=True)
+mimetypes.add_type("application/javascript", ".mjs", strict=True)
+
+WEB_SUBMISSION_METHODS = {
+    'bundle': True,
+    'url': False,   # build step not implemented yet
+}
+
+
+CYTOSCAPE_WEB_INSTALL_URL = "https://dev1.ndexbio.org/cytoscape/?installApp="
+
+# store name of the Desktop Service App (desktop-service-app), which service app pages link to
+# when Cytoscape Desktop lacks it and so cannot install service apps
+DESKTOP_SERVICE_APP_NAME = "desktopserviceapp"
+
+# seed_integration_data wipes app data, so it only runs where this is True (settings/container.py)
+INTEGRATION_SEED_ENABLED = False

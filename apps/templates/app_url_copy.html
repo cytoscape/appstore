@@ -1,0 +1,38 @@
+<div class="cy-app-url-copy">
+    <div class="cy-app-url-heading">
+        <label for="cy-app-url-{{ url_id|default:'latest' }}"><strong>{{ url_label }}</strong></label>
+        {% if url_label == 'Manifest URL' or url_label == 'Service URL' %}
+        <details class="cy-app-url-help">
+            <summary aria-label="How to add this app using its {{ url_label|lower }}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 11v6M12 7v2"></path>
+                </svg>
+            </summary>
+            <div class="cy-app-url-help-text">
+                {% if url_label == 'Service URL' %}
+                To add this service app directly in Cytoscape Web, open Apps &rarr; Manage Apps,
+                paste this URL into the External Service URL field, and click Add.
+                {% else %}
+                To add this app directly in Cytoscape Web, open Apps &rarr; Manage Apps,
+                select the Install from URL tab, and paste this manifest URL.
+                {% endif %}
+            </div>
+        </details>
+        {% endif %}
+    </div>
+    <div class="cy-app-url-line">
+        <input id="cy-app-url-{{ url_id|default:'latest' }}" type="text" value="{{ app_url }}" readonly
+               aria-describedby="cy-app-url-status-{{ url_id|default:'latest' }}">
+        <button type="button" class="cy-app-copy-url-btn" title="Copy {{ url_label }}"
+                aria-label="Copy {{ url_label }}" hidden>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" aria-hidden="true" focusable="false">
+                <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+                <path d="M16 8V4H4v12h4"></path>
+            </svg>
+        </button>
+    </div>
+    <p id="cy-app-url-status-{{ url_id|default:'latest' }}" class="muted" role="status" aria-live="polite">Select the URL to copy it manually.</p>
+</div>

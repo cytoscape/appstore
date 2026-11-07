@@ -30,6 +30,38 @@
 	margin-bottom: 1em;
 }
 
+/* Details tab sections: details, then categories, screenshots and authors, each with its title
+   and buttons on one line (70% / 30%, buttons left-aligned in theirs), its content below, and
+   a line between sections */
+.cy-edit-section {
+	width: 620px; /* span8 */
+}
+
+.cy-edit-section-head {
+	display: flex;
+	align-items: center;
+	margin-bottom: 0.75em;
+}
+
+.cy-edit-section-head h6 {
+	flex: 0 0 70%;
+	margin: 0;
+}
+
+.cy-edit-section-actions {
+	flex: 0 0 30%;
+	text-align: left;
+}
+
+.cy-edit-section-divider {
+	width: 620px;
+	margin: 1.5em 0;
+}
+
+#cy-edit-section-details textarea {
+	margin-bottom: 1em;
+}
+
 .cy-app-tag {
 	color: white;
 	background-color: #3A87AD;

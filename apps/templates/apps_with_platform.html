@@ -1,0 +1,16 @@
+{% extends "nav_panel.html" %}
+{% load app_buttons %}
+{% load static %}
+
+{% block title %}
+- {{ platform }}
+{% endblock %}
+
+{% block main %}
+  <div class="row" style="margin-bottom: 2em;">
+    <div class="span12">
+      <h1>Cytoscape {{ platform|capfirst }} Apps</h1>
+    </div>
+  </div>
+  {% list_of_apps apps %}
+{% endblock %}

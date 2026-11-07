@@ -12,7 +12,7 @@
   <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/jquery.cookie.js"></script>
   
   <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}common/lib/bootstrap/css/bootstrap.min.css"/>
-  <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}common/css/base.css"/>
+  <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}common/css/base.css?v={{ APP_VERSION|urlencode }}"/>
   
   {% block more_head %}{% endblock %}
 
@@ -42,7 +42,7 @@
           <li class="dropdown">
             <a href="#" class="dropdown-toggle" data-toggle="dropdown">Submit an App <b class="caret"></b></a>
             <ul class="dropdown-menu">
-              <li><a href="{% url 'submit-app' %}">Submit a 3.0 App</a></li>
+              <li><a href="{% url 'platform-select' %}">Submit an App</a></li>
 	      <!--     <li><a href="http://www.cytoscape.org/plugin_submit.html" target="_blank">Submit a 2.x Plugin</a></li> -->
               <li class="divider"></li>
               <li><a target="_blank" href="https://github.com/cytoscape/cytoscape/wiki/Cytoscape-3.0-App-Development">Guide to 3.0 App Development</a></li>
@@ -90,6 +90,8 @@
       {% if footer_selected != 'about' %}<a href="{% url 'about' %}">{% endif %}About{% if footer_selected != 'about' %}</a>{% endif %}
       &bull;
       {% if footer_selected != 'contact' %}<a href="{% url 'contact' %}">{% endif %}Contact Us{% if footer_selected != 'contact' %}</a>{% endif %}
+      &bull;
+      <span id="cy-app-version">Version: {{ APP_VERSION }}</span>
 
       <span class="footer-divider"></span>
 
