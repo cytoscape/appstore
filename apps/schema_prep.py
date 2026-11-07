@@ -6,10 +6,13 @@ The production database predates Django's InnoDB and utf8 defaults:
   migration adding one fails with errno 150 "Foreign key constraint is incorrectly formed".
 - Its default character set is latin1, which every table a migration creates inherits. Such a
   table cannot store text outside latin1 (the app's own tables are utf8).
+- Some of its id columns are int, from before Django's bigint ids, while the migrations record
+  them as bigint. A migration sizes a new foreign key column from that record, so a bigint
+  column referencing an int id fails with the same errno 150 (prod's apps_tag.id, #155).
 
-prepare_schema() fixes both before every migrate (it is connected to pre_migrate). It changes
+prepare_schema() fixes these before every migrate (it is connected to pre_migrate). It changes
 nothing on other databases, on a database that is already right, or for tables that do not
-exist yet (migrations create those as InnoDB).
+exist yet (migrations create those as InnoDB, with bigint ids).
 """
 import logging
 
@@ -18,6 +21,14 @@ logger = logging.getLogger(__name__)
 # Tables that InnoDB foreign keys of migrations reference, and so must be InnoDB:
 # apps_appplatformcontent_tags.tag_id references apps_tag (#155).
 INNODB_TABLES = ('apps_tag',)
+
+# int columns that migrations record as bigint and that new foreign keys reference, widened to
+# bigint, with the existing columns that reference them (prod has no constraints on these):
+# apps_appplatformcontent_tags.tag_id references apps_tag.id, like apps_app_tags.tag_id (#155).
+BIGINT_COLUMNS = (
+    ('apps_tag', 'id', 'BIGINT NOT NULL AUTO_INCREMENT'),
+    ('apps_app_tags', 'tag_id', 'BIGINT NOT NULL'),
+)
 
 CHARSET = 'utf8'
 COLLATION = 'utf8_general_ci'
@@ -31,8 +42,9 @@ def _value(cursor, sql, params=()):
 
 def prepare_schema(connection):
     """
-    Converts INNODB_TABLES that are MyISAM to InnoDB, and makes the database's default
-    character set utf8 if it is latin1. Returns the statements it ran.
+    Converts INNODB_TABLES that are MyISAM to InnoDB, widens BIGINT_COLUMNS that are int to
+    bigint, and makes the database's default character set utf8 if it is latin1. Returns the
+    statements it ran.
     """
     if connection.vendor != 'mysql':
         return []
@@ -47,6 +59,12 @@ def prepare_schema(connection):
                                     'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s', (table,))
             if engine and engine.lower() == 'myisam':
                 statements.append('ALTER TABLE `%s` ENGINE=InnoDB' % table)
+        for table, column, definition in BIGINT_COLUMNS:
+            data_type = _value(cursor, 'SELECT DATA_TYPE FROM information_schema.COLUMNS '
+                                       'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s',
+                               (table, column))
+            if data_type and data_type.lower() == 'int':
+                statements.append('ALTER TABLE `%s` MODIFY `%s` %s' % (table, column, definition))
         for statement in statements:
             logger.warning('Preparing the database for migrations: %s', statement)
             cursor.execute(statement)
