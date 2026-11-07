@@ -2,13 +2,13 @@
 {% load static %}
 
 {% block more_head %}
-<link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_page_edit.css" />
+<link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_page_edit.css?v={{ APP_VERSION|urlencode }}" />
 <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_stars.css" />
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/jquery.tmpl.min.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/jquery.timeago.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/Markdown.Converter.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/Markdown.Sanitizer.js"></script>
-<script type="text/javascript" src="{% get_static_prefix %}common/js/setup_ajax_for_csrf.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}common/js/setup_ajax_for_csrf.js?v={{ APP_VERSION|urlencode }}"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/js/markdown_util.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/js/msgs.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}apps/js/jquery.tablednd.js"></script>
@@ -398,7 +398,7 @@
 </script>
 {# end add editor dialog template #}
     
-<script type="text/javascript" src="{% get_static_prefix %}apps/js/app_page_edit.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}apps/js/app_page_edit.js?v={{ APP_VERSION|urlencode }}"></script>
     
 <script type="text/javascript">
 $('[rel=tooltip]').tooltip();

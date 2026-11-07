@@ -98,7 +98,9 @@ History
     store any text), printing each change; it changes nothing on a database that is already right.
 
 * **Version in the footer:** every page shows the running version after **Contact Us**: the git tag
-  the checkout is at, else its short commit hash, else ``develop`` when git can't tell.
+  the checkout is at, else its short commit hash, else ``develop`` when git can't tell. The CSS
+  and JS files this release changed are linked with that version as ``?v=``, so after a deploy
+  browsers fetch them again instead of reusing a cached copy from an older release.
 
 * Fixes and platform updates since 2.0.3.
 

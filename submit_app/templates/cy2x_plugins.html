@@ -4,7 +4,7 @@
 {% block title %}- 2.x Plugins Management{% endblock %}
 
 {% block more_head %}
-<script type="text/javascript" src="{% get_static_prefix %}common/js/setup_ajax_for_csrf.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}common/js/setup_ajax_for_csrf.js?v={{ APP_VERSION|urlencode }}"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/js/msgs.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/jquery.tmpl.min.js"></script>
 {% endblock %}

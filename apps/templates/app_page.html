@@ -3,14 +3,14 @@
 {% load i18n %}
 
 {% block more_head %}
-<link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_page.css" />
+<link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_page.css?v={{ APP_VERSION|urlencode }}" />
 <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_stars.css" />
-<link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/js4cytoscape-style.css" />
+<link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/js4cytoscape-style.css?v={{ APP_VERSION|urlencode }}" />
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/jquery.timeago.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/Markdown.Converter.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/lib/js/Markdown.Sanitizer.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}common/js/markdown_util.js"></script>
-<script type="text/javascript" src="{% get_static_prefix %}apps/js/js4cytoscape-dev.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}apps/js/js4cytoscape-dev.js?v={{ APP_VERSION|urlencode }}"></script>
 {% endblock %}
 
 {% block title %}- {{ app.fullname }}{% endblock %}
@@ -484,7 +484,7 @@
 </script>
 {# End vote popover content #}
 
-<script type="text/javascript" src="{% get_static_prefix %}apps/js/app_page.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}apps/js/app_page.js?v={{ APP_VERSION|urlencode }}"></script>
 	
 <script type="text/javascript">
 $('.has-tooltip').tooltip();
