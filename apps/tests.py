@@ -1902,11 +1902,14 @@ class AuthorPageTestCase(TestCase):
 
 
 class SchemaPrepTestCase(TestCase):
-    """Before migrating, an old MySQL/MariaDB database's MyISAM apps_tag and latin1 default are fixed (#155)."""
+    """
+    Before migrating, an old MySQL/MariaDB database's MyISAM apps_tag, int apps_tag ids and latin1
+    default are fixed (#155).
+    """
 
     class FakeCursor:
-        def __init__(self, charset, engines):
-            self.charset, self.engines, self.executed, self.row = charset, engines, [], None
+        def __init__(self, charset, engines, columns):
+            self.charset, self.engines, self.columns, self.executed, self.row = charset, engines, columns, [], None
 
         def __enter__(self):
             return self
@@ -1920,6 +1923,9 @@ class SchemaPrepTestCase(TestCase):
             elif 'information_schema.TABLES' in sql:
                 engine = self.engines.get(params[0])
                 self.row = (engine,) if engine else None
+            elif 'information_schema.COLUMNS' in sql:
+                data_type = self.columns.get(params)
+                self.row = (data_type,) if data_type else None
             else:
                 self.executed.append(sql)
 
@@ -1933,9 +1939,15 @@ class SchemaPrepTestCase(TestCase):
         def cursor(self):
             return self._cursor
 
-    def prepare(self, charset, engines, vendor='mysql'):
+    BIGINT = {('apps_tag', 'id'): 'bigint', ('apps_app_tags', 'tag_id'): 'bigint'}
+    # what the production database has: int, from before Django's bigint ids
+    INT = {('apps_tag', 'id'): 'int', ('apps_app_tags', 'tag_id'): 'int'}
+    WIDEN = ['ALTER TABLE `apps_tag` MODIFY `id` BIGINT NOT NULL AUTO_INCREMENT',
+             'ALTER TABLE `apps_app_tags` MODIFY `tag_id` BIGINT NOT NULL']
+
+    def prepare(self, charset, engines, columns=BIGINT, vendor='mysql'):
         from apps.schema_prep import prepare_schema
-        cursor = self.FakeCursor(charset, engines)
+        cursor = self.FakeCursor(charset, engines, columns)
         return prepare_schema(self.FakeConnection(vendor, cursor)), cursor.executed
 
     def test_old_database_is_converted(self):
@@ -1944,6 +1956,20 @@ class SchemaPrepTestCase(TestCase):
         self.assertEqual(['ALTER DATABASE CHARACTER SET utf8 COLLATE utf8_general_ci',
                           'ALTER TABLE `apps_tag` ENGINE=InnoDB'], executed)
         self.assertEqual(executed, statements)
+
+    def test_production_database_int_tag_ids_are_widened(self):
+        # what prod had: InnoDB apps_tag with an int id, and a latin1 default
+        statements, executed = self.prepare('latin1', {'apps_tag': 'InnoDB'}, self.INT)
+        self.assertEqual(['ALTER DATABASE CHARACTER SET utf8 COLLATE utf8_general_ci'] + self.WIDEN, executed)
+        self.assertEqual(executed, statements)
+
+    def test_myisam_int_tag_ids_are_converted_then_widened(self):
+        self.assertEqual(['ALTER TABLE `apps_tag` ENGINE=InnoDB'] + self.WIDEN,
+                         self.prepare('utf8', {'apps_tag': 'MyISAM'}, self.INT)[1])
+
+    def test_each_column_only_where_int(self):
+        self.assertEqual(self.WIDEN[1:], self.prepare('utf8', {'apps_tag': 'InnoDB'},
+                                                      {('apps_tag', 'id'): 'bigint', ('apps_app_tags', 'tag_id'): 'int'})[1])
 
     def test_database_already_right_is_left_alone(self):
         self.assertEqual(([], []), self.prepare('utf8mb3', {'apps_tag': 'InnoDB'}))
@@ -1956,10 +1982,10 @@ class SchemaPrepTestCase(TestCase):
 
     def test_new_database_without_apps_tag(self):
         # a fresh database: migrations create apps_tag as InnoDB themselves
-        self.assertEqual(([], []), self.prepare('utf8mb4', {}))
+        self.assertEqual(([], []), self.prepare('utf8mb4', {}, {}))
 
     def test_other_databases_are_not_touched(self):
-        self.assertEqual(([], []), self.prepare('latin1', {'apps_tag': 'MyISAM'}, vendor='sqlite'))
+        self.assertEqual(([], []), self.prepare('latin1', {'apps_tag': 'MyISAM'}, self.INT, vendor='sqlite'))
 
     def test_migrate_runs_it_first(self):
         from unittest.mock import patch
