@@ -8,7 +8,7 @@
     
 {% block more_head %}
   <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/nav_panel.css"/>
-  <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_button.css"/>
+  <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_button.css?v={{ APP_VERSION|urlencode }}"/>
   <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_stars.css"/>
 {% endblock %}
 

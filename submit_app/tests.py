@@ -328,13 +328,14 @@ class ViewsTest(TestCase):
         res = self.client.login(username='bob', password='secret')
         self.assertTrue(res)
 
-        response = self.client.get('/submit/submit_api/' + str(pending.id))
+        with patch('util.context_processors._app_version', return_value='2.1.0'):
+            response = self.client.get('/submit/submit_api/' + str(pending.id))
         self.assertEqual(200, response.status_code)
         self.assertEqual('/submit/artifact_exists', reverse('artifact-exists'))
         self.assertTrue(b"SubmitAPI.setupInputFiles('/submit/artifact_exists')"
                         in response.content)
-        # version query string forces browsers to drop a cached old submit_api.js
-        self.assertTrue(b'submit_app/js/submit_api.js?v=148' in response.content)
+        # the running version as the query string makes browsers drop a cached old submit_api.js
+        self.assertTrue(b'submit_app/js/submit_api.js?v=2.1.0"' in response.content)
 
     def test_artifact_exists_url_is_routed(self):
         with patch('submit_app.views._url_exists', return_value=False) as mock_exists:

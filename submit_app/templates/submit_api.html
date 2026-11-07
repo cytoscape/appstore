@@ -4,7 +4,7 @@
 {% block title %}- Submit an API?{% endblock %}
 
 {% block more_head %}
-<script type="text/javascript" src="{% get_static_prefix %}common/js/setup_ajax_for_csrf.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}common/js/setup_ajax_for_csrf.js?v={{ APP_VERSION|urlencode }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -103,7 +103,7 @@
 </div>
 </form>
 
-<script type="text/javascript" src="{% get_static_prefix %}submit_app/js/submit_api.js?v=148"></script>
+<script type="text/javascript" src="{% get_static_prefix %}submit_app/js/submit_api.js?v={{ APP_VERSION|urlencode }}"></script>
 <script type="text/javascript">
   SubmitAPI.setupInputFiles('{% url "artifact-exists" %}');
 </script>

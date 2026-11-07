@@ -9,8 +9,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}common/lib/bootstrap/css/bootstrap.min.css"/>
-    <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}common/css/base.css"/>
-    <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_button.css"/>
+    <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}common/css/base.css?v={{ APP_VERSION|urlencode }}"/>
+    <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_button.css?v={{ APP_VERSION|urlencode }}"/>
     <link rel="stylesheet" type="text/css" media="all" href="{% get_static_prefix %}apps/css/app_stars.css"/>
     <base target="_parent">
   </head>

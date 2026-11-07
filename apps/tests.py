@@ -486,6 +486,57 @@ class TemplateCommentsTestCase(TestCase):
         self.assertEqual([], spanning)
 
 
+class StaticVersionTestCase(TestCase):
+    """
+    The CSS and JS files that 2.1.0 changed are linked with ?v=<running version>, so a deploy
+    changes their URLs and browsers fetch them again instead of reusing a cached older copy
+    (Apache sends no expiry, so browsers otherwise keep them for weeks).
+    """
+    VERSIONED = ('common/css/base.css', 'apps/css/app_page.css', 'apps/css/js4cytoscape-style.css',
+                 'apps/js/js4cytoscape-dev.js', 'apps/js/app_page.js', 'apps/css/app_page_edit.css',
+                 'common/js/setup_ajax_for_csrf.js', 'apps/js/app_page_edit.js', 'apps/css/app_button.css',
+                 'submit_app/js/pending_apps.js', 'submit_app/js/submit_api.js')
+
+    def setUp(self):
+        App.objects.all().delete()
+        User.objects.all().delete()
+
+    def test_every_template_link_to_them_has_the_version(self):
+        base = str(settings.BASE_DIR)
+        found, unversioned = 0, []
+        for root, dirs, files in os.walk(base):
+            dirs[:] = [d for d in dirs if d not in ('.git', '.venv', 'venv', 'node_modules', 'build')]
+            if 'templates' not in root.split(os.sep):
+                continue
+            for name in files:
+                if not name.endswith('.html'):
+                    continue
+                path = os.path.join(root, name)
+                with open(path, encoding='utf-8') as f:
+                    text = f.read()
+                for static in self.VERSIONED:
+                    for match in re.finditer(re.escape(static) + r'([^"\']*)', text):
+                        found += 1
+                        if match.group(1) != '?v={{ APP_VERSION|urlencode }}':
+                            unversioned.append('%s: %s%s' % (os.path.relpath(path, base), static, match.group(1)))
+        self.assertGreaterEqual(found, len(self.VERSIONED))
+        self.assertEqual([], unversioned)
+
+    def test_app_page_and_edit_page_link_them_with_the_running_version(self):
+        from unittest.mock import patch
+        app = App.objects.create(name='myapp', fullname='MyApp', active=True)
+        user = User.objects.create_user(username='bob', password='secret')
+        app.editors.add(user)
+        self.client.login(username='bob', password='secret')
+        with patch('util.context_processors._app_version', return_value='2.1.0'):
+            page = self.client.get('/apps/myapp').content.decode('utf-8')
+            edit = self.client.get('/apps/myapp/edit').content.decode('utf-8')
+        for static in ('common/css/base.css', 'apps/css/app_page.css', 'apps/js/app_page.js'):
+            self.assertIn('/static/%s?v=2.1.0"' % static, page)
+        for static in ('apps/css/app_page_edit.css', 'apps/js/app_page_edit.js'):
+            self.assertIn('/static/%s?v=2.1.0"' % static, edit)
+
+
 class ViewsAppPageTestCase(TestCase):
 
     def setUp(self):

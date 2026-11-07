@@ -4,7 +4,7 @@
 {% block title %}- Pending Apps{% endblock %}
 
 {% block more_head %}
-    <script type="text/javascript" src="{% get_static_prefix %}common/js/setup_ajax_for_csrf.js"></script>
+    <script type="text/javascript" src="{% get_static_prefix %}common/js/setup_ajax_for_csrf.js?v={{ APP_VERSION|urlencode }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -127,7 +127,7 @@
         </div>
     </div>
     
-    <script type="text/javascript" src="{% get_static_prefix %}submit_app/js/pending_apps.js"></script>
+    <script type="text/javascript" src="{% get_static_prefix %}submit_app/js/pending_apps.js?v={{ APP_VERSION|urlencode }}"></script>
  <!--   <script>
          var CYTOSCAPE_WEB_BASE = "{{ CYTOSCAPE_WEB_BASE|default:'https://web.cytoscape.org' }}";
     </script>-->
