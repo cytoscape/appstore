@@ -13,6 +13,9 @@ The production database predates Django's InnoDB and utf8 defaults:
   unique key on (app_id, author_id), which no migration records. Since an app's platforms each
   have their own authors (#155), that key refuses an author listed on two of an app's platforms,
   so saving one gave a 500 (#160).
+- The migration adding the unique constraint that replaces it, one author link per platform of an
+  app, fails while any link repeats another's app, author and platform (possible on a database
+  without the old key).
 
 prepare_schema() fixes these before every migrate (it is connected to pre_migrate). It changes
 nothing on other databases, on a database that is already right, or for tables that do not
@@ -41,6 +44,14 @@ OBSOLETE_UNIQUE_KEYS = (
     ('apps_orderedauthor', ('app_id', 'author_id')),
 )
 
+# Author links that repeat an earlier link's app, author and platform, as the database compares them:
+# the unique constraint unique_app_author_platform (#160) can't be added while any exist. Prod has
+# none (the old key above allowed none), but a database without that key can, from after #156.
+# Keeps the first (lowest id) of each.
+_REPEATED_AUTHOR_LINKS = ('`apps_orderedauthor` a JOIN `apps_orderedauthor` b ON a.app_id = b.app_id '
+                          'AND a.author_id = b.author_id AND a.platform <=> b.platform AND a.id > b.id')
+DELETE_REPEATED_AUTHOR_LINKS = 'DELETE a FROM ' + _REPEATED_AUTHOR_LINKS
+
 CHARSET = 'utf8'
 COLLATION = 'utf8_general_ci'
 
@@ -65,8 +76,8 @@ def _indexes(cursor, table):
 def prepare_schema(connection):
     """
     Converts INNODB_TABLES that are MyISAM to InnoDB, widens BIGINT_COLUMNS that are int to
-    bigint, drops OBSOLETE_UNIQUE_KEYS, and makes the database's default character set utf8 if
-    it is latin1. Returns the statements it ran.
+    bigint, drops OBSOLETE_UNIQUE_KEYS, deletes repeated author links (DELETE_REPEATED_AUTHOR_LINKS),
+    and makes the database's default character set utf8 if it is latin1. Returns the statements it ran.
     """
     if connection.vendor != 'mysql':
         return []
@@ -96,6 +107,10 @@ def prepare_schema(connection):
                 statements.append('ALTER TABLE `%s` ADD INDEX `%s_%s` (`%s`)' % (table, table, columns[0], columns[0]))
             for name in obsolete:
                 statements.append('ALTER TABLE `%s` DROP INDEX `%s`' % (table, name))
+        if _value(cursor, 'SELECT ENGINE FROM information_schema.TABLES '
+                          'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s', ('apps_orderedauthor',)) \
+                and _value(cursor, 'SELECT COUNT(*) FROM ' + _REPEATED_AUTHOR_LINKS):
+            statements.append(DELETE_REPEATED_AUTHOR_LINKS)
         for statement in statements:
             logger.warning('Preparing the database for migrations: %s', statement)
             cursor.execute(statement)

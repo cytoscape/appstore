@@ -524,9 +524,15 @@ def _save_authors(app, request):
     # replaces only this platform's authors; the other platforms keep theirs
     platform = _own_platform(_content_target(app, request))
     OrderedAuthor.objects.filter(app = app, platform = platform).delete()
-    for name, institution, author_order in authors:
+    # an author once: rows the database matches to the same Author (the same name twice, or in
+    # other capitals under its collation) keep the first one's place (#160)
+    linked = []
+    for name, institution, _ in authors:
         author, _ = Author.objects.get_or_create(name = name, institution = institution)
-        OrderedAuthor.objects.create(app = app, platform = platform, author = author, author_order = author_order)
+        if author.id in linked:
+            continue
+        OrderedAuthor.objects.create(app = app, platform = platform, author = author, author_order = len(linked))
+        linked.append(author.id)
 
 def _posted_platform_releases(app, request):
     """

@@ -18,7 +18,7 @@ fail_deploy() {
     exit 1
 }
 
-# 'sql' as a list of rows, run on the db container's AppStore database
+# runs the SQL in $1 on the db container's AppStore database, printing one tab-separated row per line
 query() {
     $COMPOSE exec -T db mariadb -uroot -pappstore-test -N -B AppStore -e "$1"
 }
@@ -39,6 +39,9 @@ check_deploy() {
     if printf '%s\n' "$keys" | grep -q "$(printf '\tapp_id,author_id$')"; then
         fail_deploy "apps_orderedauthor still has a unique key on (app_id, author_id): $keys"
     fi
+    # and the model's rule in its place: an author once per platform of an app
+    printf '%s\n' "$keys" | grep -qx "$(printf 'unique_app_author_platform\tapp_id,author_id,platform')" \
+        || fail_deploy "apps_orderedauthor has no unique key unique_app_author_platform on (app_id, author_id, platform): $keys"
 }
 
 mkdir -p integration/.auth

@@ -4,6 +4,7 @@ when you run "manage.py test".
 
 Replace this with more appropriate tests for your application.
 """
+import contextlib
 import datetime
 import io
 import json
@@ -23,7 +24,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.contrib.auth.models import User
-from django.db import IntegrityError, connection
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase, TransactionTestCase
 from apps.models import App
 from apps.models import Author
@@ -39,7 +40,8 @@ from apps.models import WebBundleRelease
 from apps.models import Platform
 from apps.models import AppPlatformContent
 from apps.views import _AppPageEditConfig
-from apps.schema_prep import prepare_schema, _indexes
+from apps.schema_prep import DELETE_REPEATED_AUTHOR_LINKS, prepare_schema, _indexes
+from apps.management.commands.add_legacy_author_key import LEGACY_AUTHOR_KEY
 from apps.templatetags import app_buttons
 from submit_app.models import ServiceAppPending
 from submit_app.models import WebBundlePending
@@ -1793,6 +1795,39 @@ class EditPagePlatformContentTestCase(TestCase):
         self.assertEqual(['Web Author'], [a.name for a in app.content(Platform.WEB).authors])
         self.assert_desktop_unchanged()
 
+    def post_authors(self, names, platform='web'):
+        data = {'action': 'save_authors', 'authors_count': len(names)}
+        for i, name in enumerate(names):
+            data['author_%d' % i] = name
+        self.assertEqual(200, self.post(data, platform=platform).status_code)
+
+    def authors_of(self, platform):
+        """(name, order) of each author 'platform''s content links; None for the app's own (Desktop's)."""
+        return [(ordered.author.name, ordered.author_order)
+                for ordered in OrderedAuthor.objects.filter(app=self.app, platform=platform).order_by('author_order')]
+
+    def test_an_author_entered_twice_is_saved_once_for_web(self):
+        self.post_authors(['Gary Bader', 'Other Author', 'Gary Bader', 'Third Author'])
+        self.assertEqual([('Gary Bader', 0), ('Other Author', 1), ('Third Author', 2)], self.authors_of(Platform.WEB))
+        self.assert_desktop_unchanged()
+
+    def test_an_author_entered_twice_is_saved_once_for_desktop(self):
+        # the database's unique constraint doesn't cover Desktop's links, whose platform is null
+        self.post_authors(['Gary Bader', 'Other Author', 'Gary Bader'], platform='desktop')
+        self.assertEqual([('Gary Bader', 0), ('Other Author', 1)], self.authors_of(None))
+
+    def test_an_author_entered_in_other_capitals_is_saved_once(self):
+        # prod's utf8_general_ci collation, which the test database has, matches them to one Author
+        self.post_authors(['Gary Bader', 'gary bader'])
+        self.assertEqual([('Gary Bader', 0)], self.authors_of(Platform.WEB))
+        self.assertEqual(1, Author.objects.filter(name__iexact='gary bader').count())
+
+    def test_the_database_refuses_an_author_twice_for_one_platform(self):
+        author = Author.objects.get(name='Desktop Author')
+        OrderedAuthor.objects.create(app=self.app, platform=Platform.WEB, author=author, author_order=0)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            OrderedAuthor.objects.create(app=self.app, platform=Platform.WEB, author=author, author_order=1)
+
     def test_screenshots_with_web_change_only_the_web_content(self):
         image = io.BytesIO()
         Image.new('RGB', (20, 20)).save(image, 'PNG')
@@ -1990,10 +2025,11 @@ class SchemaPrepTestCase(TestCase):
     """
 
     class FakeCursor:
-        def __init__(self, charset, engines, columns, indexes=None):
+        def __init__(self, charset, engines, columns, indexes=None, repeated_links=0):
             self.charset, self.engines, self.columns, self.executed, self.row = charset, engines, columns, [], None
             # table -> [(index name, column, NON_UNIQUE)], in the order information_schema.STATISTICS gives them
             self.indexes, self.rows = indexes or {}, []
+            self.repeated_links = repeated_links
 
         def __enter__(self):
             return self
@@ -2012,6 +2048,8 @@ class SchemaPrepTestCase(TestCase):
                 self.row = (data_type,) if data_type else None
             elif 'information_schema.STATISTICS' in sql:
                 self.rows = self.indexes.get(params[0], [])
+            elif sql.startswith('SELECT COUNT(*)'):
+                self.row = (self.repeated_links,)
             else:
                 self.executed.append(sql)
 
@@ -2041,9 +2079,8 @@ class SchemaPrepTestCase(TestCase):
                                          ('apps_app_authors_337b96ff', 'author_id', 1)]}
     DROP_AUTHOR_KEY = 'ALTER TABLE `apps_orderedauthor` DROP INDEX `app_id`'
 
-    def prepare(self, charset, engines, columns=BIGINT, vendor='mysql', indexes=None):
-        from apps.schema_prep import prepare_schema
-        cursor = self.FakeCursor(charset, engines, columns, indexes)
+    def prepare(self, charset, engines, columns=BIGINT, vendor='mysql', indexes=None, repeated_links=0):
+        cursor = self.FakeCursor(charset, engines, columns, indexes, repeated_links)
         return prepare_schema(self.FakeConnection(vendor, cursor)), cursor.executed
 
     def test_old_database_is_converted(self):
@@ -2114,6 +2151,18 @@ class SchemaPrepTestCase(TestCase):
             self.assertEqual([], self.prepare('utf8', {'apps_tag': 'InnoDB'},
                                               indexes={'apps_orderedauthor': key})[1])
 
+    def test_repeated_author_links_are_deleted(self):
+        # the unique constraint can't be added while any exist (#160)
+        from apps.schema_prep import DELETE_REPEATED_AUTHOR_LINKS
+        statements, executed = self.prepare('utf8', {'apps_tag': 'InnoDB', 'apps_orderedauthor': 'InnoDB'},
+                                            repeated_links=2)
+        self.assertEqual([DELETE_REPEATED_AUTHOR_LINKS], executed)
+        self.assertEqual(executed, statements)
+
+    def test_author_links_are_left_without_repeats_or_before_the_table_exists(self):
+        self.assertEqual([], self.prepare('utf8', {'apps_tag': 'InnoDB', 'apps_orderedauthor': 'InnoDB'})[1])
+        self.assertEqual([], self.prepare('utf8', {'apps_tag': 'InnoDB'}, repeated_links=2)[1])
+
     def test_all_fixes_together(self):
         self.assertEqual(['ALTER DATABASE CHARACTER SET utf8 COLLATE utf8_general_ci', 'ALTER TABLE `apps_tag` ENGINE=InnoDB']
                          + self.WIDEN + [self.DROP_AUTHOR_KEY],
@@ -2171,3 +2220,128 @@ class LegacyAuthorKeyTestCase(TransactionTestCase):
     def test_the_command_runs_only_for_the_integration_suite(self):
         with self.assertRaises(CommandError):
             call_command('add_legacy_author_key', stdout=io.StringIO())
+
+
+class DeployStepsTestCase(TransactionTestCase):
+    """
+    The deploy of #160's fix as the runbook runs it, from apps.cytoscape.org's state, on the MariaDB
+    test database: proves what HISTORY.rst's Deploying bullet says each step prints and does.
+    """
+    CONSTRAINT = 'unique_app_author_platform'
+    DROP_LINE = '  Prepared the database: ALTER TABLE `apps_orderedauthor` DROP INDEX `app_id`'
+
+    def setUp(self):
+        self.app = App.objects.create(name='both', fullname='Both', active=True)
+        self.author = Author.objects.create(name='Gary Bader', institution='University of Toronto')
+        OrderedAuthor.objects.create(app=self.app, author=self.author, author_order=0)
+        self.addCleanup(self.restore_schema)
+
+    def constraint(self):
+        return next(c for c in OrderedAuthor._meta.constraints if c.name == self.CONSTRAINT)
+
+    def constraints(self):
+        with connection.cursor() as cursor:
+            return connection.introspection.get_constraints(cursor, 'apps_orderedauthor')
+
+    def remove_the_constraint(self):
+        """apps_orderedauthor before this release: an index on app_id as prod's, no new constraint."""
+        with connection.cursor() as cursor:
+            cursor.execute('ALTER TABLE `apps_orderedauthor` ADD INDEX IF NOT EXISTS `apps_app_authors_269da59a` (`app_id`)')
+        with connection.schema_editor() as editor:
+            editor.remove_constraint(OrderedAuthor, self.constraint())
+
+    def to_prod_state(self):
+        """apps.cytoscape.org's apps_orderedauthor: also the old unique key on (app_id, author_id)."""
+        self.remove_the_constraint()
+        with connection.cursor() as cursor:
+            cursor.execute(LEGACY_AUTHOR_KEY)
+
+    def add_the_constraint(self):
+        """What the migration makemigrations generates does."""
+        with connection.schema_editor() as editor:
+            editor.add_constraint(OrderedAuthor, self.constraint())
+
+    def restore_schema(self):
+        # schema changes outlive the data flush
+        prepare_schema(connection)
+        if self.CONSTRAINT not in self.constraints():
+            self.add_the_constraint()
+
+    def migrate(self):
+        """migrate's output, with what pre_migrate prints."""
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            call_command('migrate', stdout=out, no_color=True)
+        return out.getvalue().splitlines()
+
+    def link_on_web(self):
+        return OrderedAuthor.objects.create(app=self.app, platform=Platform.WEB, author=self.author, author_order=0)
+
+    def test_makemigrations_generates_one_create_constraint(self):
+        from django.apps import apps as django_apps
+        from django.db.migrations.autodetector import MigrationAutodetector
+        from django.db.migrations.loader import MigrationLoader
+        from django.db.migrations.state import ProjectState
+        loader = MigrationLoader(connection)
+        before = loader.project_state()
+        model = before.models[('apps', 'orderedauthor')]
+        model.options['constraints'] = [c for c in model.options['constraints'] if c.name != self.CONSTRAINT]
+        changes = MigrationAutodetector(before, ProjectState.from_apps(django_apps)).changes(graph=loader.graph)
+        self.assertEqual(['apps'], list(changes))
+        [migration] = changes['apps']
+        [operation] = migration.operations
+        self.assertEqual('Create constraint unique_app_author_platform on model orderedauthor', operation.describe())
+        self.assertEqual('orderedauthor_unique_app_author_platform', operation.migration_name_fragment)
+        self.assertTrue(migration.name.endswith('_orderedauthor_unique_app_author_platform'), migration.name)
+
+    def test_migrate_drops_the_old_key_before_running_migrations(self):
+        self.to_prod_state()
+        lines = self.migrate()
+        self.assertIn(self.DROP_LINE, lines)
+        self.assertLess(lines.index('Operations to perform:'), lines.index(self.DROP_LINE))
+        self.assertLess(lines.index(self.DROP_LINE), lines.index('Running migrations:'))
+        self.assertFalse([line for line in lines if 'Prepared the database: DELETE' in line])
+        self.assertEqual([line for line in lines if 'Prepared the database:' in line], [self.DROP_LINE])
+        self.assertNotIn('app_id', self.constraints())
+
+    def test_the_constraint_is_then_added_to_the_existing_rows(self):
+        self.to_prod_state()
+        self.migrate()
+        self.link_on_web()  # what the old key refused (#160)
+        self.add_the_constraint()
+        self.assertTrue(self.constraints()[self.CONSTRAINT]['unique'])
+        self.assertEqual(2, OrderedAuthor.objects.filter(app=self.app, author=self.author).count())
+
+    def test_migrate_again_prepares_nothing(self):
+        self.to_prod_state()
+        self.migrate()
+        self.assertFalse([line for line in self.migrate() if 'Prepared the database:' in line])
+
+    def test_migrate_removes_repeated_links_keeping_one(self):
+        # a database without the old key, where an author was linked twice to one platform
+        self.remove_the_constraint()
+        first = self.link_on_web()
+        self.link_on_web()
+        lines = self.migrate()
+        self.assertIn('  Prepared the database: ' + DELETE_REPEATED_AUTHOR_LINKS, lines)
+        self.assertEqual([first.id], [o.id for o in OrderedAuthor.objects.filter(app=self.app, platform=Platform.WEB)])
+        self.add_the_constraint()
+        self.assertIn(self.CONSTRAINT, self.constraints())
+
+    def test_a_failed_constraint_leaves_the_site_working_and_migrate_recovers(self):
+        self.to_prod_state()
+        self.migrate()
+        self.link_on_web()
+        self.link_on_web()  # a repeat the migration's constraint can't be added over
+        with self.assertRaises(IntegrityError):
+            self.add_the_constraint()
+        constraints = self.constraints()
+        self.assertNotIn(self.CONSTRAINT, constraints)
+        self.assertNotIn('app_id', constraints)  # the old key stays dropped: #160 stays fixed
+        other = App.objects.create(name='other', fullname='Other', active=True)
+        OrderedAuthor.objects.create(app=other, author=self.author, author_order=0)
+        OrderedAuthor.objects.create(app=other, platform=Platform.WEB, author=self.author, author_order=0)
+        # running migrate again removes the repeat, and the migration's constraint then goes in
+        self.assertIn('  Prepared the database: ' + DELETE_REPEATED_AUTHOR_LINKS, self.migrate())
+        self.add_the_constraint()
+        self.assertIn(self.CONSTRAINT, self.constraints())
