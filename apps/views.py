@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
+from django.db import transaction
 from django.db.models import Q
 from util.view_util import json_response, html_response, obj_to_dict, get_object_or_none
 from util.img_util import scale_img
@@ -498,6 +499,8 @@ def _save_editors(app, request):
             raise ValueError('invalid username: ' + username)
         app.editors.add(user)
 
+# one transaction: a save that fails part-way keeps the platform's authors as they were
+@transaction.atomic
 def _save_authors(app, request):
     authors_count = request.POST.get('authors_count')
     if not authors_count:

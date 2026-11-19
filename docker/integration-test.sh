@@ -12,6 +12,35 @@ cleanup() {
 }
 trap cleanup EXIT
 
+fail_deploy() {
+    echo "Deploy check failed: $1" >&2
+    $COMPOSE logs app >&2 || true
+    exit 1
+}
+
+# 'sql' as a list of rows, run on the db container's AppStore database
+query() {
+    $COMPOSE exec -T db mariadb -uroot -pappstore-test -N -B AppStore -e "$1"
+}
+
+# apps_orderedauthor's unique keys, but its primary key, one per line: name<TAB>columns in order
+unique_author_keys() {
+    query "SELECT INDEX_NAME, GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) FROM information_schema.STATISTICS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'apps_orderedauthor' AND NON_UNIQUE = 0
+           AND INDEX_NAME <> 'PRIMARY' GROUP BY INDEX_NAME"
+}
+
+# The app container put its database in prod's state, then ran the deploy's migrate (entrypoint.sh):
+# that migrate must have dropped the old unique key on (app_id, author_id) (#160).
+check_deploy() {
+    $COMPOSE logs app | grep -qF 'Prepared the database: ALTER TABLE `apps_orderedauthor` DROP INDEX `app_id`' \
+        || fail_deploy "migrate didn't print that it dropped the old key app_id"
+    keys=$(unique_author_keys)
+    if printf '%s\n' "$keys" | grep -q "$(printf '\tapp_id,author_id$')"; then
+        fail_deploy "apps_orderedauthor still has a unique key on (app_id, author_id): $keys"
+    fi
+}
+
 mkdir -p integration/.auth
 for browser in $BROWSERS; do
     cleanup
@@ -21,6 +50,7 @@ for browser in $BROWSERS; do
         $COMPOSE logs app >&2 || true
         exit 1
     fi
+    check_deploy
     $COMPOSE cp app:/srv/appstore/build/it_sessions.json integration/.auth/sessions.json
     $COMPOSE run --rm e2e --project="$browser"
 done

@@ -202,6 +202,15 @@ class Command(BaseCommand):
         OrderedAuthor.objects.create(app=replaced, platform=Platform.WEB,
                                      author=Author.objects.create(name='IT Current Author'), author_order=0)
 
+        # edit-authors.spec.ts: a Desktop and Web app with no authors yet; the spec adds the same
+        # author to both platforms' pages through the edit page (#160)
+        both = self.create_app('IT Author Platforms', editor, has_releases=True)
+        both_desktop = Release.objects.create(app=both, version='1.0', works_with='3.10')
+        write_manifest_json(WebBundleRelease.objects.create(app=both, version='1.0', cy_app_id='itauthorplatforms',
+                                                            active=True, bundle_hash='0' * 64))
+        self.mark_released(both, both_desktop)
+        AppPlatformContent.objects.create(app=both, platform=Platform.WEB)
+
         # admin-queue.spec.ts: its Cytoscape Web 1.0 is published, and submitted again below
         republish = self.create_app('IT Republish', editor, has_releases=True)
         republish_web = WebBundleRelease.objects.create(app=republish, version='1.0', cy_app_id='itrepublish',

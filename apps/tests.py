@@ -23,7 +23,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.db import IntegrityError, connection
+from django.test import TestCase, TransactionTestCase
 from apps.models import App
 from apps.models import Author
 from apps.models import OrderedAuthor
@@ -38,6 +39,7 @@ from apps.models import WebBundleRelease
 from apps.models import Platform
 from apps.models import AppPlatformContent
 from apps.views import _AppPageEditConfig
+from apps.schema_prep import prepare_schema, _indexes
 from apps.templatetags import app_buttons
 from submit_app.models import ServiceAppPending
 from submit_app.models import WebBundlePending
@@ -937,10 +939,15 @@ class SeedIntegrationDataTestCase(TestCase):
 
         apps = {app.name: app for app in App.objects.all()}
         self.assertEqual({'itdesktop', 'itweb', 'itservice', 'itmulti', 'itedit', 'itlicensed', 'itretired', 'itlegacy',
-                          'itcy2', 'itswitch', 'itcontent', 'itauthors', 'itreplacedauthors', 'itrepublish',
-                          'itonlydesktop', 'itonlyweb', 'itonlyservice', 'itgrowdesktop', 'itgrowweb', 'itgrowservice'},
+                          'itcy2', 'itswitch', 'itcontent', 'itauthors', 'itreplacedauthors', 'itauthorplatforms',
+                          'itrepublish', 'itonlydesktop', 'itonlyweb', 'itonlyservice', 'itgrowdesktop', 'itgrowweb',
+                          'itgrowservice'},
                          set(apps))
         self.assertTrue(apps['itlicensed'].license_confirm)
+        # edit-authors.spec.ts adds the same author to both its platforms' pages (#160)
+        self.assertEqual([Platform.DESKTOP, Platform.WEB], apps['itauthorplatforms'].platforms)
+        for platform in (Platform.DESKTOP, Platform.WEB):
+            self.assertEqual([], list(apps['itauthorplatforms'].content(platform).authors))
         self.assertEqual([], apps['itretired'].platforms)
         self.assertEqual([Platform.DESKTOP, Platform.WEB, Platform.SERVICE], apps['itmulti'].platforms)
         self.assertEqual(['1.0'], [r.version for r in apps['itdesktop'].releases])
@@ -1009,8 +1016,8 @@ class SeedIntegrationDataTestCase(TestCase):
     def test_reseeding_replaces_the_data(self):
         self.seed()
         sessions = self.seed()
-        self.assertEqual(20, App.objects.count())
-        self.assertEqual(4, AppPlatformContent.objects.count())
+        self.assertEqual(21, App.objects.count())
+        self.assertEqual(5, AppPlatformContent.objects.count())
         self.assertEqual(4, WebBundlePending.objects.count())
         self.assertEqual(3, ServiceAppPending.objects.count())
         self.assertEqual(3, User.objects.filter(username__startswith='it-').count())
@@ -1763,6 +1770,29 @@ class EditPagePlatformContentTestCase(TestCase):
         self.assertEqual(['Web Author'], [a.name for a in App.objects.get(name='multi').content(Platform.WEB).authors])
         self.assertEqual(['New Desktop Author'], [a.name for a in App.objects.get(name='multi').ordered_authors])
 
+    def test_an_author_of_desktop_can_also_be_an_author_of_web(self):
+        # the same Author row, linked once per platform (#160)
+        self.assertEqual(200, self.post({'action': 'save_authors', 'authors_count': 1,
+                                         'author_0': 'Desktop Author'}).status_code)
+        app = App.objects.get(name='multi')
+        self.assertEqual(['Desktop Author'], [a.name for a in app.content(Platform.WEB).authors])
+        self.assertEqual(1, Author.objects.filter(name='Desktop Author').count())
+        self.assertEqual(2, OrderedAuthor.objects.filter(app=app, author__name='Desktop Author').count())
+        self.assert_desktop_unchanged()
+
+    def test_a_failed_save_of_authors_keeps_the_previous_authors(self):
+        self.assertEqual(200, self.post({'action': 'save_authors', 'authors_count': 1,
+                                         'author_0': 'Web Author'}).status_code)
+        # two identical Author rows make the save fail part-way, after its first author
+        Author.objects.create(name='Twin Author')
+        Author.objects.create(name='Twin Author')
+        with self.assertRaises(Author.MultipleObjectsReturned):
+            self.post({'action': 'save_authors', 'authors_count': 2,
+                       'author_0': 'New Web Author', 'author_1': 'Twin Author'})
+        app = App.objects.get(name='multi')
+        self.assertEqual(['Web Author'], [a.name for a in app.content(Platform.WEB).authors])
+        self.assert_desktop_unchanged()
+
     def test_screenshots_with_web_change_only_the_web_content(self):
         image = io.BytesIO()
         Image.new('RGB', (20, 20)).save(image, 'PNG')
@@ -1956,12 +1986,14 @@ class AuthorPageTestCase(TestCase):
 class SchemaPrepTestCase(TestCase):
     """
     Before migrating, an old MySQL/MariaDB database's MyISAM apps_tag, int apps_tag ids and latin1
-    default are fixed (#155).
+    default are fixed (#155), and its obsolete unique key on apps_orderedauthor is dropped (#160).
     """
 
     class FakeCursor:
-        def __init__(self, charset, engines, columns):
+        def __init__(self, charset, engines, columns, indexes=None):
             self.charset, self.engines, self.columns, self.executed, self.row = charset, engines, columns, [], None
+            # table -> [(index name, column, NON_UNIQUE)], in the order information_schema.STATISTICS gives them
+            self.indexes, self.rows = indexes or {}, []
 
         def __enter__(self):
             return self
@@ -1978,11 +2010,16 @@ class SchemaPrepTestCase(TestCase):
             elif 'information_schema.COLUMNS' in sql:
                 data_type = self.columns.get(params)
                 self.row = (data_type,) if data_type else None
+            elif 'information_schema.STATISTICS' in sql:
+                self.rows = self.indexes.get(params[0], [])
             else:
                 self.executed.append(sql)
 
         def fetchone(self):
             return self.row
+
+        def fetchall(self):
+            return self.rows
 
     class FakeConnection:
         def __init__(self, vendor, cursor):
@@ -1997,9 +2034,16 @@ class SchemaPrepTestCase(TestCase):
     WIDEN = ['ALTER TABLE `apps_tag` MODIFY `id` BIGINT NOT NULL AUTO_INCREMENT',
              'ALTER TABLE `apps_app_tags` MODIFY `tag_id` BIGINT NOT NULL']
 
-    def prepare(self, charset, engines, columns=BIGINT, vendor='mysql'):
+    # what the production database has: apps_app_authors' unique key, kept when it became
+    # apps_orderedauthor, beside its own indexes on app_id and author_id
+    AUTHOR_KEY = {'apps_orderedauthor': [('app_id', 'app_id', 0), ('app_id', 'author_id', 0),
+                                         ('apps_app_authors_269da59a', 'app_id', 1),
+                                         ('apps_app_authors_337b96ff', 'author_id', 1)]}
+    DROP_AUTHOR_KEY = 'ALTER TABLE `apps_orderedauthor` DROP INDEX `app_id`'
+
+    def prepare(self, charset, engines, columns=BIGINT, vendor='mysql', indexes=None):
         from apps.schema_prep import prepare_schema
-        cursor = self.FakeCursor(charset, engines, columns)
+        cursor = self.FakeCursor(charset, engines, columns, indexes)
         return prepare_schema(self.FakeConnection(vendor, cursor)), cursor.executed
 
     def test_old_database_is_converted(self):
@@ -2037,10 +2081,93 @@ class SchemaPrepTestCase(TestCase):
         self.assertEqual(([], []), self.prepare('utf8mb4', {}, {}))
 
     def test_other_databases_are_not_touched(self):
-        self.assertEqual(([], []), self.prepare('latin1', {'apps_tag': 'MyISAM'}, self.INT, vendor='sqlite'))
+        self.assertEqual(([], []), self.prepare('latin1', {'apps_tag': 'MyISAM'}, self.INT, vendor='sqlite',
+                                                indexes=self.AUTHOR_KEY))
+
+    def test_production_author_unique_key_is_dropped(self):
+        # it refused an author listed on two of an app's platforms (#160)
+        statements, executed = self.prepare('utf8', {'apps_tag': 'InnoDB'}, indexes=self.AUTHOR_KEY)
+        self.assertEqual([self.DROP_AUTHOR_KEY], executed)
+        self.assertEqual(executed, statements)
+
+    def test_author_unique_key_is_dropped_whatever_its_name(self):
+        self.assertEqual(['ALTER TABLE `apps_orderedauthor` DROP INDEX `app_author`'],
+                         self.prepare('utf8', {'apps_tag': 'InnoDB'},
+                                      indexes={'apps_orderedauthor': [('app_author', 'app_id', 0),
+                                                                      ('app_author', 'author_id', 0),
+                                                                      ('by_app', 'app_id', 1)]})[1])
+
+    def test_an_app_id_index_is_added_first_where_the_key_is_the_only_one(self):
+        # MariaDB won't drop the only index a foreign key on app_id can use
+        self.assertEqual(['ALTER TABLE `apps_orderedauthor` ADD INDEX `apps_orderedauthor_app_id` (`app_id`)',
+                          self.DROP_AUTHOR_KEY],
+                         self.prepare('utf8', {'apps_tag': 'InnoDB'},
+                                      indexes={'apps_orderedauthor': [('app_id', 'app_id', 0), ('app_id', 'author_id', 0),
+                                                                      ('by_author', 'author_id', 1)]})[1])
+
+    def test_other_author_unique_keys_are_kept(self):
+        # only the key on exactly (app_id, author_id): one that also has the platform allows an author per platform
+        for key in ([('k', 'app_id', 0), ('k', 'author_id', 0), ('k', 'platform', 0)],
+                    [('k', 'author_id', 0), ('k', 'app_id', 0)],
+                    [('k', 'app_id', 0)],
+                    [('k', 'app_id', 1), ('k', 'author_id', 1)]):
+            self.assertEqual([], self.prepare('utf8', {'apps_tag': 'InnoDB'},
+                                              indexes={'apps_orderedauthor': key})[1])
+
+    def test_all_fixes_together(self):
+        self.assertEqual(['ALTER DATABASE CHARACTER SET utf8 COLLATE utf8_general_ci', 'ALTER TABLE `apps_tag` ENGINE=InnoDB']
+                         + self.WIDEN + [self.DROP_AUTHOR_KEY],
+                         self.prepare('latin1', {'apps_tag': 'MyISAM'}, self.INT, indexes=self.AUTHOR_KEY)[1])
 
     def test_migrate_runs_it_first(self):
         from unittest.mock import patch
         with patch('apps.schema_prep.prepare_schema', return_value=[]) as prepare:
             call_command('migrate', verbosity=0)
         prepare.assert_called_once()
+
+
+class LegacyAuthorKeyTestCase(TransactionTestCase):
+    """
+    On the MariaDB test database in apps.cytoscape.org's state, with apps_orderedauthor's old unique
+    key on (app_id, author_id): the key refuses an author on a second platform of an app (#160), and
+    prepare_schema drops it. A TransactionTestCase, since MariaDB commits schema changes at once.
+    """
+
+    def setUp(self):
+        self.app = App.objects.create(name='both', fullname='Both', active=True)
+        self.author = Author.objects.create(name='Gary Bader', institution='University of Toronto')
+        OrderedAuthor.objects.create(app=self.app, author=self.author, author_order=0)
+        with self.settings(INTEGRATION_SEED_ENABLED=True):
+            call_command('add_legacy_author_key', stdout=io.StringIO())
+        # schema changes outlive the data flush, and the key would break later tests; prepare_schema
+        # drops it the way MariaDB allows (it won't drop the foreign key's only index on app_id)
+        self.addCleanup(prepare_schema, connection)
+
+    @staticmethod
+    def other_app_id_indexes():
+        """apps_orderedauthor's indexes that start with app_id, but the old key."""
+        with connection.cursor() as cursor:
+            return [name for name, (_, columns) in _indexes(cursor, 'apps_orderedauthor').items()
+                    if name != 'app_id' and columns[0] == 'app_id']
+
+    def link_on_web(self):
+        return OrderedAuthor.objects.create(app=self.app, platform=Platform.WEB, author=self.author, author_order=0)
+
+    def test_the_key_refuses_an_author_on_a_second_platform(self):
+        with self.assertRaises(IntegrityError):
+            self.link_on_web()
+
+    def test_prepare_schema_drops_the_key_once(self):
+        # MariaDB let the key replace the foreign key's implicit index on app_id, so unless an earlier
+        # run left one, an index is added first (prod's table has its own: SchemaPrepTestCase.AUTHOR_KEY)
+        add_index = [] if self.other_app_id_indexes() else [
+            'ALTER TABLE `apps_orderedauthor` ADD INDEX `apps_orderedauthor_app_id` (`app_id`)']
+        self.assertEqual(add_index + ['ALTER TABLE `apps_orderedauthor` DROP INDEX `app_id`'],
+                         prepare_schema(connection))
+        self.assertTrue(self.other_app_id_indexes())  # the foreign key keeps an index
+        self.link_on_web()
+        self.assertEqual(2, OrderedAuthor.objects.filter(app=self.app, author=self.author).count())
+        self.assertEqual([], prepare_schema(connection))
+    def test_the_command_runs_only_for_the_integration_suite(self):
+        with self.assertRaises(CommandError):
+            call_command('add_legacy_author_key', stdout=io.StringIO())
