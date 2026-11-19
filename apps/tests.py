@@ -357,10 +357,11 @@ class ScreenshotTestCase(TestCase):
         s_shot = Screenshot.objects.create(app=appobj,
                                            screenshot=screenshot_file,
                                            thumbnail=thumbnail_file)
-        self.assertEqual('MyApp - 1', str(s_shot))
+        # MariaDB doesn't reuse ids after a test's rollback, so the id isn't always 1
+        self.assertEqual('MyApp - %d' % s_shot.id, str(s_shot))
         s_shot.save()
         s_shot = Screenshot.objects.get(app=appobj)
-        self.assertEqual('MyApp - 1', str(s_shot))
+        self.assertEqual('MyApp - %d' % s_shot.id, str(s_shot))
 
         self.assertTrue(os.path.join(settings.MEDIA_URL,
                                      'myapp',

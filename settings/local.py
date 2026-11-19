@@ -46,12 +46,20 @@ STATICFILES_DIRS = (
     os.path.join(SITE_DIR, 'static'),
 )
 
+# MariaDB, as deployed: the db (or devdb) container of docker/compose.yml
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BUILD_DIR, 'sqlite3.db'),
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'AppStore',
+        'HOST': os.environ.get('APPSTORE_DB_HOST', 'db'),
+        'PORT': '3306',
+        'USER': 'root',
+        'PASSWORD': os.environ.get('APPSTORE_DB_PASSWORD', 'appstore-test'),
+        'OPTIONS': {'charset': 'utf8'},
         'TEST': {
-            'NAME': 'test_AppStore'
+            'NAME': 'test_AppStore',
+            'CHARSET': 'utf8',
+            'COLLATION': 'utf8_general_ci',
         }
     }
 }

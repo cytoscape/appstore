@@ -1,17 +1,5 @@
-.PHONY: clean clean-test clean-pyc clean-build help build integration-image integration-test
+.PHONY: clean clean-test clean-pyc clean-build help test integration-test runserver runserver-reset
 .DEFAULT_GOAL := help
-
-define BROWSER_PYSCRIPT
-import os, webbrowser, sys
-
-try:
-        from urllib import pathname2url
-except:
-        from urllib.request import pathname2url
-
-webbrowser.open("file://" + pathname2url(os.path.abspath(sys.argv[1])))
-endef
-export BROWSER_PYSCRIPT
 
 define PRINT_HELP_PYSCRIPT
 import re, sys
@@ -24,13 +12,9 @@ for line in sys.stdin:
 endef
 export PRINT_HELP_PYSCRIPT
 
-BROWSER := python -c "$$BROWSER_PYSCRIPT"
-
-# project virtualenv, managed with uv (host prerequisite, like the python runtime)
-VENV := .venv
-PYTHON := $(VENV)/bin/python
-# written only after every setup step succeeds, so a failed setup is retried by the next make
-VENV_STAMP := $(VENV)/.installed
+# The tests and the dev server run in containers (docker/compose.yml), against MariaDB as deployed;
+# the host needs only Docker with Compose. Each use is its own Compose project.
+COMPOSE := docker compose -f docker/compose.yml
 
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
@@ -63,50 +47,15 @@ lint: ## check style with flake8
 nopyc: clean-pyc
 	find . -name "*.pyc" -exec rm -vf {} \;
 
-test: build ## run tests via python manage.py test
-	$(PYTHON) manage.py test
+test: ## run the Django tests in a container, against a fresh MariaDB (docker/compose.yml)
+	$(COMPOSE) -p appstore-test run --rm --build tests; status=$$?; \
+	$(COMPOSE) -p appstore-test down -v --remove-orphans; exit $$status
 
-coverage: build ## check code coverage
-	coverage run --source '.' --omit=*/tests.py,*/migrations/*,build/*,wsgi.py manage.py test
-	coverage report -m
-	coverage html
-	$(BROWSER) htmlcov/index.html
+integration-test: ## run the Playwright integration suite (Chromium, Firefox) in containers against the App Store on MariaDB
+	sh docker/integration-test.sh
 
-$(VENV_STAMP): requirements.txt requirements-test.txt ## create the virtualenv with uv and install requirements
-	uv venv --allow-existing --python 3.12 $(VENV)
-	uv pip install --python $(PYTHON) -r requirements.txt -r requirements-test.txt
-	$(PYTHON) -m playwright install chromium
-	touch $(VENV_STAMP)
+runserver: ## run the App Store on http://127.0.0.1:8000, on a MariaDB kept across restarts
+	$(COMPOSE) -p appstore-dev up --build serve
 
-build: $(VENV_STAMP) ## Build app database and static content in build directory
-	mkdir -p build/whoosh_index
-	mkdir -p build/media
-	# should fix errors upon calling python manage.py commands
-	-uv pip uninstall --python $(PYTHON) python-openid
-	-uv pip uninstall --python $(PYTHON) python3-openid
-	uv pip install --python $(PYTHON) python3-openid
-	$(PYTHON) manage.py makemigrations apps --noinput
-	$(PYTHON) manage.py makemigrations backend --noinput
-	$(PYTHON) manage.py makemigrations download --noinput
-	$(PYTHON) manage.py makemigrations help --noinput
-	$(PYTHON) manage.py makemigrations search --noinput
-	$(PYTHON) manage.py makemigrations submit_app --noinput
-	$(PYTHON) manage.py makemigrations users --noinput
-	$(PYTHON) manage.py makemigrations --noinput
-	$(PYTHON) manage.py migrate --noinput
-	$(PYTHON) manage.py rebuild_index --noinput
-
-
-INTEGRATION_IMAGE ?= appstore-it:local
-INTEGRATION_PORT ?= 8080
-
-integration-image: ## build the Docker image the integration tests run against
-	docker build -f docker/Dockerfile -t $(INTEGRATION_IMAGE) .
-
-integration-test: integration-image ## run the Playwright integration suite (Chromium, Firefox) against the App Store container
-	npm ci --prefix integration --no-audit --no-fund
-	cd integration && npx playwright install chromium firefox
-	INTEGRATION_IMAGE=$(INTEGRATION_IMAGE) INTEGRATION_PORT=$(INTEGRATION_PORT) sh docker/integration-test.sh
-
-runserver: build ## Runs server locally
-	$(PYTHON) manage.py runserver
+runserver-reset: ## remove make runserver's database and generated migrations
+	$(COMPOSE) -p appstore-dev down -v --remove-orphans

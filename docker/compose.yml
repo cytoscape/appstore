@@ -1,0 +1,125 @@
+# The App Store's tests and dev server, run entirely in containers: the host needs only Docker and
+# make. MariaDB is configured as deployed (prod's collation and SQL mode), and no service but serve
+# is reachable from outside the host. The Makefile runs each use as its own Compose project:
+#   make test:             db + tests          (project appstore-test)
+#   make integration-test: db + app + e2e      (project appstore-it, docker/integration-test.sh)
+#   make runserver:        devdb + serve       (project appstore-dev)
+
+# MariaDB as on apps.cytoscape.org. Set MARIADB_IMAGE and MARIADB_SQL_MODE to prod's, from
+#   python manage.py dbshell -- -e "SELECT VERSION(), @@GLOBAL.sql_mode;"
+x-mariadb: &mariadb
+  image: ${MARIADB_IMAGE:-mariadb:10.11}
+  command:
+    - --character-set-server=utf8mb3
+    - --collation-server=utf8mb3_general_ci
+    - --sql-mode=${MARIADB_SQL_MODE:-STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION}
+  environment:
+    MARIADB_ROOT_PASSWORD: appstore-test
+    MARIADB_DATABASE: AppStore
+  healthcheck:
+    test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+    interval: 2s
+    timeout: 5s
+    retries: 60
+
+x-appstore: &appstore
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+    target: app
+  environment: &appstore-env
+    APPSTORE_DB_HOST: db
+    APPSTORE_DB_PASSWORD: appstore-test
+
+services:
+  # the database of make test and make integration-test; empty each run
+  db:
+    <<: *mariadb
+    tmpfs:
+      - /var/lib/mysql
+
+  # make test: manage.py test against db
+  tests:
+    <<: *appstore
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: test
+    environment:
+      <<: *appstore-env
+      DJANGO_SETTINGS_MODULE: settings.local
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # make integration-test: the App Store the Playwright suite runs against, seeded (docker/entrypoint.sh)
+  app:
+    <<: *appstore
+    environment:
+      <<: *appstore-env
+      APPSTORE_PUBLIC_URL: http://localhost:8000
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/apps/', timeout=5)"]
+      interval: 2s
+      timeout: 10s
+      retries: 300
+
+  # make integration-test: the Playwright suite in integration/, at the version its package-lock.json pins.
+  # It shares app's network, so the browser opens the App Store on localhost as a secure context,
+  # where navigator.clipboard and the fake CyRest on 127.0.0.1:1234 work as they do for users.
+  e2e:
+    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    network_mode: service:app
+    working_dir: /work/integration
+    volumes:
+      - ../integration:/work/integration
+      # the container's own packages, so the host's integration/node_modules is left alone
+      - e2e-node-modules:/work/integration/node_modules
+    environment:
+      APPSTORE_URL: http://localhost:8000
+      CI: ${CI:-}
+    entrypoint: ["sh", "-c", "npm ci --no-audit --no-fund && exec npx playwright test \"$@\"", "e2e"]
+    depends_on:
+      app:
+        condition: service_healthy
+
+  # make runserver: the developer's database, kept in the dev-data volume across restarts
+  devdb:
+    <<: *mariadb
+    volumes:
+      - dev-data:/var/lib/mysql
+
+  # make runserver: the App Store on 127.0.0.1:8000, its generated migrations kept in dev-build
+  serve:
+    <<: *appstore
+    environment:
+      <<: *appstore-env
+      APPSTORE_DB_HOST: devdb
+      DJANGO_SETTINGS_MODULE: settings.local
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        mkdir -p build/media build/whoosh_index
+        for app in apps backend download help search submit_app users; do
+            python manage.py makemigrations "$$app" --noinput
+        done
+        python manage.py makemigrations --noinput
+        python manage.py migrate --noinput
+        exec python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - dev-build:/srv/appstore/build
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      devdb:
+        condition: service_healthy
+
+volumes:
+  e2e-node-modules:
+  dev-data:
+  dev-build:

@@ -1,40 +1,26 @@
 #!/bin/sh
-# For each browser: start a fresh App Store container on the exported port, wait for it,
-# copy out the seeded sessions, and run the Playwright suite in integration/ against it.
-# Called by make integration-test, which builds the image and installs the suite first.
+# For each browser: start a fresh App Store container on a fresh MariaDB (docker/compose.yml),
+# wait for it, copy out the seeded sessions, and run the Playwright suite in integration/ in the
+# e2e container against it. Called by make integration-test; the host needs only Docker.
 set -eu
 
-IMAGE=${INTEGRATION_IMAGE:-appstore-it:local}
-PORT=${INTEGRATION_PORT:-8080}
 BROWSERS=${INTEGRATION_BROWSERS:-chromium firefox}
-CONTAINER=appstore-it
-URL=http://localhost:$PORT
+COMPOSE="docker compose -f docker/compose.yml -p appstore-it"
 
 cleanup() {
-    docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+    $COMPOSE down -v --remove-orphans >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
-
-wait_until_up() {
-    tries=0
-    until [ "$(curl -s -o /dev/null -w '%{http_code}' "$URL/apps/")" = "200" ]; do
-        tries=$((tries + 1))
-        if [ "$tries" -ge 120 ]; then
-            echo "App Store container did not answer on $URL/apps/ within 120 s" >&2
-            docker logs "$CONTAINER" >&2 || true
-            exit 1
-        fi
-        sleep 1
-    done
-}
 
 mkdir -p integration/.auth
 for browser in $BROWSERS; do
     cleanup
-    echo "=== $browser: starting $IMAGE on $URL"
-    # localhost only: the container runs Django's debug server and accepts any host name
-    docker run -d --name "$CONTAINER" -p "127.0.0.1:$PORT:8000" -e "APPSTORE_PUBLIC_URL=$URL" "$IMAGE" >/dev/null
-    wait_until_up
-    docker cp "$CONTAINER:/srv/appstore/build/it_sessions.json" integration/.auth/sessions.json
-    (cd integration && APPSTORE_URL=$URL npx playwright test --project="$browser")
+    echo "=== $browser: starting the App Store on a fresh MariaDB"
+    if ! $COMPOSE up -d --build --wait app; then
+        echo "The App Store container did not become healthy" >&2
+        $COMPOSE logs app >&2 || true
+        exit 1
+    fi
+    $COMPOSE cp app:/srv/appstore/build/it_sessions.json integration/.auth/sessions.json
+    $COMPOSE run --rm e2e --project="$browser"
 done

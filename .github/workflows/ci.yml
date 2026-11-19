@@ -16,38 +16,21 @@ concurrency:
 jobs:
   make-test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      # checks out into .../appstore/appstore; ROOT_URLCONF 'appstore.urls' needs the repo dir named appstore
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
-        with:
-          enable-cache: true
-          cache-dependency-glob: requirements*.txt
-
-      - name: Browser system libraries
-        run: make .venv/.installed && .venv/bin/python -m playwright install-deps chromium
-
+      # the tests run in containers (docker/compose.yml); the runner needs only Docker
       - name: make test
         run: make test
 
   integration-test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: integration/package-lock.json
-
-      - name: Browser system libraries
-        working-directory: integration
-        run: npm ci --no-audit --no-fund && npx playwright install-deps chromium firefox
-
+      # the App Store, MariaDB and the Playwright suite run in containers; the runner needs only Docker
       - name: make integration-test
         run: make integration-test
 
