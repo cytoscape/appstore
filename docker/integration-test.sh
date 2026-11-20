@@ -55,5 +55,10 @@ for browser in $BROWSERS; do
     fi
     check_deploy
     $COMPOSE cp app:/srv/appstore/build/it_sessions.json integration/.auth/sessions.json
-    $COMPOSE run --rm e2e --project="$browser"
+    # --no-deps: app is up, healthy and deploy-checked, and must stay that container; recreating it
+    # would rerun entrypoint.sh on the seeded database (as some Compose versions do for a dependency)
+    if ! $COMPOSE run --rm --no-deps e2e --project="$browser"; then
+        $COMPOSE logs --tail 200 app >&2 || true
+        exit 1
+    fi
 done

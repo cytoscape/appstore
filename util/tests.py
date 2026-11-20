@@ -187,6 +187,14 @@ class IntegrationContainerTestCase(TestCase):
         for port in self.services['serve']['ports']:
             self.assertTrue(str(port).startswith('127.0.0.1:'), port)
 
+    def test_the_suite_runs_without_restarting_the_checked_app(self):
+        # CI's Compose recreated app as e2e's dependency, rerunning entrypoint.sh on a seeded database (#161)
+        with open(os.path.join(settings.BASE_DIR, 'docker', 'integration-test.sh')) as f:
+            runs = [line for line in f if ' run ' in line and 'e2e' in line]
+        self.assertTrue(runs)
+        for line in runs:
+            self.assertIn('--no-deps', line)
+
     def test_the_browser_reaches_the_app_on_its_own_localhost(self):
         # a secure context, where the copy buttons and the fake CyRest work as they do for users
         e2e = self.services['e2e']
