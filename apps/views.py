@@ -523,6 +523,9 @@ def _save_authors(app, request):
 
     # replaces only this platform's authors; the other platforms keep theirs
     platform = _own_platform(_content_target(app, request))
+    # two saves of one app's authors at once run one after the other: interleaved, both would
+    # delete then both insert, and Desktop's links (platform null) aren't covered by the constraint
+    App.objects.select_for_update().filter(pk = app.pk).first()
     OrderedAuthor.objects.filter(app = app, platform = platform).delete()
     # an author once: rows the database matches to the same Author (the same name twice, or in
     # other capitals under its collation) keep the first one's place (#160)

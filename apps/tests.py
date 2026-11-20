@@ -1822,6 +1822,17 @@ class EditPagePlatformContentTestCase(TestCase):
         self.assertEqual([('Gary Bader', 0)], self.authors_of(Platform.WEB))
         self.assertEqual(1, Author.objects.filter(name__iexact='gary bader').count())
 
+    def test_a_save_of_authors_locks_the_app_first(self):
+        # a concurrent save of the same app's authors waits for this one
+        from django.test.utils import CaptureQueriesContext
+        with CaptureQueriesContext(connection) as queries:
+            self.post_authors(['Gary Bader'], platform='desktop')
+        sql = [q['sql'] for q in queries.captured_queries]
+        [lock] = [i for i, s in enumerate(sql) if s.endswith('FOR UPDATE')]
+        self.assertIn('`apps_app`', sql[lock])
+        [delete] = [i for i, s in enumerate(sql) if s.startswith('DELETE') and 'apps_orderedauthor' in s]
+        self.assertLess(lock, delete)
+
     def test_the_database_refuses_an_author_twice_for_one_platform(self):
         author = Author.objects.get(name='Desktop Author')
         OrderedAuthor.objects.create(app=self.app, platform=Platform.WEB, author=author, author_order=0)
@@ -2142,6 +2153,15 @@ class SchemaPrepTestCase(TestCase):
                                       indexes={'apps_orderedauthor': [('app_id', 'app_id', 0), ('app_id', 'author_id', 0),
                                                                       ('by_author', 'author_id', 1)]})[1])
 
+    def test_the_added_app_id_index_takes_a_name_not_in_use(self):
+        # here the old key itself is named as the index would be
+        key = 'apps_orderedauthor_app_id'
+        self.assertEqual(['ALTER TABLE `apps_orderedauthor` ADD INDEX `apps_orderedauthor_app_id_2` (`app_id`)',
+                          'ALTER TABLE `apps_orderedauthor` DROP INDEX `%s`' % key],
+                         self.prepare('utf8', {'apps_tag': 'InnoDB'},
+                                      indexes={'apps_orderedauthor': [(key, 'app_id', 0), (key, 'author_id', 0),
+                                                                      ('by_author', 'author_id', 1)]})[1])
+
     def test_other_author_unique_keys_are_kept(self):
         # only the key on exactly (app_id, author_id): one that also has the platform allows an author per platform
         for key in ([('k', 'app_id', 0), ('k', 'author_id', 0), ('k', 'platform', 0)],
@@ -2345,3 +2365,14 @@ class DeployStepsTestCase(TransactionTestCase):
         self.assertIn('  Prepared the database: ' + DELETE_REPEATED_AUTHOR_LINKS, self.migrate())
         self.add_the_constraint()
         self.assertIn(self.CONSTRAINT, self.constraints())
+
+    def test_a_constraint_created_but_not_recorded_stops_the_retry(self):
+        # migrate stopped after MariaDB added the constraint but before Django recorded the migration
+        # (MariaDB's DDL isn't transactional): the retry adds it again, and stops with this error
+        self.to_prod_state()
+        self.migrate()
+        self.add_the_constraint()
+        from django.db import OperationalError
+        with self.assertRaises(OperationalError) as raised:
+            self.add_the_constraint()
+        self.assertIn("Duplicate key name 'unique_app_author_platform'", str(raised.exception))

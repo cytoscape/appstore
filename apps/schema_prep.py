@@ -104,7 +104,8 @@ def prepare_schema(connection):
                               if unique and key_columns == columns)
             if obsolete and not any(key_columns[0] == columns[0] for name, (_, key_columns) in indexes.items()
                                     if name not in obsolete):
-                statements.append('ALTER TABLE `%s` ADD INDEX `%s_%s` (`%s`)' % (table, table, columns[0], columns[0]))
+                statements.append('ALTER TABLE `%s` ADD INDEX `%s` (`%s`)'
+                                  % (table, _unused_index_name(indexes, '%s_%s' % (table, columns[0])), columns[0]))
             for name in obsolete:
                 statements.append('ALTER TABLE `%s` DROP INDEX `%s`' % (table, name))
         if _value(cursor, 'SELECT ENGINE FROM information_schema.TABLES '
@@ -115,6 +116,15 @@ def prepare_schema(connection):
             logger.warning('Preparing the database for migrations: %s', statement)
             cursor.execute(statement)
     return statements
+
+
+def _unused_index_name(indexes, name):
+    """'name', or 'name_2', 'name_3', ...: the first that isn't one of the table's 'indexes'."""
+    candidate, n = name, 1
+    while candidate in indexes:
+        n += 1
+        candidate = '%s_%d' % (name, n)
+    return candidate
 
 
 def prepare_schema_before_migrate(sender, using, **kwargs):

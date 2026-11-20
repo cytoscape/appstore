@@ -36,6 +36,11 @@ History
     again is safe and continues where it stopped. Or restore the pre-deploy snapshot with the
     runbook's rollback script.
 
+  * If ``migrate`` stopped after creating the constraint but before recording the migration (if,
+    for example, it was interrupted), running it again stops with
+    ``Duplicate key name 'unique_app_author_platform'``. Restore the pre-deploy snapshot with the
+    runbook's rollback script, then deploy again.
+
 2.1.0 (2026-11-05)
 ---------------------
 

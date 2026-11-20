@@ -7,12 +7,13 @@
 
 # MariaDB as on apps.cytoscape.org. Set MARIADB_IMAGE and MARIADB_SQL_MODE to prod's, from
 #   python manage.py dbshell -- -e "SELECT VERSION(), @@GLOBAL.sql_mode;"
+# MARIADB_SQL_MODE set but empty means no SQL mode, as on a server whose sql_mode is ''.
 x-mariadb: &mariadb
   image: ${MARIADB_IMAGE:-mariadb:10.11}
   command:
     - --character-set-server=utf8mb3
     - --collation-server=utf8mb3_general_ci
-    - --sql-mode=${MARIADB_SQL_MODE:-STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION}
+    - --sql-mode=${MARIADB_SQL_MODE-STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION}
   environment:
     MARIADB_ROOT_PASSWORD: appstore-test
     MARIADB_DATABASE: AppStore
@@ -92,7 +93,8 @@ services:
     volumes:
       - dev-data:/var/lib/mysql
 
-  # make runserver: the App Store on 127.0.0.1:8000, its generated migrations kept in dev-build
+  # make runserver: the App Store on 127.0.0.1:8000, serving the checkout itself so runserver
+  # reloads on edits; build/ (generated migrations, media) stays in the dev-build volume
   serve:
     <<: *appstore
     environment:
@@ -112,6 +114,7 @@ services:
         python manage.py migrate --noinput
         exec python manage.py runserver 0.0.0.0:8000
     volumes:
+      - ..:/srv/appstore
       - dev-build:/srv/appstore/build
     ports:
       - "127.0.0.1:8000:8000"

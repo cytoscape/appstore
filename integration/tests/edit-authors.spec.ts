@@ -4,8 +4,8 @@ import type { Page } from '@playwright/test'
 // Each of an app's platforms has its own authors (#155), so the same author can be on several of
 // them. On apps.cytoscape.org's database, adding an author already on another platform's page gave
 // a 500 (#160); the suite's database is put in that state before the deploy's migrate. IT Author
-// Platforms is seeded for this spec, on Cytoscape Desktop and Web, with no authors. The tests run
-// in order, each on what the one before saved.
+// Platforms is seeded for this spec, on Cytoscape Desktop and Web, with no authors. One test, in
+// steps, since each step works on what the one before saved: it runs on its own (-g) too.
 const NAME = 'IT Platforms Author'
 const INSTITUTION = 'IT University'
 const PLATFORMS = ['desktop', 'web'] as const
@@ -45,26 +45,30 @@ async function expectAuthorOnce(page: Page, platform: Platform) {
 
 test.describe('Editing authors', () => {
   test('the same author added on two platforms of one app is allowed and shown once on each screen (#160)', async ({ asEditor }) => {
-    await addAuthorRow(asEditor, 'desktop', NAME, INSTITUTION)
-    // the save that was a 500 on apps.cytoscape.org
-    await addAuthorRow(asEditor, 'web', NAME, INSTITUTION)
-
-    for (const platform of PLATFORMS) {
-      await expectAuthorOnce(asEditor, platform)
-    }
-
-    // the author's page lists the app once, although it links the author once per platform
-    await asEditor.goto(`/apps/with_author/${NAME}`)
-    await expect(asEditor.locator('h5', { hasText: /^IT Author Platforms$/ })).toHaveCount(2) // compact and full tile
-  })
-
-  // the second row is the same author in other capitals, which MariaDB's collation matches to it
-  for (const platform of PLATFORMS) {
-    test(`an author entered twice on the ${platform} page is listed once there and on the other platform`, async ({ asEditor }) => {
-      await addAuthorRow(asEditor, platform, NAME.toLowerCase(), INSTITUTION.toLowerCase())
-      for (const shown of PLATFORMS) {
-        await expectAuthorOnce(asEditor, shown)
+    test.slow() // about 17 page loads
+    await test.step('added on Desktop, then on Web', async () => {
+      await addAuthorRow(asEditor, 'desktop', NAME, INSTITUTION)
+      // the save that was a 500 on apps.cytoscape.org
+      await addAuthorRow(asEditor, 'web', NAME, INSTITUTION)
+      for (const platform of PLATFORMS) {
+        await expectAuthorOnce(asEditor, platform)
       }
     })
-  }
+
+    await test.step("the author's page lists the app once", async () => {
+      // although the app links the author once per platform
+      await asEditor.goto(`/apps/with_author/${NAME}`)
+      await expect(asEditor.locator('h5', { hasText: /^IT Author Platforms$/ })).toHaveCount(2) // compact and full tile
+    })
+
+    // the second row is the same author in other capitals, which MariaDB's collation matches to it
+    for (const platform of PLATFORMS) {
+      await test.step(`entered twice on the ${platform} page, listed once there and on the other platform`, async () => {
+        await addAuthorRow(asEditor, platform, NAME.toLowerCase(), INSTITUTION.toLowerCase())
+        for (const shown of PLATFORMS) {
+          await expectAuthorOnce(asEditor, shown)
+        }
+      })
+    }
+  })
 })

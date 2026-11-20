@@ -187,6 +187,19 @@ class IntegrationContainerTestCase(TestCase):
         for port in self.services['serve']['ports']:
             self.assertTrue(str(port).startswith('127.0.0.1:'), port)
 
+    def test_the_dev_server_serves_the_checkout_and_keeps_build_in_its_volume(self):
+        # runserver reloads on the developer's edits, as it did on the host
+        volumes = self.services['serve']['volumes']
+        self.assertIn('..:/srv/appstore', volumes)
+        self.assertIn('dev-build:/srv/appstore/build', volumes)
+
+    def test_an_empty_sql_mode_is_kept(self):
+        # ${VAR-default}: prod's sql_mode may be '', which ${VAR:-default} would replace
+        with open(os.path.join(settings.BASE_DIR, 'docker', 'compose.yml')) as f:
+            command = yaml.safe_load(f)['x-mariadb']['command']
+        [sql_mode] = [arg for arg in command if arg.startswith('--sql-mode=')]
+        self.assertTrue(sql_mode.startswith('--sql-mode=${MARIADB_SQL_MODE-'), sql_mode)
+
     def test_the_suite_runs_without_restarting_the_checked_app(self):
         # CI's Compose recreated app as e2e's dependency, rerunning entrypoint.sh on a seeded database (#161)
         with open(os.path.join(settings.BASE_DIR, 'docker', 'integration-test.sh')) as f:
