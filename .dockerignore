@@ -1,5 +1,4 @@
 .git
-.github
 .venv
 .vagrant
 build

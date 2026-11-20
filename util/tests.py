@@ -104,24 +104,27 @@ class CiWorkflowTestCase(TestCase):
         self.assertEqual(1, len(jobs), 'expected one job running %r' % command)
         return jobs[0]
 
-    def assert_runs_after(self, job, earlier, later):
-        runs = self.runs(job)
-        earlier_at = next(i for i, run in enumerate(runs) if earlier in run)
-        later_at = next(i for i, run in enumerate(runs) if run.strip() == later)
-        self.assertLess(earlier_at, later_at)
-
     def test_triggers_on_pull_requests(self):
         # YAML 1.1 reads the bare key "on" as True
         triggers = self.workflow.get('on', self.workflow.get(True))
         self.assertIn('pull_request', triggers)
 
-    def test_a_job_runs_make_test_after_chromium_libraries(self):
-        job = self.job_running('make test')
-        self.assert_runs_after(job, 'playwright install-deps chromium', 'make test')
+    def assert_needs_only_docker(self, job):
+        """The job sets nothing up on the runner: the tests run in containers (docker/compose.yml)."""
+        steps = self.workflow['jobs'][job]['steps']
+        actions = [step['uses'].split('@')[0] for step in steps if 'uses' in step]
+        self.assertNotIn('actions/setup-python', actions)
+        self.assertNotIn('actions/setup-node', actions)
+        self.assertNotIn('astral-sh/setup-uv', actions)
+        for run in self.runs(job):
+            self.assertNotIn('playwright install', run)
+            self.assertNotIn('npm ', run)
 
-    def test_a_job_runs_make_integration_test_after_browser_libraries(self):
-        job = self.job_running('make integration-test')
-        self.assert_runs_after(job, 'playwright install-deps chromium firefox', 'make integration-test')
+    def test_a_job_runs_make_test_needing_only_docker(self):
+        self.assert_needs_only_docker(self.job_running('make test'))
+
+    def test_a_job_runs_make_integration_test_needing_only_docker(self):
+        self.assert_needs_only_docker(self.job_running('make integration-test'))
 
 
 class ResolveAppIdentityTestCase(TestCase):
@@ -171,13 +174,45 @@ class ResolveAppIdentityTestCase(TestCase):
 
 
 class IntegrationContainerTestCase(TestCase):
-    """The integration-test container runs Django's debug server, so only this machine may reach it."""
+    """The containers of docker/compose.yml run Django's debug server and a test database, so no other machine may reach them."""
 
-    def test_container_port_is_published_on_localhost_only(self):
+    def setUp(self):
+        with open(os.path.join(settings.BASE_DIR, 'docker', 'compose.yml')) as f:
+            self.services = yaml.safe_load(f)['services']
+
+    def test_only_the_dev_server_publishes_a_port(self):
+        self.assertEqual(['serve'], sorted(name for name, service in self.services.items() if service.get('ports')))
+
+    def test_the_dev_server_is_published_on_localhost_only(self):
+        for port in self.services['serve']['ports']:
+            self.assertTrue(str(port).startswith('127.0.0.1:'), port)
+
+    def test_the_dev_server_serves_the_checkout_and_keeps_build_in_its_volume(self):
+        # runserver reloads on the developer's edits, as it did on the host
+        volumes = self.services['serve']['volumes']
+        self.assertIn('..:/srv/appstore', volumes)
+        self.assertIn('dev-build:/srv/appstore/build', volumes)
+
+    def test_an_empty_sql_mode_is_kept(self):
+        # ${VAR-default}: prod's sql_mode may be '', which ${VAR:-default} would replace
+        with open(os.path.join(settings.BASE_DIR, 'docker', 'compose.yml')) as f:
+            command = yaml.safe_load(f)['x-mariadb']['command']
+        [sql_mode] = [arg for arg in command if arg.startswith('--sql-mode=')]
+        self.assertTrue(sql_mode.startswith('--sql-mode=${MARIADB_SQL_MODE-'), sql_mode)
+
+    def test_the_suite_runs_without_restarting_the_checked_app(self):
+        # CI's Compose recreated app as e2e's dependency, rerunning entrypoint.sh on a seeded database (#161)
         with open(os.path.join(settings.BASE_DIR, 'docker', 'integration-test.sh')) as f:
-            script = f.read()
-        self.assertIn('-p "127.0.0.1:$PORT:8000"', script)
-        self.assertNotIn('-p "$PORT:8000"', script)
+            runs = [line for line in f if ' run ' in line and 'e2e' in line]
+        self.assertTrue(runs)
+        for line in runs:
+            self.assertIn('--no-deps', line)
+
+    def test_the_browser_reaches_the_app_on_its_own_localhost(self):
+        # a secure context, where the copy buttons and the fake CyRest work as they do for users
+        e2e = self.services['e2e']
+        self.assertEqual('service:app', e2e['network_mode'])
+        self.assertTrue(e2e['environment']['APPSTORE_URL'].startswith('http://localhost:'))
 
 
 class AppVersionTestCase(TestCase):

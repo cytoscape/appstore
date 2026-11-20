@@ -466,6 +466,11 @@ class OrderedAuthor(models.Model):
 
     class Meta:
         ordering = ["author_order"]
+        constraints = [
+            # an author once per platform of an app (#160); not enforced for the app's own (Desktop's)
+            # authors, whose platform is null, which _save_authors keeps once
+            models.UniqueConstraint(fields=['app', 'author', 'platform'], name='unique_app_author_platform'),
+        ]
 
 
 # The content fields an app keeps per platform, besides its categories, screenshots and authors

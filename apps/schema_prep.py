@@ -9,6 +9,13 @@ The production database predates Django's InnoDB and utf8 defaults:
 - Some of its id columns are int, from before Django's bigint ids, while the migrations record
   them as bigint. A migration sizes a new foreign key column from that record, so a bigint
   column referencing an int id fails with the same errno 150 (prod's apps_tag.id, #155).
+- apps_orderedauthor began as the apps_app_authors table of App.authors, and kept that table's
+  unique key on (app_id, author_id), which no migration records. Since an app's platforms each
+  have their own authors (#155), that key refuses an author listed on two of an app's platforms,
+  so saving one gave a 500 (#160).
+- The migration adding the unique constraint that replaces it, one author link per platform of an
+  app, fails while any link repeats another's app, author and platform (possible on a database
+  without the old key).
 
 prepare_schema() fixes these before every migrate (it is connected to pre_migrate). It changes
 nothing on other databases, on a database that is already right, or for tables that do not
@@ -30,6 +37,21 @@ BIGINT_COLUMNS = (
     ('apps_app_tags', 'tag_id', 'BIGINT NOT NULL'),
 )
 
+# Unique keys that no migration records and that the models no longer allow, dropped: an app's
+# author once per platform, not once in all (#160). MariaDB won't drop the only index a foreign key
+# can use, so where no other index starts with the key's first column, one is added first.
+OBSOLETE_UNIQUE_KEYS = (
+    ('apps_orderedauthor', ('app_id', 'author_id')),
+)
+
+# Author links that repeat an earlier link's app, author and platform, as the database compares them:
+# the unique constraint unique_app_author_platform (#160) can't be added while any exist. Prod has
+# none (the old key above allowed none), but a database without that key can, from after #156.
+# Keeps the first (lowest id) of each.
+_REPEATED_AUTHOR_LINKS = ('`apps_orderedauthor` a JOIN `apps_orderedauthor` b ON a.app_id = b.app_id '
+                          'AND a.author_id = b.author_id AND a.platform <=> b.platform AND a.id > b.id')
+DELETE_REPEATED_AUTHOR_LINKS = 'DELETE a FROM ' + _REPEATED_AUTHOR_LINKS
+
 CHARSET = 'utf8'
 COLLATION = 'utf8_general_ci'
 
@@ -40,11 +62,22 @@ def _value(cursor, sql, params=()):
     return row[0] if row else None
 
 
+def _indexes(cursor, table):
+    """'table's indexes but its primary key, by name: (whether it is unique, its columns in order)."""
+    cursor.execute('SELECT INDEX_NAME, COLUMN_NAME, NON_UNIQUE FROM information_schema.STATISTICS '
+                   "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME <> 'PRIMARY' "
+                   'ORDER BY INDEX_NAME, SEQ_IN_INDEX', (table,))
+    indexes = {}
+    for name, column, non_unique in cursor.fetchall():
+        indexes.setdefault(name, (not int(non_unique), []))[1].append(column)
+    return {name: (unique, tuple(columns)) for name, (unique, columns) in indexes.items()}
+
+
 def prepare_schema(connection):
     """
     Converts INNODB_TABLES that are MyISAM to InnoDB, widens BIGINT_COLUMNS that are int to
-    bigint, and makes the database's default character set utf8 if it is latin1. Returns the
-    statements it ran.
+    bigint, drops OBSOLETE_UNIQUE_KEYS, deletes repeated author links (DELETE_REPEATED_AUTHOR_LINKS),
+    and makes the database's default character set utf8 if it is latin1. Returns the statements it ran.
     """
     if connection.vendor != 'mysql':
         return []
@@ -65,10 +98,33 @@ def prepare_schema(connection):
                                (table, column))
             if data_type and data_type.lower() == 'int':
                 statements.append('ALTER TABLE `%s` MODIFY `%s` %s' % (table, column, definition))
+        for table, columns in OBSOLETE_UNIQUE_KEYS:
+            indexes = _indexes(cursor, table)
+            obsolete = sorted(name for name, (unique, key_columns) in indexes.items()
+                              if unique and key_columns == columns)
+            if obsolete and not any(key_columns[0] == columns[0] for name, (_, key_columns) in indexes.items()
+                                    if name not in obsolete):
+                statements.append('ALTER TABLE `%s` ADD INDEX `%s` (`%s`)'
+                                  % (table, _unused_index_name(indexes, '%s_%s' % (table, columns[0])), columns[0]))
+            for name in obsolete:
+                statements.append('ALTER TABLE `%s` DROP INDEX `%s`' % (table, name))
+        if _value(cursor, 'SELECT ENGINE FROM information_schema.TABLES '
+                          'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s', ('apps_orderedauthor',)) \
+                and _value(cursor, 'SELECT COUNT(*) FROM ' + _REPEATED_AUTHOR_LINKS):
+            statements.append(DELETE_REPEATED_AUTHOR_LINKS)
         for statement in statements:
             logger.warning('Preparing the database for migrations: %s', statement)
             cursor.execute(statement)
     return statements
+
+
+def _unused_index_name(indexes, name):
+    """'name', or 'name_2', 'name_3', ...: the first that isn't one of the table's 'indexes'."""
+    candidate, n = name, 1
+    while candidate in indexes:
+        n += 1
+        candidate = '%s_%d' % (name, n)
+    return candidate
 
 
 def prepare_schema_before_migrate(sender, using, **kwargs):
