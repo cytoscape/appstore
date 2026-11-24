@@ -2,7 +2,7 @@
 History
 =======
 
-2.1.1 (unreleased)
+2.1.1 (2026-11-24)
 ---------------------
 
 * An author can be added to an app's page for one platform (Cytoscape Desktop, Web or Service)
@@ -24,6 +24,9 @@ History
   * Before applying it, ``migrate`` prints::
 
         Prepared the database: ALTER TABLE `apps_orderedauthor` DROP INDEX `app_id`
+
+    A server that prints logged warnings to the console also shows the same statement just above
+    it, as ``Preparing the database for migrations: ALTER TABLE ...``.
 
     That removes an old unique key, which only older databases (such as apps.cytoscape.org's)
     have, and which caused the error above. Where an author is linked twice to the same platform of
