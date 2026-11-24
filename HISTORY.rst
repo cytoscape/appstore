@@ -2,6 +2,48 @@
 History
 =======
 
+2.1.1 (2026-11-24)
+---------------------
+
+* An author can be added to an app's page for one platform (Cytoscape Desktop, Web or Service)
+  while also being listed on its page for another platform. Saving failed with a server error.
+  `Issue #160 <https://github.com/cytoscape/appstore/issues/160>`_
+
+* **Deploying:** this release changes the database. The runbook's usual steps apply it:
+
+  * ``python manage.py makemigrations --dry-run`` lists, under ``Migrations for 'apps':``::
+
+        - Create constraint unique_app_author_platform on model orderedauthor
+
+    Run ``python manage.py makemigrations``.
+
+  * ``python manage.py migrate --plan`` lists ``apps.<NNNN>_orderedauthor_unique_app_author_platform``
+    with the same line. ``<NNNN>`` is the server's next ``apps`` migration number. Run
+    ``python manage.py migrate``.
+
+  * Before applying it, ``migrate`` prints::
+
+        Prepared the database: ALTER TABLE `apps_orderedauthor` DROP INDEX `app_id`
+
+    A server that prints logged warnings to the console also shows the same statement just above
+    it, as ``Preparing the database for migrations: ALTER TABLE ...``.
+
+    That removes an old unique key, which only older databases (such as apps.cytoscape.org's)
+    have, and which caused the error above. Where an author is linked twice to the same platform of
+    an app, it also prints a ``Prepared the database: DELETE ...`` line, keeping one link. It then
+    prints ``Applying apps.<NNNN>_orderedauthor_unique_app_author_platform... OK``.
+
+  * If ``migrate`` stops with an error while applying the migration, the new constraint isn't
+    created and the migration isn't recorded as applied. The old key may already be removed, which
+    is safe on its own: the site works without it, and the error above is fixed. Running ``migrate``
+    again is safe and continues where it stopped. Or restore the pre-deploy snapshot with the
+    runbook's rollback script.
+
+  * If ``migrate`` stopped after creating the constraint but before recording the migration (if,
+    for example, it was interrupted), running it again stops with
+    ``Duplicate key name 'unique_app_author_platform'``. Restore the pre-deploy snapshot with the
+    runbook's rollback script, then deploy again.
+
 2.1.0 (2026-11-05)
 ---------------------
 

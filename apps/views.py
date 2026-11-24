@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
+from django.db import transaction
 from django.db.models import Q
 from util.view_util import json_response, html_response, obj_to_dict, get_object_or_none
 from util.img_util import scale_img
@@ -498,6 +499,8 @@ def _save_editors(app, request):
             raise ValueError('invalid username: ' + username)
         app.editors.add(user)
 
+# one transaction: a save that fails part-way keeps the platform's authors as they were
+@transaction.atomic
 def _save_authors(app, request):
     authors_count = request.POST.get('authors_count')
     if not authors_count:
@@ -520,10 +523,19 @@ def _save_authors(app, request):
 
     # replaces only this platform's authors; the other platforms keep theirs
     platform = _own_platform(_content_target(app, request))
+    # two saves of one app's authors at once run one after the other: interleaved, both would
+    # delete then both insert, and Desktop's links (platform null) aren't covered by the constraint
+    App.objects.select_for_update().filter(pk = app.pk).first()
     OrderedAuthor.objects.filter(app = app, platform = platform).delete()
-    for name, institution, author_order in authors:
+    # an author once: rows the database matches to the same Author (the same name twice, or in
+    # other capitals under its collation) keep the first one's place (#160)
+    linked = []
+    for name, institution, _ in authors:
         author, _ = Author.objects.get_or_create(name = name, institution = institution)
-        OrderedAuthor.objects.create(app = app, platform = platform, author = author, author_order = author_order)
+        if author.id in linked:
+            continue
+        OrderedAuthor.objects.create(app = app, platform = platform, author = author, author_order = len(linked))
+        linked.append(author.id)
 
 def _posted_platform_releases(app, request):
     """
